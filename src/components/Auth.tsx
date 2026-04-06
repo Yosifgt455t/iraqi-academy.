@@ -244,7 +244,7 @@ export default function Auth() {
                     <input
                       type="text"
                       required
-                      placeholder="مثال: علي أحمد"
+                      placeholder="مثال: حسن فالح"
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
