@@ -72,5 +72,5 @@ export default function App() {
     return <GradeSelector userId={session.user.id} onComplete={setGrade} />;
   }
 
-  return <Dashboard user={session.user} grade={grade} />;
+  return <Dashboard user={session.user} grade={grade} onChangeGrade={() => setGrade(null)} />;
 }

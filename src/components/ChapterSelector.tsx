@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Chapter, Subject } from '../types';
-import { ListChecks, Loader2, ChevronLeft } from 'lucide-react';
+import { ListChecks, Loader2, ChevronLeft, Sparkles } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface Props {
   subject: Subject;
@@ -26,10 +27,7 @@ export default function ChapterSelector({ subject, onSelect }: Props) {
         setChapters(data || []);
       } catch (err) {
         console.error('Error fetching chapters:', err);
-        setChapters([
-          { id: 'c1', subject_id: subject.id, name: 'الفصل الأول: المتسعات', order_index: 1 },
-          { id: 'c2', subject_id: subject.id, name: 'الفصل الثاني: الحث الكهرومغناطيسي', order_index: 2 },
-        ]);
+        setChapters([]);
       } finally {
         setLoading(false);
       }
@@ -38,6 +36,24 @@ export default function ChapterSelector({ subject, onSelect }: Props) {
   }, [subject]);
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
+
+  if (chapters.length === 0) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 space-y-4"
+      >
+        <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+          <Sparkles size={32} />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-xl font-bold text-slate-900">سيتم إضافة الفصول قريباً</h3>
+          <p className="text-slate-500 text-sm">نحن نعمل على تجهيز المنهج الكامل لهذه المادة.</p>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <div className="space-y-6">

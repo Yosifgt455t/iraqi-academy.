@@ -1,8 +1,14 @@
-export type Grade = '5th' | '6th';
+export type Grade = 
+  | 'primary_1' | 'primary_2' | 'primary_3' | 'primary_4' | 'primary_5' | 'primary_6'
+  | 'middle_1' | 'middle_2' | 'middle_3'
+  | 'secondary_4_sci' | 'secondary_4_lit'
+  | 'secondary_5_sci' | 'secondary_5_lit'
+  | 'secondary_6_sci' | 'secondary_6_lit';
 
 export interface Profile {
   id: string;
   email: string;
+  full_name?: string;
   grade: Grade | null;
   completed_materials?: string[];
 }
@@ -25,7 +31,7 @@ export interface Material {
   id: string;
   chapter_id: string;
   title: string;
-  type: 'PDF' | 'Video';
+  type: 'PDF' | 'Video' | 'Ministerial';
   url: string;
 }
 

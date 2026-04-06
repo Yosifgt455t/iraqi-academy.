@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Subject, Grade } from '../types';
-import { Book, Atom, Calculator, FlaskConical, Languages, Loader2, ChevronLeft } from 'lucide-react';
+import { Book, Atom, Calculator, FlaskConical, Languages, Loader2, ChevronLeft, Sparkles } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface Props {
   grade: Grade;
@@ -33,12 +34,7 @@ export default function SubjectSelector({ grade, onSelect }: Props) {
         setSubjects(data || []);
       } catch (err) {
         console.error('Error fetching subjects:', err);
-        // Mock for safety
-        setSubjects([
-          { id: '1', name: 'الفيزياء', grade },
-          { id: '2', name: 'الرياضيات', grade },
-          { id: '3', name: 'الكيمياء', grade },
-        ]);
+        setSubjects([]);
       } finally {
         setLoading(false);
       }
@@ -47,6 +43,26 @@ export default function SubjectSelector({ grade, onSelect }: Props) {
   }, [grade]);
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
+
+  if (subjects.length === 0) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center py-20 px-6 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-6"
+      >
+        <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+          <Sparkles size={40} />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-2xl font-bold text-slate-900">سيتم إضافة المواد قريباً</h3>
+          <p className="text-slate-500 max-w-md mx-auto">
+            نحن نعمل حالياً على تجهيز أفضل المصادر التعليمية لهذا الصف الدراسي. ترقبونا قريباً!
+          </p>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <div className="space-y-6">

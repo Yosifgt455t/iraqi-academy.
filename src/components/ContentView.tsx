@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Material, Flashcard, Chapter } from '../types';
-import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle } from 'lucide-react';
+import { Material, Flashcard, Chapter, Grade } from '../types';
+import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Props {
   chapter: Chapter;
   userId: string;
+  grade: Grade;
 }
 
-export default function ContentView({ chapter, userId }: Props) {
+export default function ContentView({ chapter, userId, grade }: Props) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'materials' | 'flashcards'>('materials');
+  const [activeTab, setActiveTab] = useState<'materials' | 'flashcards' | 'ministerial'>('materials');
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
+
+  const isMinisterialGrade = ['primary_6', 'middle_3', 'secondary_6_sci', 'secondary_6_lit'].includes(grade);
   
   // Flashcard state
   const [cardIndex, setCardIndex] = useState(0);
@@ -37,15 +40,8 @@ export default function ContentView({ chapter, userId }: Props) {
         setCompletedIds(pRes.data?.completed_materials || []);
       } catch (err) {
         console.error('Error fetching content:', err);
-        // Mock
-        setMaterials([
-          { id: 'm1', chapter_id: chapter.id, title: 'ملزمة الفصل كاملة', type: 'PDF', url: '#' },
-          { id: 'm2', chapter_id: chapter.id, title: 'محاضرة 1: الأساسيات', type: 'Video', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-        ]);
-        setFlashcards([
-          { id: 'f1', chapter_id: chapter.id, question: 'ما هو تعريف المتسعة؟', answer: 'جهاز لتخزين الشحنات.' },
-          { id: 'f2', chapter_id: chapter.id, question: 'سؤال تجريبي آخر؟', answer: 'جواب تجريبي.' }
-        ]);
+        setMaterials([]);
+        setFlashcards([]);
       } finally {
         setLoading(false);
       }
@@ -92,18 +88,28 @@ export default function ContentView({ chapter, userId }: Props) {
 
   return (
     <div className="space-y-8">
-      <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm max-w-sm mx-auto">
+      <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm max-w-md mx-auto overflow-x-auto">
         <button
           onClick={() => setActiveTab('materials')}
-          className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+          className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'materials' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
           المصادر والمحاضرات
         </button>
+        {isMinisterialGrade && (
+          <button
+            onClick={() => setActiveTab('ministerial')}
+            className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+              activeTab === 'ministerial' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            الأسئلة الوزارية
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('flashcards')}
-          className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+          className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'flashcards' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
@@ -118,53 +124,120 @@ export default function ContentView({ chapter, userId }: Props) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            className="space-y-4"
           >
-            {materials.map((m) => {
-              const isCompleted = completedIds.includes(m.id);
-              return (
-                <div key={m.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 space-x-reverse relative group">
-                  <button
-                    onClick={() => toggleCompletion(m.id)}
-                    className={`absolute -top-2 -left-2 p-1.5 rounded-full shadow-md transition-all z-10 ${
-                      isCompleted ? 'bg-green-500 text-white' : 'bg-white text-slate-300 hover:text-green-500'
-                    }`}
-                    title={isCompleted ? 'تم الإكمال' : 'تحديد كمكتمل'}
-                  >
-                    <CheckCircle size={16} />
-                  </button>
-                  
-                  <div className={`p-4 rounded-xl transition-colors ${
-                    isCompleted 
-                      ? 'bg-green-50 text-green-600' 
-                      : m.type === 'PDF' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
-                  }`}>
-                    {m.type === 'PDF' ? <FileText size={24} /> : <Play size={24} />}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className={`font-bold transition-colors ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                      {m.title}
-                    </h4>
-                    <p className="text-xs text-slate-500">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
-                  </div>
-                  {m.type === 'PDF' ? (
-                    <button
-                      onClick={() => setSelectedPdf(m.url)}
-                      className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    >
-                      <ExternalLink size={20} />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setSelectedVideo(getEmbedUrl(m.url))}
-                      className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    >
-                      <Play size={20} />
-                    </button>
-                  )}
+            {materials.filter(m => m.type !== 'Ministerial').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {materials.filter(m => m.type !== 'Ministerial').map((m) => {
+                  const isCompleted = completedIds.includes(m.id);
+                  return (
+                    <div key={m.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 space-x-reverse relative group">
+                      <button
+                        onClick={() => toggleCompletion(m.id)}
+                        className={`absolute -top-2 -left-2 p-1.5 rounded-full shadow-md transition-all z-10 ${
+                          isCompleted ? 'bg-green-500 text-white' : 'bg-white text-slate-300 hover:text-green-500'
+                        }`}
+                        title={isCompleted ? 'تم الإكمال' : 'تحديد كمكتمل'}
+                      >
+                        <CheckCircle size={16} />
+                      </button>
+                      
+                      <div className={`p-4 rounded-xl transition-colors ${
+                        isCompleted 
+                          ? 'bg-green-50 text-green-600' 
+                          : m.type === 'PDF' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+                      }`}>
+                        {m.type === 'PDF' ? <FileText size={24} /> : <Play size={24} />}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className={`font-bold transition-colors ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                          {m.title}
+                        </h4>
+                        <p className="text-xs text-slate-500">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
+                      </div>
+                      {m.type === 'PDF' ? (
+                        <button
+                          onClick={() => setSelectedPdf(m.url)}
+                          className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        >
+                          <ExternalLink size={20} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setSelectedVideo(getEmbedUrl(m.url))}
+                          className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        >
+                          <Play size={20} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 space-y-4"
+              >
+                <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+                  <Sparkles size={32} />
                 </div>
-              );
-            })}
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-slate-900">سيتم إضافة المحاضرات والامتحانات قريباً</h3>
+                  <p className="text-slate-500 text-sm">انتظرونا، نحن نعمل على توفير أفضل المحتويات التعليمية لك.</p>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        ) : activeTab === 'ministerial' ? (
+          <motion.div
+            key="ministerial"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-4"
+          >
+            {materials.filter(m => m.type === 'Ministerial').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {materials.filter(m => m.type === 'Ministerial').map((m) => {
+                  const isCompleted = completedIds.includes(m.id);
+                  return (
+                    <div key={m.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 space-x-reverse relative group">
+                      <div className="p-4 rounded-xl bg-purple-50 text-purple-600">
+                        <Award size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-slate-900">
+                          {m.title}
+                        </h4>
+                        <p className="text-xs text-slate-500">أسئلة وزارية مع الحلول</p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedPdf(m.url)}
+                        className="p-2 bg-slate-50 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                      >
+                        <ExternalLink size={20} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 space-y-4"
+              >
+                <div className="w-16 h-16 bg-purple-50 text-purple-500 rounded-full flex items-center justify-center mx-auto">
+                  <Award size={32} />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-slate-900">سيتم إضافة الأسئلة الوزارية قريباً</h3>
+                  <p className="text-slate-500 text-sm">نحن نجمع لك كافة الأسئلة الوزارية للسنوات السابقة مع حلولها النموذجية.</p>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         ) : (
           <motion.div
@@ -206,7 +279,19 @@ export default function ContentView({ chapter, userId }: Props) {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12 text-slate-500">لا توجد اختبارات لهذا الفصل حالياً.</div>
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 space-y-4"
+              >
+                <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+                  <Sparkles size={32} />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-slate-900">سيتم إضافة المحاضرات والامتحانات قريباً</h3>
+                  <p className="text-slate-500 text-sm">انتظرونا، نحن نعمل على توفير أفضل المحتويات التعليمية لك.</p>
+                </div>
+              </motion.div>
             )}
           </motion.div>
         )}
