@@ -6,34 +6,44 @@ import { motion } from 'motion/react';
 
 interface Props {
   subject: Subject;
+  userId: string;
   onSelect: (chapter: Chapter) => void;
 }
 
-export default function ChapterSelector({ subject, onSelect }: Props) {
+export default function ChapterSelector({ subject, userId, onSelect }: Props) {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completedMaterials, setCompletedMaterials] = useState<string[]>([]);
+  const [allMaterials, setAllMaterials] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchChapters = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('chapters')
-          .select('*')
-          .eq('subject_id', subject.id)
-          .order('order_index', { ascending: true });
+        const [chaptersRes, materialsRes, profileRes] = await Promise.all([
+          supabase.from('chapters').select('*').eq('subject_id', subject.id).order('order_index', { ascending: true }),
+          supabase.from('materials').select('id, chapter_id'),
+          supabase.from('profiles').select('completed_materials').eq('id', userId).single()
+        ]);
         
-        if (error) throw error;
-        setChapters(data || []);
+        setChapters(chaptersRes.data || []);
+        setAllMaterials(materialsRes.data || []);
+        setCompletedMaterials(profileRes.data?.completed_materials || []);
       } catch (err) {
-        console.error('Error fetching chapters:', err);
-        setChapters([]);
+        console.error('Error fetching chapter data:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchChapters();
-  }, [subject]);
+    fetchData();
+  }, [subject, userId]);
+
+  const getChapterProgress = (chapterId: string) => {
+    const chapterMaterials = allMaterials.filter(m => m.chapter_id === chapterId);
+    if (chapterMaterials.length === 0) return 0;
+    const completedInChapter = chapterMaterials.filter(m => completedMaterials.includes(m.id)).length;
+    return Math.round((completedInChapter / chapterMaterials.length) * 100);
+  };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
@@ -62,19 +72,36 @@ export default function ChapterSelector({ subject, onSelect }: Props) {
         <p className="text-slate-500">اختر الفصل الذي تريد دراسته</p>
       </div>
       <div className="space-y-3">
-        {chapters.map((chapter) => (
-          <button
-            key={chapter.id}
-            onClick={() => onSelect(chapter)}
-            className="w-full flex items-center p-5 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-blue-500 hover:bg-blue-50/30 transition-all group text-right"
-          >
-            <div className="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center ml-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors font-bold">
-              {chapter.order_index}
-            </div>
-            <span className="flex-1 text-lg font-medium text-slate-800">{chapter.name}</span>
-            <ChevronLeft className="text-slate-300 group-hover:text-blue-500" />
-          </button>
-        ))}
+        {chapters.map((chapter) => {
+          const progress = getChapterProgress(chapter.id);
+          return (
+            <button
+              key={chapter.id}
+              onClick={() => onSelect(chapter)}
+              className="w-full flex flex-col p-5 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-blue-500 hover:bg-blue-50/30 transition-all group text-right"
+            >
+              <div className="flex items-center w-full mb-3">
+                <div className="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center ml-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors font-bold">
+                  {chapter.order_index}
+                </div>
+                <span className="flex-1 text-lg font-medium text-slate-800">{chapter.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${progress === 100 ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                    {progress}%
+                  </span>
+                  <ChevronLeft className="text-slate-300 group-hover:text-blue-500" />
+                </div>
+              </div>
+              <div className="w-full h-1.5 bg-slate-50 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  className={`h-full rounded-full ${progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                />
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

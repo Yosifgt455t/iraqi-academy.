@@ -98,7 +98,7 @@ export default function Auth() {
             <div className="space-y-4">
               <h1 className="text-4xl font-bold text-slate-900 tracking-tight">أهلاً بك في عراقي أكاديمي</h1>
               <p className="text-lg text-slate-600 leading-relaxed">
-                منصتك التعليمية الأولى للتفوق والنجاح في السادس والخامس العلمي.
+                منصتك التعليمية الأولى للتفوق والنجاح في كافة المراحل الدراسية.
               </p>
             </div>
             <button

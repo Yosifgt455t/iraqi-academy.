@@ -1,17 +1,24 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Grade, Subject, Chapter } from '../types';
+import { motion } from 'motion/react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   LogOut, 
-  GraduationCap,
-  ChevronRight,
-  Home,
-  ArrowRight,
-  Settings
+  GraduationCap, 
+  ChevronRight, 
+  Home, 
+  ArrowRight, 
+  Settings, 
+  Sparkles,
+  Calendar,
+  Trash2
 } from 'lucide-react';
 import SubjectSelector from './SubjectSelector';
 import ChapterSelector from './ChapterSelector';
 import ContentView from './ContentView';
+import AITutor from './AITutor';
 
 interface Props {
   user: any;
@@ -43,6 +50,22 @@ const getGradeName = (grade: Grade) => {
 export default function Dashboard({ user, grade, onChangeGrade }: Props) {
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
+  const [showAITutor, setShowAITutor] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState<string | undefined>(undefined);
+  const [pinnedSchedule, setPinnedSchedule] = useState<string | null>(() => {
+    return localStorage.getItem(`schedule_${user.id}`);
+  });
+
+  const handlePinSchedule = (schedule: string) => {
+    setPinnedSchedule(schedule);
+    localStorage.setItem(`schedule_${user.id}`, schedule);
+    setShowAITutor(false);
+  };
+
+  const handleRemoveSchedule = () => {
+    setPinnedSchedule(null);
+    localStorage.removeItem(`schedule_${user.id}`);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -121,17 +144,71 @@ export default function Dashboard({ user, grade, onChangeGrade }: Props) {
           <div className="space-y-8">
             <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
               <div className="relative z-10">
-                <h2 className="text-3xl font-bold mb-2">أهلاً بك يا بطل!</h2>
+                <h2 className="text-3xl font-bold mb-2">أهلاً بك يا {user.user_metadata?.full_name?.split(' ')[0] || 'بطل'}!</h2>
                 <p className="opacity-90">اختر المادة التي تود دراستها اليوم وابدأ رحلة النجاح.</p>
               </div>
               <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
             </div>
-            <SubjectSelector grade={grade} onSelect={setCurrentSubject} />
+
+            {/* Pinned Schedule */}
+            {pinnedSchedule && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden"
+              >
+                <div className="bg-blue-50 px-6 py-4 border-b border-blue-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-blue-700 font-bold">
+                    <Calendar size={20} />
+                    <span>جدولي الدراسي المثبت</span>
+                  </div>
+                  <button 
+                    onClick={handleRemoveSchedule}
+                    className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                    title="حذف الجدول"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+                <div className="p-6 overflow-x-auto">
+                  <div className="prose prose-sm max-w-none prose-slate">
+                    <Markdown remarkPlugins={[remarkGfm]}>{pinnedSchedule}</Markdown>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* AI Tutor Card */}
+            <button 
+              onClick={() => setShowAITutor(true)}
+              className="w-full bg-white p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex items-center gap-4 text-right group"
+            >
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <Sparkles size={28} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-slate-900">المساعد الذكي (AI)</h3>
+                <p className="text-sm text-slate-500">ترتيب جدول دراسي، تلخيص، أو إجابة على أسئلتك</p>
+              </div>
+              <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
+                <ChevronRight size={20} className="rotate-180" />
+              </div>
+            </button>
+
+            <SubjectSelector grade={grade} userId={user.id} onSelect={setCurrentSubject} />
           </div>
         ) : !currentChapter ? (
-          <ChapterSelector subject={currentSubject} onSelect={setCurrentChapter} />
+          <ChapterSelector subject={currentSubject} userId={user.id} onSelect={setCurrentChapter} />
         ) : (
-          <ContentView chapter={currentChapter} userId={user.id} grade={grade} />
+          <ContentView 
+            chapter={currentChapter} 
+            userId={user.id} 
+            grade={grade} 
+            onAskAI={(prompt) => {
+              setAiPrompt(prompt);
+              setShowAITutor(true);
+            }}
+          />
         )}
       </main>
 
@@ -143,6 +220,32 @@ export default function Dashboard({ user, grade, onChangeGrade }: Props) {
         >
           <Home size={24} />
         </button>
+      )}
+      {/* Floating AI Button */}
+      {!showAITutor && (
+        <button
+          onClick={() => setShowAITutor(true)}
+          className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group"
+        >
+          <Sparkles size={24} />
+          <span className="absolute right-full mr-3 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            المساعد الذكي
+          </span>
+        </button>
+      )}
+
+      {/* AI Tutor Modal */}
+      {showAITutor && (
+        <AITutor 
+          grade={getGradeName(grade)} 
+          userName={user.user_metadata?.full_name?.split(' ')[0] || 'بطل'} 
+          onClose={() => {
+            setShowAITutor(false);
+            setAiPrompt(undefined);
+          }} 
+          onPinSchedule={handlePinSchedule}
+          initialPrompt={aiPrompt}
+        />
       )}
     </div>
   );

@@ -8,9 +8,10 @@ interface Props {
   chapter: Chapter;
   userId: string;
   grade: Grade;
+  onAskAI?: (prompt: string) => void;
 }
 
-export default function ContentView({ chapter, userId, grade }: Props) {
+export default function ContentView({ chapter, userId, grade, onAskAI }: Props) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
@@ -18,8 +19,18 @@ export default function ContentView({ chapter, userId, grade }: Props) {
   const [activeTab, setActiveTab] = useState<'materials' | 'flashcards' | 'ministerial'>('materials');
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_completed'));
 
   const isMinisterialGrade = ['primary_6', 'middle_3', 'secondary_6_sci', 'secondary_6_lit'].includes(grade);
+  
+  const chapterProgress = materials.length > 0 
+    ? Math.round((materials.filter(m => completedIds.includes(m.id)).length / materials.length) * 100)
+    : 0;
+
+  const closeTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem('tutorial_completed', 'true');
+  };
   
   // Flashcard state
   const [cardIndex, setCardIndex] = useState(0);
@@ -88,6 +99,42 @@ export default function ContentView({ chapter, userId, grade }: Props) {
 
   return (
     <div className="space-y-8">
+      {/* Chapter Progress Header */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center gap-6">
+        <div className="relative w-20 h-20 flex-shrink-0">
+          <svg className="w-full h-full transform -rotate-90">
+            <circle
+              cx="40"
+              cy="40"
+              r="36"
+              stroke="currentColor"
+              strokeWidth="8"
+              fill="transparent"
+              className="text-slate-100"
+            />
+            <motion.circle
+              cx="40"
+              cy="40"
+              r="36"
+              stroke="currentColor"
+              strokeWidth="8"
+              fill="transparent"
+              strokeDasharray={226.2}
+              initial={{ strokeDashoffset: 226.2 }}
+              animate={{ strokeDashoffset: 226.2 - (226.2 * chapterProgress) / 100 }}
+              className="text-blue-600"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center font-bold text-slate-900">
+            {chapterProgress}%
+          </div>
+        </div>
+        <div className="flex-1 text-center sm:text-right">
+          <h2 className="text-xl font-bold text-slate-900">تقدمك في {chapter.name}</h2>
+          <p className="text-slate-500 text-sm">أكمل كافة المحاضرات والمصادر لإنهاء الفصل بنسبة 100%</p>
+        </div>
+      </div>
+
       <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm max-w-md mx-auto overflow-x-auto">
         <button
           onClick={() => setActiveTab('materials')}
@@ -156,12 +203,23 @@ export default function ContentView({ chapter, userId, grade }: Props) {
                         <p className="text-xs text-slate-500">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
                       </div>
                       {m.type === 'PDF' ? (
-                        <button
-                          onClick={() => setSelectedPdf(m.url)}
-                          className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                        >
-                          <ExternalLink size={20} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {onAskAI && (
+                            <button
+                              onClick={() => onAskAI(`اشرح لي محتوى هذا الملف: ${m.title} في فصل ${chapter.name}`)}
+                              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                              title="اشرح لي بالذكاء الاصطناعي"
+                            >
+                              <Sparkles size={20} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setSelectedPdf(m.url)}
+                            className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          >
+                            <ExternalLink size={20} />
+                          </button>
+                        </div>
                       ) : (
                         <button
                           onClick={() => setSelectedVideo(getEmbedUrl(m.url))}
@@ -274,7 +332,18 @@ export default function ContentView({ chapter, userId, grade }: Props) {
                 </div>
                 <div className="flex items-center justify-between">
                   <button onClick={() => { setIsFlipped(false); setCardIndex((p) => (p - 1 + flashcards.length) % flashcards.length); }} className="p-3 bg-white rounded-full shadow-sm hover:bg-slate-50"><ChevronRight /></button>
-                  <span className="text-sm font-bold text-slate-500">{cardIndex + 1} / {flashcards.length}</span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-bold text-slate-500">{cardIndex + 1} / {flashcards.length}</span>
+                    {onAskAI && (
+                      <button
+                        onClick={() => onAskAI(`اشرح لي هذا السؤال من فضلك: ${flashcards[cardIndex].question} وجوابه هو: ${flashcards[cardIndex].answer}`)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                      >
+                        <Sparkles size={16} />
+                        اشرح لي
+                      </button>
+                    )}
+                  </div>
                   <button onClick={() => { setIsFlipped(false); setCardIndex((p) => (p + 1) % flashcards.length); }} className="p-3 bg-white rounded-full shadow-sm hover:bg-slate-50"><ChevronLeft /></button>
                 </div>
               </div>
@@ -293,6 +362,40 @@ export default function ContentView({ chapter, userId, grade }: Props) {
                 </div>
               </motion.div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Tutorial Overlay */}
+      <AnimatePresence>
+        {showTutorial && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white w-full max-w-md rounded-[2.5rem] p-8 text-center space-y-6 shadow-2xl"
+            >
+              <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 size={40} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-slate-900">كيف تتابع تقدمك؟</h3>
+                <p className="text-slate-500 leading-relaxed">
+                  عند إكمال أي محاضرة أو قراءة ملزمة، اضغط على علامة الصح <span className="inline-flex items-center justify-center w-6 h-6 bg-slate-100 text-slate-400 rounded-md mx-1"><CheckCircle2 size={14} /></span> بجانب المادة ليتم احتسابها في نسبة إنجازك.
+                </p>
+              </div>
+              <button 
+                onClick={closeTutorial}
+                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+              >
+                فهمت ذلك، ابدأ الآن
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 
 interface Props {
   grade: Grade;
+  userId: string;
   onSelect: (subject: Subject) => void;
 }
 
@@ -17,30 +18,40 @@ const iconMap: Record<string, any> = {
   'اللغة العربية': Languages,
 };
 
-export default function SubjectSelector({ grade, onSelect }: Props) {
+export default function SubjectSelector({ grade, userId, onSelect }: Props) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completedMaterials, setCompletedMaterials] = useState<string[]>([]);
+  const [allMaterials, setAllMaterials] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchSubjects = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('subjects')
-          .select('*')
-          .eq('grade', grade);
+        const [subjectsRes, materialsRes, profileRes] = await Promise.all([
+          supabase.from('subjects').select('*').eq('grade', grade),
+          supabase.from('materials').select('id, chapter_id, chapters!inner(subject_id)'),
+          supabase.from('profiles').select('completed_materials').eq('id', userId).single()
+        ]);
         
-        if (error) throw error;
-        setSubjects(data || []);
+        setSubjects(subjectsRes.data || []);
+        setAllMaterials(materialsRes.data || []);
+        setCompletedMaterials(profileRes.data?.completed_materials || []);
       } catch (err) {
-        console.error('Error fetching subjects:', err);
-        setSubjects([]);
+        console.error('Error fetching subjects data:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchSubjects();
-  }, [grade]);
+    fetchData();
+  }, [grade, userId]);
+
+  const getSubjectProgress = (subjectId: string) => {
+    const subjectMaterials = allMaterials.filter(m => m.chapters.subject_id === subjectId);
+    if (subjectMaterials.length === 0) return 0;
+    const completedInSubject = subjectMaterials.filter(m => completedMaterials.includes(m.id)).length;
+    return Math.round((completedInSubject / subjectMaterials.length) * 100);
+  };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
@@ -70,20 +81,37 @@ export default function SubjectSelector({ grade, onSelect }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {subjects.map((subject) => {
           const Icon = iconMap[subject.name] || Book;
+          const progress = getSubjectProgress(subject.id);
           return (
             <button
               key={subject.id}
               onClick={() => onSelect(subject)}
-              className="flex items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-blue-500 hover:shadow-md transition-all group text-right"
+              className="flex flex-col p-6 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-blue-500 hover:shadow-md transition-all group text-right"
             >
-              <div className="p-4 bg-blue-50 text-blue-600 rounded-xl ml-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                <Icon size={28} />
+              <div className="flex items-center w-full mb-4">
+                <div className="p-4 bg-blue-50 text-blue-600 rounded-xl ml-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <Icon size={28} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-slate-900">{subject.name}</h3>
+                  <p className="text-sm text-slate-500">تصفح الفصول والمصادر</p>
+                </div>
+                <ChevronLeft className="text-slate-300 group-hover:text-blue-500" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-slate-900">{subject.name}</h3>
-                <p className="text-sm text-slate-500">تصفح الفصول والمصادر</p>
+              
+              <div className="w-full space-y-2">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-blue-600">اكتملت بنسبة {progress}%</span>
+                  <span className="text-slate-400">التقدم الكلي</span>
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    className="h-full bg-blue-600 rounded-full"
+                  />
+                </div>
               </div>
-              <ChevronLeft className="text-slate-300 group-hover:text-blue-500" />
             </button>
           );
         })}
