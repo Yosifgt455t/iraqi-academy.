@@ -306,45 +306,77 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
             className="space-y-8"
           >
             {flashcards.length > 0 ? (
-              <div className="max-w-md mx-auto space-y-6">
-                <div className="relative h-80 perspective-1000">
-                  <motion.div
-                    className="w-full h-full relative preserve-3d cursor-pointer"
-                    animate={{ rotateY: isFlipped ? 180 : 0 }}
-                    transition={{ duration: 0.6, type: 'spring', stiffness: 260, damping: 20 }}
-                    onClick={() => setIsFlipped(!isFlipped)}
-                  >
-                    {/* Front */}
-                    <div className="absolute inset-0 backface-hidden bg-white rounded-3xl p-8 shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center space-y-4">
-                      <HelpCircle size={40} className="text-blue-500" />
-                      <h3 className="text-xl font-bold text-slate-800">{flashcards[cardIndex].question}</h3>
-                      <p className="text-xs text-slate-400">اضغط لقلب البطاقة</p>
-                    </div>
-                    {/* Back */}
-                    <div 
-                      className="absolute inset-0 backface-hidden bg-blue-600 rounded-3xl p-8 shadow-xl flex flex-col items-center justify-center text-center space-y-4 text-white"
-                      style={{ transform: 'rotateY(180deg)' }}
+              <div className="space-y-12">
+                <div className="max-w-md mx-auto space-y-6">
+                  <div className="relative h-80 perspective-1000">
+                    <motion.div
+                      className="w-full h-full relative preserve-3d cursor-pointer"
+                      animate={{ rotateY: isFlipped ? 180 : 0 }}
+                      transition={{ duration: 0.6, type: 'spring', stiffness: 260, damping: 20 }}
+                      onClick={() => setIsFlipped(!isFlipped)}
                     >
-                      <CheckCircle2 size={40} />
-                      <p className="text-lg font-medium leading-relaxed">{flashcards[cardIndex].answer}</p>
-                    </div>
-                  </motion.div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <button onClick={() => { setIsFlipped(false); setCardIndex((p) => (p - 1 + flashcards.length) % flashcards.length); }} className="p-3 bg-white rounded-full shadow-sm hover:bg-slate-50"><ChevronRight /></button>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-bold text-slate-500">{cardIndex + 1} / {flashcards.length}</span>
-                    {onAskAI && (
-                      <button
-                        onClick={() => onAskAI(`اشرح لي هذا السؤال من فضلك: ${flashcards[cardIndex].question} وجوابه هو: ${flashcards[cardIndex].answer}`)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                      {/* Front */}
+                      <div className="absolute inset-0 backface-hidden bg-white rounded-3xl p-8 shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center space-y-4">
+                        <HelpCircle size={40} className="text-blue-500" />
+                        <h3 className="text-xl font-bold text-slate-800">{flashcards[cardIndex].question}</h3>
+                        <p className="text-xs text-slate-400">اضغط لقلب البطاقة</p>
+                      </div>
+                      {/* Back */}
+                      <div 
+                        className="absolute inset-0 backface-hidden bg-blue-600 rounded-3xl p-8 shadow-xl flex flex-col items-center justify-center text-center space-y-4 text-white"
+                        style={{ transform: 'rotateY(180deg)' }}
                       >
-                        <Sparkles size={16} />
-                        اشرح لي
-                      </button>
-                    )}
+                        <CheckCircle2 size={40} />
+                        <p className="text-lg font-medium leading-relaxed">{flashcards[cardIndex].answer}</p>
+                      </div>
+                    </motion.div>
                   </div>
-                  <button onClick={() => { setIsFlipped(false); setCardIndex((p) => (p + 1) % flashcards.length); }} className="p-3 bg-white rounded-full shadow-sm hover:bg-slate-50"><ChevronLeft /></button>
+                  <div className="flex items-center justify-between">
+                    <button onClick={() => { setIsFlipped(false); setCardIndex((p) => (p - 1 + flashcards.length) % flashcards.length); }} className="p-3 bg-white rounded-full shadow-sm hover:bg-slate-50"><ChevronRight /></button>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-bold text-slate-500">{cardIndex + 1} / {flashcards.length}</span>
+                      {onAskAI && (
+                        <button
+                          onClick={() => onAskAI(`اشرح لي هذا السؤال من فضلك: ${flashcards[cardIndex].question} وجوابه هو: ${flashcards[cardIndex].answer}`)}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                        >
+                          <Sparkles size={16} />
+                          اشرح لي
+                        </button>
+                      )}
+                    </div>
+                    <button onClick={() => { setIsFlipped(false); setCardIndex((p) => (p + 1) % flashcards.length); }} className="p-3 bg-white rounded-full shadow-sm hover:bg-slate-50"><ChevronLeft /></button>
+                  </div>
+                </div>
+
+                {/* All Flashcards List */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 px-2">
+                    <BrainCircuit size={20} className="text-blue-600" />
+                    مراجعة كافة البطاقات
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    {flashcards.map((fc, idx) => (
+                      <div key={fc.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-start justify-between gap-4 group hover:border-blue-200 transition-colors">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{idx + 1}</span>
+                            <h4 className="font-bold text-slate-900 leading-tight">{fc.question}</h4>
+                          </div>
+                          <p className="text-slate-600 text-sm pr-8 leading-relaxed">{fc.answer}</p>
+                        </div>
+                        {onAskAI && (
+                          <button
+                            onClick={() => onAskAI(`اشرح لي هذا السؤال من فضلك: ${fc.question} وجوابه هو: ${fc.answer}`)}
+                            className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex-shrink-0"
+                            title="اشرح لي بالذكاء الاصطناعي"
+                          >
+                            <Sparkles size={20} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (

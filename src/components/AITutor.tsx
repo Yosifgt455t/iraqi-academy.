@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { 
+  Mic,
+  MicOff,
   Sparkles, 
   Send, 
   Loader2, 
@@ -37,6 +39,12 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [needsKey, setNeedsKey] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,6 +59,106 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
     }
   }, [messages]);
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64Audio = (reader.result as string).split(',')[1];
+          handleSendAudio(base64Audio);
+        };
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      alert("يرجى السماح بالوصول للميكروفون لاستخدام ميزة التسميع.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const handleSendAudio = async (base64Audio: string) => {
+    setLoading(true);
+    const newMessages = [...messages, { role: 'user', text: "🎤 [رسالة صوتية - تسميع]" } as Message];
+    setMessages(newMessages);
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      const response = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: [
+          ...messages.map(m => ({
+            role: m.role,
+            parts: [{ text: m.text }]
+          })),
+          {
+            role: 'user',
+            parts: [
+              { text: "هذا تسجيل صوتي لي وأنا أشرح موضوعاً أو أسمّع مادة. يرجى الاستماع وتقييم شرحي، وتوضيح النقاط الصحيحة، وتصحيح الأخطاء، وذكر المعلومات الناقصة، ثم اسألني سؤالاً للتأكد من فهمي." },
+              { inlineData: { mimeType: "audio/webm", data: base64Audio } }
+            ]
+          }
+        ],
+        config: {
+          systemInstruction: getSystemInstruction(),
+        }
+      });
+
+      const aiText = response.text || "عذراً، لم أتمكن من سماعك بوضوح. يرجى المحاولة مرة أخرى.";
+      setMessages([...newMessages, { role: 'model', text: aiText }]);
+    } catch (error) {
+      console.error("AI Audio Error:", error);
+      setMessages([...newMessages, { role: 'model', text: "عذراً، واجهت مشكلة في معالجة الصوت. يرجى المحاولة مرة أخرى." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSystemInstruction = () => {
+    return `أنت مدرس أكاديمي عراقي ذكي وودود في منصة "عراقي أكاديمي". 
+    تساعد الطلاب في المنهج العراقي. 
+    الطالب الحالي في الصف: ${grade}. 
+    اسم الطالب: ${userName}.
+    مهامك الأساسية:
+    1. ترتيب جداول دراسية ذكية بناءً على "التحاضير" والواجبات التي يذكرها الطالب.
+    2. تلخيص المواضيع المعقدة بأسلوب "سالفة" عراقية مبسطة.
+    3. الإجابة على الأسئلة العلمية بدقة وشرحها بأسلوب ممتع.
+    4. ميزة "سمّع لي" (Reverse Teaching): عندما يرسل الطالب تسجيلاً صوتياً أو نصاً يشرح فيه موضوعاً، استمع له بعناية. حدد ما قاله بشكل صحيح، صحح الأخطاء بلطف، اذكر المعلومات الناقصة، ثم اطرح سؤالاً ذكياً للتأكد منMastery.
+    استخدم لهجة عراقية بيضاء محببة عند الشرح، والتزم باللغة العربية الفصحى في المعلومات العلمية.`;
+  };
+
   const handleSend = async (customPrompt?: string) => {
     const textToSend = customPrompt || input;
     if (!textToSend.trim() || loading) return;
@@ -63,32 +171,23 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-flash-latest",
         contents: newMessages.map(m => ({
           role: m.role,
           parts: [{ text: m.text }]
         })),
         config: {
-          systemInstruction: `أنت مدرس أكاديمي عراقي ذكي وودود في منصة "عراقي أكاديمي". 
-          تساعد الطلاب في المنهج العراقي. 
-          الطالب الحالي في الصف: ${grade}. 
-          اسم الطالب: ${userName}.
-          مهامك الأساسية:
-          1. ترتيب جداول دراسية ذكية بناءً على "التحاضير" والواجبات التي يذكرها الطالب. إذا لم يذكر الطالب تحاضيره، اطلب منه تزويدك بها (مثلاً: شنو عندك تحاضير باجر؟) ليكون الجدول دقيقاً. يجب أن يكون الجدول بتنسيق Markdown Table حصراً، واحرص على أن تكون المعلومات داخل الجدول مختصرة ومفيدة ليبقى الجدول متناسقاً وغير طويل.
-          2. تلخيص المواضيع المعقدة بأسلوب "سالفة" عراقية مبسطة.
-          3. الإجابة على الأسئلة العلمية بدقة وشرحها بأسلوب ممتع.
-          عند إنشاء جدول، تأكد من استخدام التنسيق التالي:
-          | اليوم/الوقت | المادة والتحضير | ملاحظات الأستاذ |
-          | :--- | :--- | :--- |
-          | السبت | ... | ... |
-          استخدم لهجة عراقية بيضاء محببة عند الشرح، والتزم باللغة العربية الفصحى في المعلومات العلمية.`,
+          systemInstruction: getSystemInstruction(),
         }
       });
 
       const aiText = response.text || "عذراً، حدث خطأ في معالجة الطلب.";
       setMessages([...newMessages, { role: 'model', text: aiText }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Error:", error);
+      if (error?.message?.includes("NOT_FOUND") || error?.message?.includes("Requested entity was not found")) {
+        setNeedsKey(true);
+      }
       setMessages([...newMessages, { role: 'model', text: "عذراً، واجهت مشكلة في الاتصال. يرجى المحاولة مرة أخرى." }]);
     } finally {
       setLoading(false);
@@ -97,6 +196,7 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
 
   const quickActions = [
     { id: 'schedule', icon: <Calendar size={18} />, text: 'ترتيب جدول تحاضير', prompt: 'ساعدني أرتب جدول دراسي، هاي التحاضير اللي عندي لباجر وللأسبوع: ' },
+    { id: 'recite', icon: <Mic size={18} />, text: 'سمّع لي (شرح صوتي)', prompt: 'أريد أن أشرح لك موضوعاً لتقييم فهمي له. سأبدأ بالتسجيل الصوتي الآن...' },
     { id: 'summary', icon: <FileText size={18} />, text: 'تلخيص موضوع', prompt: 'أريد تلخيصاً مبسطاً لأحد المواضيع الصعبة في منهجي.' },
     { id: 'q', icon: <MessageSquare size={18} />, text: 'سؤال سريع', prompt: 'عندي سؤال علمي في المنهج، هل يمكنك مساعدتي؟' },
   ];
@@ -119,12 +219,25 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
               <p className="text-xs opacity-80">مدعوم بالذكاء الاصطناعي</p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            {needsKey && (
+              <button 
+                onClick={async () => {
+                  await (window as any).aistudio.openSelectKey();
+                  setNeedsKey(false);
+                }}
+                className="text-[10px] bg-yellow-400 text-slate-900 px-2 py-1 rounded-lg font-bold hover:bg-yellow-300 transition-colors"
+              >
+                تحديث المفتاح
+              </button>
+            )}
+            <button 
+              onClick={onClose}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Messages */}
@@ -203,12 +316,24 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="اكتب سؤالك هنا..."
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 pr-5 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+              placeholder={isRecording ? `جاري التسجيل... ${recordingTime} ثانية` : "اكتب سؤالك هنا..."}
+              disabled={isRecording}
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 pr-5 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm disabled:bg-red-50 disabled:border-red-100 disabled:text-red-500"
             />
             <button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                isRecording 
+                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-100' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+              }`}
+            >
+              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+            </button>
+            <button
               type="submit"
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || isRecording}
               className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:shadow-none"
             >
               <Send size={20} className="rotate-180" />

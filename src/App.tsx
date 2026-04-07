@@ -13,7 +13,16 @@ export default function App() {
 
   useEffect(() => {
     // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Auth session error:', error.message);
+        // If refresh token is invalid, sign out to clear local state
+        if (error.message.includes('refresh_token')) {
+          supabase.auth.signOut();
+        }
+        setLoading(false);
+        return;
+      }
       setSession(session);
       if (session) {
         fetchProfile(session.user.id);
