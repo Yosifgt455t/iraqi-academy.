@@ -7,7 +7,7 @@ export type Grade =
 
 export interface Profile {
   id: string;
-  email: string;
+  username: string;
   full_name?: string;
   grade: Grade | null;
   completed_materials?: string[];

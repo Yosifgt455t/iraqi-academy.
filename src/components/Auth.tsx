@@ -5,13 +5,17 @@ import { motion, AnimatePresence } from 'motion/react';
 
 type Step = 'welcome' | 'about' | 'features' | 'auth';
 
-export default function Auth() {
+interface Props {
+  onGuest: () => void;
+}
+
+export default function Auth({ onGuest }: Props) {
   const [step, setStep] = useState<Step>('welcome');
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [isSignUp, setIsSignUp] = useState(true); // Default to sign up as requested
+  const [isSignUp, setIsSignUp] = useState(false); // Only login allowed
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
 
@@ -22,6 +26,9 @@ export default function Auth() {
     setSuccess(false);
 
     try {
+      // Transform username to a dummy email for Supabase Auth
+      const internalEmail = `${username.trim().toLowerCase()}@iraqi.academy`;
+
       // Check if Supabase is properly configured
       if (supabase.auth.getSession === undefined || import.meta.env.VITE_SUPABASE_URL?.includes('placeholder')) {
         throw new Error('يرجى ضبط إعدادات Supabase في الإعدادات (Secrets) أولاً.');
@@ -33,32 +40,20 @@ export default function Auth() {
       );
 
       if (isSignUp) {
-        const { error } = await Promise.race([
-          supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                full_name: fullName,
-              },
-            },
-          }),
-          timeoutPromise
-        ]) as any;
-        if (error) throw error;
-        setSuccess(true);
+        // Sign up disabled as requested
+        return;
       } else {
         const { error } = await Promise.race([
-          supabase.auth.signInWithPassword({ email, password }),
+          supabase.auth.signInWithPassword({ email: internalEmail, password }),
           timeoutPromise
         ]) as any;
         if (error) throw error;
       }
     } catch (err: any) {
       if (err.message === 'User already registered') {
-        setError('هذا البريد الإلكتروني مسجل بالفعل. جرب تسجيل الدخول.');
+        setError('اسم المستخدم هذا محجوز بالفعل. جرب واحداً آخر.');
       } else if (err.message === 'Invalid login credentials') {
-        setError('خطأ في البريد الإلكتروني أو كلمة المرور.');
+        setError('خطأ في اسم المستخدم أو كلمة المرور.');
       } else {
         setError(err.message || 'حدث خطأ ما');
       }
@@ -101,13 +96,21 @@ export default function Auth() {
                 منصتك التعليمية الأولى للتفوق والنجاح في كافة المراحل الدراسية.
               </p>
             </div>
-            <button
-              onClick={nextStep}
-              className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
-            >
-              ابدأ الآن
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+            <div className="space-y-4">
+              <button
+                onClick={nextStep}
+                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+              >
+                ابدأ الآن
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={onGuest}
+                className="w-full py-2 text-slate-500 font-medium hover:text-blue-600 transition-colors"
+              >
+                تخطي تسجيل الدخول
+              </button>
+            </div>
           </motion.div>
         );
 
@@ -208,58 +211,24 @@ export default function Auth() {
           >
             <div className="text-center">
               <h2 className="text-3xl font-bold text-slate-900">
-                {isSignUp ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
+                تسجيل الدخول
               </h2>
               <p className="mt-2 text-slate-600">
-                {isSignUp ? 'ابدأ رحلة التفوق اليوم' : 'مرحباً بعودتك يا بطل'}
+                مرحباً بعودتك يا بطل
               </p>
             </div>
 
-            {success ? (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl text-center space-y-4"
-              >
-                <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="text-white w-10 h-10" />
-                </div>
-                <h3 className="text-xl font-bold text-emerald-900">تم إنشاء الحساب بنجاح!</h3>
-                <p className="text-emerald-700">
-                  لقد أرسلنا رابط تأكيد إلى بريدك الإلكتروني. يرجى الضغط عليه لتفعيل حسابك والبدء في الدراسة.
-                </p>
-                <button
-                  onClick={() => { setSuccess(false); setIsSignUp(false); }}
-                  className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all"
-                >
-                  الذهاب لتسجيل الدخول
-                </button>
-              </motion.div>
-            ) : (
-              <form className="space-y-4" onSubmit={handleAuth}>
+            <form className="space-y-4" onSubmit={handleAuth}>
               <div className="space-y-4">
-                {isSignUp && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">الاسم الكامل</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="مثال: حسن فالح"
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                    />
-                  </div>
-                )}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">البريد الإلكتروني</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">اسم المستخدم</label>
                   <input
-                    type="email"
+                    type="text"
                     required
-                    placeholder="example@mail.com"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="مثال: hasanfalih"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-left"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                   />
                 </div>
                 <div>
@@ -288,11 +257,6 @@ export default function Auth() {
               >
                 {loading ? (
                   <Loader2 className="animate-spin h-6 w-6" />
-                ) : isSignUp ? (
-                  <>
-                    <UserPlus className="ml-2 h-5 w-5" />
-                    إنشاء الحساب
-                  </>
                 ) : (
                   <>
                     <LogIn className="ml-2 h-5 w-5" />
@@ -301,22 +265,17 @@ export default function Auth() {
                 )}
               </button>
             </form>
-          )}
 
-          {!success && (
-            <div className="text-center pt-4">
-              <button
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-slate-500 hover:text-blue-600 font-medium transition-colors"
-              >
-                {isSignUp ? (
-                  <span>لديك حساب بالفعل؟ <span className="text-blue-600 font-bold">سجل دخولك</span></span>
-                ) : (
-                  <span>ليس لديك حساب؟ <span className="text-blue-600 font-bold">أنشئ حساباً جديداً</span></span>
-                )}
-              </button>
+            <div className="text-center pt-4 space-y-4">
+              <div className="pt-2">
+                <button
+                  onClick={onGuest}
+                  className="text-sm text-slate-400 hover:text-slate-600 transition-colors underline underline-offset-4"
+                >
+                  الاستمرار كزائر (بدون حساب)
+                </button>
+              </div>
             </div>
-          )}
             
             <button
               onClick={prevStep}

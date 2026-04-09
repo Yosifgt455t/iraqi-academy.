@@ -24,6 +24,7 @@ interface Props {
   user: any;
   grade: Grade;
   onChangeGrade: () => void;
+  onLogout: () => void;
 }
 
 const getGradeName = (grade: Grade) => {
@@ -47,7 +48,7 @@ const getGradeName = (grade: Grade) => {
   return names[grade] || grade;
 };
 
-export default function Dashboard({ user, grade, onChangeGrade }: Props) {
+export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Props) {
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [showAITutor, setShowAITutor] = useState(false);
@@ -68,7 +69,7 @@ export default function Dashboard({ user, grade, onChangeGrade }: Props) {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    onLogout();
   };
 
   const goBack = () => {

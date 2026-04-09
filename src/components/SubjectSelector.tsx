@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Subject, Grade } from '../types';
 import { Book, Atom, Calculator, FlaskConical, Languages, Loader2, ChevronLeft, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
+import { localSubjects } from '../data/curriculum';
 
 interface Props {
   grade: Grade;
@@ -22,35 +23,54 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [completedMaterials, setCompletedMaterials] = useState<string[]>([]);
-  const [allMaterials, setAllMaterials] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!grade) return;
+      
       setLoading(true);
+      console.log('🔍 Fetching subjects for grade:', grade);
+      
       try {
-        const [subjectsRes, materialsRes, profileRes] = await Promise.all([
-          supabase.from('subjects').select('*').eq('grade', grade),
-          supabase.from('materials').select('id, chapter_id, chapters!inner(subject_id)'),
-          supabase.from('profiles').select('completed_materials').eq('id', userId).single()
-        ]);
+        // 1. Fetch from Supabase
+        const { data, error } = await supabase
+          .from('subjects')
+          .select('*')
+          .eq('grade', grade);
+
+        if (error) throw error;
         
-        setSubjects(subjectsRes.data || []);
-        setAllMaterials(materialsRes.data || []);
-        setCompletedMaterials(profileRes.data?.completed_materials || []);
+        // 2. Safety Net: Manual filter in JS to be 100% sure
+        const filteredData = (data || []).filter(s => s.grade === grade);
+        
+        console.log(`✅ Supabase returned ${data?.length || 0} items. After manual filter: ${filteredData.length}`);
+        
+        if (filteredData.length > 0) {
+          setSubjects(filteredData);
+        } else {
+          // 3. Fallback to local data ONLY for the current grade
+          console.log('⚠️ No subjects found in DB for this grade, using local fallback');
+          const filteredLocal = localSubjects.filter(s => s.grade === grade);
+          setSubjects(filteredLocal);
+        }
       } catch (err) {
-        console.error('Error fetching subjects data:', err);
-      } finally {
-        setLoading(false);
+        console.error('❌ Error fetching subjects:', err);
+        // Fallback to local on error
+        setSubjects(localSubjects.filter(s => s.grade === grade));
       }
+      
+      const savedProgress = localStorage.getItem(`progress_${userId}`);
+      if (savedProgress) {
+        setCompletedMaterials(JSON.parse(savedProgress));
+      }
+      setLoading(false);
     };
     fetchData();
   }, [grade, userId]);
 
   const getSubjectProgress = (subjectId: string) => {
-    const subjectMaterials = allMaterials.filter(m => m.chapters.subject_id === subjectId);
-    if (subjectMaterials.length === 0) return 0;
-    const completedInSubject = subjectMaterials.filter(m => completedMaterials.includes(m.id)).length;
-    return Math.round((completedInSubject / subjectMaterials.length) * 100);
+    // For now, return a static progress or calculate based on local materials if available
+    return 0; 
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;

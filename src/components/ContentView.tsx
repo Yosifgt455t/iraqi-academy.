@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Material, Flashcard, Chapter, Grade } from '../types';
 import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { localMaterials } from '../data/curriculum';
 
 interface Props {
   chapter: Chapter;
@@ -39,47 +40,47 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      console.log('Fetching materials for chapter:', chapter.id);
       try {
-        const [mRes, fRes, pRes] = await Promise.all([
-          supabase.from('materials').select('*').eq('chapter_id', chapter.id),
-          supabase.from('flashcards').select('*').eq('chapter_id', chapter.id),
-          supabase.from('profiles').select('completed_materials').eq('id', userId).single()
-        ]);
+        const { data, error } = await supabase
+          .from('materials')
+          .select('*')
+          .eq('chapter_id', chapter.id)
+          .order('order_index', { ascending: true });
+
+        if (error) throw error;
         
-        setMaterials(mRes.data || []);
-        setFlashcards(fRes.data || []);
-        setCompletedIds(pRes.data?.completed_materials || []);
+        console.log('Supabase materials data:', data);
+        
+        if (data && data.length > 0) {
+          setMaterials(data);
+        } else {
+          setMaterials(localMaterials[chapter.id] || []);
+        }
       } catch (err) {
-        console.error('Error fetching content:', err);
-        setMaterials([]);
-        setFlashcards([]);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching materials from Supabase:', err);
+        setMaterials(localMaterials[chapter.id] || []);
       }
+      
+      setFlashcards([]);
+      
+      const savedProgress = localStorage.getItem(`progress_${userId}`);
+      if (savedProgress) {
+        setCompletedIds(JSON.parse(savedProgress));
+      }
+      setLoading(false);
     };
     fetchData();
   }, [chapter, userId]);
 
-  const toggleCompletion = async (materialId: string) => {
+  const toggleCompletion = (materialId: string) => {
     const isCompleted = completedIds.includes(materialId);
     const newCompletedIds = isCompleted 
       ? completedIds.filter(id => id !== materialId)
       : [...completedIds, materialId];
     
     setCompletedIds(newCompletedIds);
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ completed_materials: newCompletedIds })
-        .eq('id', userId);
-      
-      if (error) throw error;
-    } catch (err) {
-      console.error('Error updating completion status:', err);
-      // Revert on error
-      setCompletedIds(completedIds);
-    }
+    localStorage.setItem(`progress_${userId}`, JSON.stringify(newCompletedIds));
   };
 
   const getEmbedUrl = (url: string) => {
@@ -202,32 +203,32 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                         </h4>
                         <p className="text-xs text-slate-500">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
                       </div>
-                      {m.type === 'PDF' ? (
-                        <div className="flex items-center gap-2">
-                          {onAskAI && (
+                        {m.type === 'PDF' ? (
+                          <div className="flex items-center gap-2">
+                            {onAskAI && (
+                              <button
+                                onClick={() => onAskAI(`اشرح لي محتوى هذا الملف: ${m.title} في فصل ${chapter.name}`)}
+                                className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                title="اشرح لي بالذكاء الاصطناعي"
+                              >
+                                <Sparkles size={20} />
+                              </button>
+                            )}
                             <button
-                              onClick={() => onAskAI(`اشرح لي محتوى هذا الملف: ${m.title} في فصل ${chapter.name}`)}
-                              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                              title="اشرح لي بالذكاء الاصطناعي"
+                              onClick={() => setSelectedPdf(m.url || (m as any).content)}
+                              className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                             >
-                              <Sparkles size={20} />
+                              <ExternalLink size={20} />
                             </button>
-                          )}
+                          </div>
+                        ) : (
                           <button
-                            onClick={() => setSelectedPdf(m.url)}
+                            onClick={() => setSelectedVideo(getEmbedUrl(m.url || (m as any).content))}
                             className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                           >
-                            <ExternalLink size={20} />
+                            <Play size={20} />
                           </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setSelectedVideo(getEmbedUrl(m.url))}
-                          className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                        >
-                          <Play size={20} />
-                        </button>
-                      )}
+                        )}
                     </div>
                   );
                 })}
