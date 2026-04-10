@@ -66,7 +66,24 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
         setMaterials([]);
       }
       
-      setFlashcards([]);
+      try {
+        const { data: flashcardsData, error: flashcardsError } = await supabase
+          .from('flashcards')
+          .select('*')
+          .eq('chapter_id', chapter.id);
+          
+        if (flashcardsError) {
+          console.error('Error fetching flashcards:', flashcardsError);
+          setFlashcards([]);
+        } else if (flashcardsData) {
+          setFlashcards(flashcardsData);
+        } else {
+          setFlashcards([]);
+        }
+      } catch (err) {
+        console.error('Error fetching flashcards:', err);
+        setFlashcards([]);
+      }
       
       try {
         const { data: profileData } = await supabase
