@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import { Material, Flashcard, Chapter, Grade } from '../types';
 import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { localMaterials } from '../data/curriculum';
 
 interface Props {
   chapter: Chapter;
@@ -17,6 +16,7 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'materials' | 'flashcards' | 'ministerial'>('materials');
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
@@ -42,38 +42,62 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
       setLoading(true);
       console.log('Fetching materials for chapter:', chapter.id);
       try {
+        setDbError(null);
         const { data, error } = await supabase
           .from('materials')
           .select('*')
-          .eq('chapter_id', chapter.id)
-          .order('order_index', { ascending: true });
+          .eq('chapter_id', chapter.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error details:', error);
+          setDbError(error.message);
+          throw error;
+        }
         
         console.log('Supabase materials data:', data);
         
         if (data && data.length > 0) {
           setMaterials(data);
         } else {
-          setMaterials(localMaterials[chapter.id] || []);
+          setMaterials([]);
         }
       } catch (err) {
         console.error('Error fetching materials from Supabase:', err);
-        setMaterials(localMaterials[chapter.id] || []);
+        setMaterials([]);
       }
       
       setFlashcards([]);
       
-      const savedProgress = localStorage.getItem(`progress_${userId}`);
-      if (savedProgress) {
-        setCompletedIds(JSON.parse(savedProgress));
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('completed_materials')
+          .eq('id', userId)
+          .single();
+          
+        if (profileData?.completed_materials) {
+          setCompletedIds(profileData.completed_materials);
+          localStorage.setItem(`progress_${userId}`, JSON.stringify(profileData.completed_materials));
+        } else {
+          const savedProgress = localStorage.getItem(`progress_${userId}`);
+          if (savedProgress) {
+            setCompletedIds(JSON.parse(savedProgress));
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching profile progress:', err);
+        const savedProgress = localStorage.getItem(`progress_${userId}`);
+        if (savedProgress) {
+          setCompletedIds(JSON.parse(savedProgress));
+        }
       }
+      
       setLoading(false);
     };
     fetchData();
   }, [chapter, userId]);
 
-  const toggleCompletion = (materialId: string) => {
+  const toggleCompletion = async (materialId: string) => {
     const isCompleted = completedIds.includes(materialId);
     const newCompletedIds = isCompleted 
       ? completedIds.filter(id => id !== materialId)
@@ -81,6 +105,15 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
     
     setCompletedIds(newCompletedIds);
     localStorage.setItem(`progress_${userId}`, JSON.stringify(newCompletedIds));
+
+    try {
+      await supabase
+        .from('profiles')
+        .update({ completed_materials: newCompletedIds })
+        .eq('id', userId);
+    } catch (err) {
+      console.error('Error updating progress in Supabase:', err);
+    }
   };
 
   const getEmbedUrl = (url: string) => {
@@ -166,7 +199,22 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
       </div>
 
       <AnimatePresence mode="wait">
-        {activeTab === 'materials' ? (
+        {dbError ? (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16 bg-red-50 rounded-3xl border border-red-200 space-y-4"
+          >
+            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto">
+              <X size={32} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-red-900">خطأ في جلب البيانات</h3>
+              <p className="text-red-600 text-sm">{dbError}</p>
+              <p className="text-slate-500 text-xs mt-4">يرجى التأكد من هيكل جدول materials في قاعدة البيانات (مثل وجود عمود order_index وصلاحيات RLS).</p>
+            </div>
+          </motion.div>
+        ) : activeTab === 'materials' ? (
           <motion.div
             key="materials"
             initial={{ opacity: 0, y: 10 }}

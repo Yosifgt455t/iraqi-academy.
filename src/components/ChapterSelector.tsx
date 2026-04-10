@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import { Chapter, Subject } from '../types';
 import { ListChecks, Loader2, ChevronLeft, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
-import { localChapters } from '../data/curriculum';
 
 interface Props {
   subject: Subject;
@@ -15,35 +14,36 @@ export default function ChapterSelector({ subject, userId, onSelect }: Props) {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [completedMaterials, setCompletedMaterials] = useState<string[]>([]);
+  const [allMaterials, setAllMaterials] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       console.log('Fetching chapters for subject:', subject.id);
       try {
-        const { data, error } = await supabase
-          .from('chapters')
-          .select('*')
-          .eq('subject_id', subject.id)
-          .order('order_index', { ascending: true });
+        const [chaptersRes, materialsRes, profileRes] = await Promise.all([
+          supabase.from('chapters').select('*').eq('subject_id', subject.id).order('order_index', { ascending: true }),
+          supabase.from('materials').select('id, chapter_id'),
+          supabase.from('profiles').select('completed_materials').eq('id', userId).single()
+        ]);
 
-        if (error) throw error;
+        if (chaptersRes.error) throw chaptersRes.error;
         
-        console.log('Supabase chapters data:', data);
+        setChapters(chaptersRes.data || []);
+        setAllMaterials(materialsRes.data || []);
         
-        if (data && data.length > 0) {
-          setChapters(data);
+        if (profileRes.data?.completed_materials) {
+          setCompletedMaterials(profileRes.data.completed_materials);
+          localStorage.setItem(`progress_${userId}`, JSON.stringify(profileRes.data.completed_materials));
         } else {
-          setChapters(localChapters[subject.id] || []);
+          const savedProgress = localStorage.getItem(`progress_${userId}`);
+          if (savedProgress) {
+            setCompletedMaterials(JSON.parse(savedProgress));
+          }
         }
       } catch (err) {
         console.error('Error fetching chapters from Supabase:', err);
-        setChapters(localChapters[subject.id] || []);
-      }
-      
-      const savedProgress = localStorage.getItem(`progress_${userId}`);
-      if (savedProgress) {
-        setCompletedMaterials(JSON.parse(savedProgress));
+        setChapters([]);
       }
       setLoading(false);
     };
@@ -51,8 +51,10 @@ export default function ChapterSelector({ subject, userId, onSelect }: Props) {
   }, [subject, userId]);
 
   const getChapterProgress = (chapterId: string) => {
-    // For now, return 0 or calculate based on local materials if available
-    return 0;
+    const chapterMaterials = allMaterials.filter(m => m.chapter_id === chapterId);
+    if (chapterMaterials.length === 0) return 0;
+    const completedInChapter = chapterMaterials.filter(m => completedMaterials.includes(m.id)).length;
+    return Math.round((completedInChapter / chapterMaterials.length) * 100);
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
