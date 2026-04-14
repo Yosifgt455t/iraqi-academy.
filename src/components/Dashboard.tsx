@@ -18,7 +18,7 @@ import {
 import SubjectSelector from './SubjectSelector';
 import ChapterSelector from './ChapterSelector';
 import ContentView from './ContentView';
-import AITutor from './AITutor';
+import AIChatPage from './AIChatPage';
 
 interface Props {
   user: any;
@@ -49,10 +49,10 @@ const getGradeName = (grade: Grade) => {
 };
 
 export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Props) {
+  const [view, setView] = useState<'home' | 'ai_chat'>('home');
+  const [initialAIPrompt, setInitialAIPrompt] = useState<string | null>(null);
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
-  const [showAITutor, setShowAITutor] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState<string | undefined>(undefined);
   const [pinnedSchedule, setPinnedSchedule] = useState<string | null>(() => {
     return localStorage.getItem(`schedule_${user.id}`);
   });
@@ -60,7 +60,6 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
   const handlePinSchedule = (schedule: string) => {
     setPinnedSchedule(schedule);
     localStorage.setItem(`schedule_${user.id}`, schedule);
-    setShowAITutor(false);
   };
 
   const handleRemoveSchedule = () => {
@@ -85,6 +84,19 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
     setCurrentChapter(null);
   };
 
+  if (view === 'ai_chat') {
+    return (
+      <AIChatPage 
+        userId={user.id} 
+        userName={user.user_metadata?.full_name?.split(' ')[0] || 'بطل'} 
+        grade={getGradeName(grade)}
+        initialPrompt={initialAIPrompt}
+        onClearInitialPrompt={() => setInitialAIPrompt(null)}
+        onBack={() => setView('home')} 
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
       {/* Header */}
@@ -107,8 +119,8 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
             </div>
           </div>
 
-          <div className="flex-1 flex justify-center overflow-hidden px-4">
-             <div className="flex items-center text-sm font-medium text-slate-500 whitespace-nowrap">
+          <div className="flex-1 flex justify-center overflow-hidden px-2 sm:px-4">
+             <div className="flex items-center text-xs sm:text-sm font-medium text-slate-500 overflow-x-auto hide-scrollbar whitespace-nowrap pb-1">
                 <button 
                   onClick={onChangeGrade}
                   className="flex items-center gap-1 hover:text-blue-600 transition-colors bg-slate-50 px-3 py-1 rounded-full border border-slate-100"
@@ -172,7 +184,7 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
                   </button>
                 </div>
                 <div className="p-6 overflow-x-auto">
-                  <div className="prose prose-sm max-w-none prose-slate">
+                  <div className="prose prose-sm max-w-none prose-slate overflow-x-auto">
                     <Markdown remarkPlugins={[remarkGfm]}>{pinnedSchedule}</Markdown>
                   </div>
                 </div>
@@ -181,7 +193,7 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
 
             {/* AI Tutor Card */}
             <button 
-              onClick={() => setShowAITutor(true)}
+              onClick={() => setView('ai_chat')}
               className="w-full bg-white p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex items-center gap-4 text-right group"
             >
               <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -206,8 +218,8 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
             userId={user.id} 
             grade={grade} 
             onAskAI={(prompt) => {
-              setAiPrompt(prompt);
-              setShowAITutor(true);
+              setInitialAIPrompt(prompt);
+              setView('ai_chat');
             }}
           />
         )}
@@ -223,31 +235,15 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
         </button>
       )}
       {/* Floating AI Button */}
-      {!showAITutor && (
-        <button
-          onClick={() => setShowAITutor(true)}
-          className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group"
-        >
-          <Sparkles size={24} />
-          <span className="absolute right-full mr-3 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            المساعد الذكي
-          </span>
-        </button>
-      )}
-
-      {/* AI Tutor Modal */}
-      {showAITutor && (
-        <AITutor 
-          grade={getGradeName(grade)} 
-          userName={user.user_metadata?.full_name?.split(' ')[0] || 'بطل'} 
-          onClose={() => {
-            setShowAITutor(false);
-            setAiPrompt(undefined);
-          }} 
-          onPinSchedule={handlePinSchedule}
-          initialPrompt={aiPrompt}
-        />
-      )}
+      <button
+        onClick={() => setView('ai_chat')}
+        className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group"
+      >
+        <Sparkles size={24} />
+        <span className="absolute right-full mr-3 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          المساعد الذكي
+        </span>
+      </button>
     </div>
   );
 }

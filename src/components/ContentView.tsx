@@ -268,24 +268,29 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                         </h4>
                         <p className="text-xs text-slate-500">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
                       </div>
+                      <div className="flex items-center gap-2">
+                        {onAskAI && (
+                          <button
+                            onClick={() => {
+                              if (m.type === 'Video') {
+                                onAskAI(`اشرح لي ولخص هذه المحاضرة (فيديو يوتيوب): ${m.url || (m as any).content}\n\nعنوان المحاضرة: ${m.title} (فصل ${chapter.name})`);
+                              } else {
+                                onAskAI(`أريد شرح هذا الموضوع: ${m.title} في فصل ${chapter.name}. (ملاحظة: إذا كان لديك ملف PDF يرجى إرفاقه في المحادثة باستخدام زر الإرفاق 📎 لكي أتمكن من قراءته وشرحه لك).`);
+                              }
+                            }}
+                            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                            title="اشرح لي بالذكاء الاصطناعي"
+                          >
+                            <Sparkles size={20} />
+                          </button>
+                        )}
                         {m.type === 'PDF' ? (
-                          <div className="flex items-center gap-2">
-                            {onAskAI && (
-                              <button
-                                onClick={() => onAskAI(`اشرح لي محتوى هذا الملف: ${m.title} في فصل ${chapter.name}`)}
-                                className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                title="اشرح لي بالذكاء الاصطناعي"
-                              >
-                                <Sparkles size={20} />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setSelectedPdf(m.url || (m as any).content)}
-                              className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                            >
-                              <ExternalLink size={20} />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => setSelectedPdf(m.url || (m as any).content)}
+                            className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          >
+                            <ExternalLink size={20} />
+                          </button>
                         ) : (
                           <button
                             onClick={() => setSelectedVideo(getEmbedUrl(m.url || (m as any).content))}
@@ -294,6 +299,7 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                             <Play size={20} />
                           </button>
                         )}
+                      </div>
                     </div>
                   );
                 })}

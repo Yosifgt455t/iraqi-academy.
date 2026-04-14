@@ -17,6 +17,34 @@ import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+// Global state to track the current API key index across the session
+let currentApiKeyIndex = 0;
+
+const getAIClient = () => {
+  const keysString = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '';
+  const keys = keysString.split(',').map(k => k.trim()).filter(k => k.length > 0);
+  
+  if (keys.length === 0) return new GoogleGenAI({ apiKey: '' });
+  
+  if (currentApiKeyIndex >= keys.length) {
+    currentApiKeyIndex = 0; // Loop back to the first key if we run out
+  }
+  
+  return new GoogleGenAI({ apiKey: keys[currentApiKeyIndex] });
+};
+
+const shouldSwitchKey = (error: any) => {
+  const errMsg = error?.message?.toLowerCase() || '';
+  const status = error?.status;
+  // Switch key if rate limit (429) or quota exceeded
+  if (status === 429 || errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('too many requests') || errMsg.includes('exhausted')) {
+    console.warn('API limit reached. Switching to the next API key...');
+    currentApiKeyIndex++;
+    return true;
+  }
+  return false;
+};
+
 interface Props {
   grade: string;
   userName: string;
@@ -42,6 +70,7 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [needsKey, setNeedsKey] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gemini-flash-latest');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -115,28 +144,44 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
     setMessages(newMessages);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: [
-          ...messages.map(m => ({
-            role: m.role,
-            parts: [{ text: m.text }]
-          })),
-          {
-            role: 'user',
-            parts: [
-              { text: "هذا تسجيل صوتي لي وأنا أشرح موضوعاً أو أسمّع مادة. يرجى الاستماع وتقييم شرحي، وتوضيح النقاط الصحيحة، وتصحيح الأخطاء، وذكر المعلومات الناقصة، ثم اسألني سؤالاً للتأكد من فهمي." },
-              { inlineData: { mimeType: "audio/webm", data: base64Audio } }
-            ]
-          }
-        ],
-        config: {
-          systemInstruction: getSystemInstruction(),
-        }
-      });
+      let response;
+      let retries = 0;
+      const maxRetries = 3; // Try up to 3 different keys before giving up
 
-      const aiText = response.text || "عذراً، لم أتمكن من سماعك بوضوح. يرجى المحاولة مرة أخرى.";
+      while (retries < maxRetries) {
+        try {
+          const ai = getAIClient();
+          response = await ai.models.generateContent({
+            model: "gemini-flash-latest", // Force Gemini for audio since Gemma doesn't support audio input
+            contents: [
+              ...messages.map(m => ({
+                role: m.role,
+                parts: [{ text: m.text }]
+              })),
+              {
+                role: 'user',
+                parts: [
+                  { text: "هذا تسجيل صوتي لي وأنا أشرح موضوعاً أو أسمّع مادة. يرجى الاستماع وتقييم شرحي، وتوضيح النقاط الصحيحة، وتصحيح الأخطاء، وذكر المعلومات الناقصة، ثم اسألني سؤالاً للتأكد من فهمي." },
+                  { inlineData: { mimeType: "audio/webm", data: base64Audio } }
+                ]
+              }
+            ],
+            config: {
+              systemInstruction: getSystemInstruction(),
+            }
+          });
+          break; // Success, exit the retry loop
+        } catch (err) {
+          if (shouldSwitchKey(err)) {
+            retries++;
+            if (retries >= maxRetries) throw err;
+            continue; // Try again with the next key
+          }
+          throw err; // Not a rate limit error, throw immediately
+        }
+      }
+
+      const aiText = response?.text || "عذراً، لم أتمكن من سماعك بوضوح. يرجى المحاولة مرة أخرى.";
       setMessages([...newMessages, { role: 'model', text: aiText }]);
     } catch (error) {
       console.error("AI Audio Error:", error);
@@ -169,19 +214,35 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
     setLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: newMessages.map(m => ({
-          role: m.role,
-          parts: [{ text: m.text }]
-        })),
-        config: {
-          systemInstruction: getSystemInstruction(),
-        }
-      });
+      let response;
+      let retries = 0;
+      const maxRetries = 3;
 
-      const aiText = response.text || "عذراً، حدث خطأ في معالجة الطلب.";
+      while (retries < maxRetries) {
+        try {
+          const ai = getAIClient();
+          response = await ai.models.generateContent({
+            model: selectedModel,
+            contents: newMessages.map(m => ({
+              role: m.role,
+              parts: [{ text: m.text }]
+            })),
+            config: {
+              systemInstruction: getSystemInstruction(),
+            }
+          });
+          break; // Success
+        } catch (err) {
+          if (shouldSwitchKey(err)) {
+            retries++;
+            if (retries >= maxRetries) throw err;
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      const aiText = response?.text || "عذراً، حدث خطأ في معالجة الطلب.";
       setMessages([...newMessages, { role: 'model', text: aiText }]);
     } catch (error: any) {
       console.error("AI Error:", error);
@@ -220,6 +281,14 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="text-xs bg-white/20 text-white border border-white/30 rounded-lg px-2 py-1.5 outline-none cursor-pointer hover:bg-white/30 transition-colors"
+            >
+              <option value="gemini-flash-latest" className="text-slate-800">Gemini (سريع وذكي)</option>
+              <option value="gemma-4-31b-it" className="text-slate-800">Gemma 4 31B (مفتوح المصدر)</option>
+            </select>
             {needsKey && (
               <button 
                 onClick={async () => {
@@ -262,7 +331,7 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
                   ? 'bg-white text-slate-800 rounded-tr-none' 
                   : 'bg-blue-600 text-white rounded-tl-none'
               }`}>
-                <div className="prose prose-sm max-w-none prose-slate">
+                <div className="prose prose-sm max-w-none prose-slate overflow-x-auto">
                   <Markdown remarkPlugins={[remarkGfm]}>{m.text}</Markdown>
                 </div>
                 
@@ -323,10 +392,14 @@ export default function AITutor({ grade, userName, onClose, onPinSchedule, initi
             <button
               type="button"
               onClick={isRecording ? stopRecording : startRecording}
+              disabled={selectedModel.includes('gemma')}
+              title={selectedModel.includes('gemma') ? "ميزة الصوت غير مدعومة في نموذج Gemma" : "تسجيل صوتي"}
               className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
-                isRecording 
-                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-100' 
-                  : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+                selectedModel.includes('gemma')
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50'
+                  : isRecording 
+                    ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-100' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
               }`}
             >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
