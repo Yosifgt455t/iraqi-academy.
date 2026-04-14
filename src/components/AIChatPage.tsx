@@ -64,19 +64,19 @@ const ChatMessage = memo(({ m }: { m: Message }) => {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex gap-3 sm:gap-4 max-w-4xl mx-auto ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
+      className={`flex gap-3 sm:gap-4 w-full max-w-4xl mx-auto ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
     >
       <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ${
         m.role === 'model' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
       }`}>
         {m.role === 'model' ? <Bot size={18} /> : <User size={18} />}
       </div>
-      <div className={`max-w-[85%] p-4 sm:p-5 rounded-3xl text-sm leading-relaxed shadow-sm ${
+      <div className={`max-w-[85%] min-w-0 p-4 sm:p-5 rounded-3xl text-sm leading-relaxed shadow-sm ${
         m.role === 'model' 
           ? 'bg-white text-slate-800 rounded-tr-none border border-slate-100' 
           : 'bg-blue-600 text-white rounded-tl-none'
       }`}>
-        <div className={`prose prose-sm max-w-none overflow-x-auto ${m.role === 'model' ? 'prose-slate' : 'prose-invert'}`}>
+        <div className={`prose prose-sm max-w-none min-w-0 overflow-x-auto ${m.role === 'model' ? 'prose-slate' : 'prose-invert'}`}>
           <Markdown remarkPlugins={[remarkGfm]}>{m.text}</Markdown>
         </div>
       </div>
@@ -441,9 +441,9 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
   };
 
   return (
-    <div className="h-[100dvh] bg-slate-50 flex flex-col relative" dir="rtl">
+    <div className="h-[100dvh] w-full overflow-hidden bg-slate-50 flex flex-col relative" dir="rtl">
       {/* Header */}
-      <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-3 sm:px-6 shadow-sm z-30">
+      <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-3 sm:px-6 shadow-sm z-30 w-full">
         <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={onBack}
@@ -536,12 +536,12 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
       )}
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50/50 z-10">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-6 bg-slate-50/50 z-10">
         {messages.map((m, i) => (
           <ChatMessage key={i} m={m} />
         ))}
         {loading && (
-          <div className="flex gap-3 sm:gap-4 max-w-4xl mx-auto">
+          <div className="flex gap-3 sm:gap-4 w-full max-w-4xl mx-auto">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
               <Bot size={18} />
             </div>
@@ -553,8 +553,8 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
       </div>
 
       {/* Input Area */}
-      <div className="p-3 sm:p-6 bg-white border-t border-slate-200 z-10">
-        <div className="max-w-4xl mx-auto">
+      <div className="p-3 sm:p-6 bg-white border-t border-slate-200 z-10 w-full">
+        <div className="max-w-4xl mx-auto w-full">
           {/* Attachments Preview */}
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3 px-2">
@@ -582,22 +582,22 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
               type="button"
               onClick={() => setShowScheduleModal(true)}
               title="صانع الجداول"
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm flex-shrink-0 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+              className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all shadow-sm flex-shrink-0 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
             >
-              <Calendar size={20} className="sm:w-6 sm:h-6" />
+              <Calendar size={18} className="sm:w-6 sm:h-6" />
             </button>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={selectedModel.includes('gemma') || isRecording}
               title={selectedModel.includes('gemma') ? "المرفقات غير مدعومة في نموذج Gemma" : "إرفاق ملف أو صورة"}
-              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm flex-shrink-0 ${
+              className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all shadow-sm flex-shrink-0 ${
                 selectedModel.includes('gemma')
                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50'
                   : 'bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
               }`}
             >
-              <Paperclip size={20} className="sm:w-6 sm:h-6" />
+              <Paperclip size={18} className="sm:w-6 sm:h-6" />
             </button>
             <input
               type="text"
@@ -605,14 +605,14 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
               onChange={(e) => setInput(e.target.value)}
               placeholder={isRecording ? `جاري التسجيل... ${recordingTime} ثانية` : "اكتب سؤالك هنا..."}
               disabled={isRecording}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm disabled:bg-red-50 disabled:border-red-100 disabled:text-red-500 shadow-inner"
+              className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm disabled:bg-red-50 disabled:border-red-100 disabled:text-red-500 shadow-inner"
             />
             <button
               type="button"
               onClick={isRecording ? stopRecording : startRecording}
               disabled={selectedModel.includes('gemma')}
               title={selectedModel.includes('gemma') ? "ميزة الصوت غير مدعومة في نموذج Gemma" : "تسجيل صوتي"}
-              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm flex-shrink-0 ${
+              className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all shadow-sm flex-shrink-0 ${
                 selectedModel.includes('gemma')
                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50'
                   : isRecording 
@@ -620,14 +620,14 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
               }`}
             >
-              {isRecording ? <MicOff size={20} className="sm:w-6 sm:h-6" /> : <Mic size={20} className="sm:w-6 sm:h-6" />}
+              {isRecording ? <MicOff size={18} className="sm:w-6 sm:h-6" /> : <Mic size={18} className="sm:w-6 sm:h-6" />}
             </button>
             <button
               type="submit"
-              disabled={!input.trim() || loading || isRecording}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:shadow-none flex-shrink-0"
+              disabled={(!input.trim() && attachments.length === 0) || loading || isRecording}
+              className="w-10 h-10 sm:w-14 sm:h-14 bg-blue-600 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:shadow-none flex-shrink-0"
             >
-              <Send size={20} className="rotate-180 sm:w-6 sm:h-6" />
+              <Send size={18} className="rotate-180 sm:w-6 sm:h-6" />
             </button>
           </form>
         </div>
