@@ -13,12 +13,23 @@ import {
   Settings, 
   Sparkles,
   Calendar,
-  Trash2
+  Trash2,
+  Calculator,
+  ListTodo,
+  LayoutGrid,
+  Menu
 } from 'lucide-react';
 import SubjectSelector from './SubjectSelector';
 import ChapterSelector from './ChapterSelector';
 import ContentView from './ContentView';
 import AIChatPage from './AIChatPage';
+import ExemptionCalculatorModal from './ExemptionCalculatorModal';
+import TodoPage from './TodoPage';
+import ToolsModal from './ToolsModal';
+import ImageToPdfModal from './ImageToPdfModal';
+import TextToPdfModal from './TextToPdfModal';
+import FileTranslatorModal from './FileTranslatorModal';
+import ExamBuilderModal from './ExamBuilderModal';
 
 interface Props {
   user: any;
@@ -49,8 +60,14 @@ const getGradeName = (grade: Grade) => {
 };
 
 export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Props) {
-  const [view, setView] = useState<'home' | 'ai_chat'>('home');
+  const [view, setView] = useState<'home' | 'ai_chat' | 'todo'>('home');
   const [initialAIPrompt, setInitialAIPrompt] = useState<string | null>(null);
+  const [showExemptionCalculator, setShowExemptionCalculator] = useState(false);
+  const [showImageToPdf, setShowImageToPdf] = useState(false);
+  const [showTextToPdf, setShowTextToPdf] = useState(false);
+  const [showFileTranslator, setShowFileTranslator] = useState(false);
+  const [showExamBuilder, setShowExamBuilder] = useState(false);
+  const [showToolsModal, setShowToolsModal] = useState(false);
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [pinnedSchedule, setPinnedSchedule] = useState<string | null>(() => {
@@ -93,6 +110,15 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
         initialPrompt={initialAIPrompt}
         onClearInitialPrompt={() => setInitialAIPrompt(null)}
         onBack={() => setView('home')} 
+      />
+    );
+  }
+
+  if (view === 'todo') {
+    return (
+      <TodoPage
+        userId={user.id}
+        onBack={() => setView('home')}
       />
     );
   }
@@ -143,12 +169,22 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
              </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-          >
-            <LogOut size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowToolsModal(true)}
+              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all flex items-center gap-2"
+              title="الأدوات الأكاديمية"
+            >
+              <LayoutGrid size={20} />
+              <span className="hidden md:block font-medium text-sm">الأدوات</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -191,23 +227,6 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
               </motion.div>
             )}
 
-            {/* AI Tutor Card */}
-            <button 
-              onClick={() => setView('ai_chat')}
-              className="w-full bg-white p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex items-center gap-4 text-right group"
-            >
-              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                <Sparkles size={28} />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-900">المساعد الذكي (AI)</h3>
-                <p className="text-sm text-slate-500">ترتيب جدول دراسي، تلخيص، أو إجابة على أسئلتك</p>
-              </div>
-              <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
-                <ChevronRight size={20} className="rotate-180" />
-              </div>
-            </button>
-
             <SubjectSelector grade={grade} userId={user.id} onSelect={setCurrentSubject} />
           </div>
         ) : !currentChapter ? (
@@ -234,16 +253,54 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
           <Home size={24} />
         </button>
       )}
-      {/* Floating AI Button */}
+      {/* Floating Tools Button */}
       <button
-        onClick={() => setView('ai_chat')}
+        onClick={() => setShowToolsModal(true)}
         className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group"
       >
-        <Sparkles size={24} />
+        <LayoutGrid size={24} />
         <span className="absolute right-full mr-3 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          المساعد الذكي
+          الأدوات الأكاديمية
         </span>
       </button>
+
+      {/* Exemption Calculator Modal */}
+      {showExemptionCalculator && (
+        <ExemptionCalculatorModal onClose={() => setShowExemptionCalculator(false)} />
+      )}
+
+      {/* Tools Modal (Drawer) */}
+      <ToolsModal
+        isOpen={showToolsModal}
+        onClose={() => setShowToolsModal(false)}
+        onOpenAI={() => setView('ai_chat')}
+        onOpenCalculator={() => setShowExemptionCalculator(true)}
+        onOpenTodo={() => setView('todo')}
+        onOpenImageToPdf={() => setShowImageToPdf(true)}
+        onOpenTextToPdf={() => setShowTextToPdf(true)}
+        onOpenFileTranslator={() => setShowFileTranslator(true)}
+        onOpenExamBuilder={() => setShowExamBuilder(true)}
+      />
+
+      {/* Image to PDF Modal */}
+      {showImageToPdf && (
+        <ImageToPdfModal onClose={() => setShowImageToPdf(false)} />
+      )}
+
+      {/* Text to PDF Modal */}
+      {showTextToPdf && (
+        <TextToPdfModal onClose={() => setShowTextToPdf(false)} />
+      )}
+
+      {/* File Translator Modal */}
+      {showFileTranslator && (
+        <FileTranslatorModal onClose={() => setShowFileTranslator(false)} />
+      )}
+
+      {/* Exam Builder Modal */}
+      {showExamBuilder && (
+        <ExamBuilderModal onClose={() => setShowExamBuilder(false)} />
+      )}
     </div>
   );
 }

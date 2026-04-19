@@ -87,7 +87,7 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
             <button
               key={subject.id}
               onClick={() => onSelect(subject)}
-              className="flex flex-col p-6 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-blue-500 hover:shadow-md transition-all group text-right"
+              className="flex flex-col p-6 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-blue-500 hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 group text-right"
             >
               <div className="flex items-center w-full mb-4">
                 <div className="p-4 bg-blue-50 text-blue-600 rounded-xl ml-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">

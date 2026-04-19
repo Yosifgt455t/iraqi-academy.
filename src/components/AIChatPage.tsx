@@ -4,12 +4,13 @@ import { GoogleGenAI } from "@google/genai";
 import { 
   Mic, MicOff, Sparkles, Send, Loader2, 
   MessageSquare, Plus, Trash2, Bot, User, ArrowRight, History, X,
-  Paperclip, FileText, Image as ImageIcon, Calendar
+  Paperclip, FileText, Image as ImageIcon, Calendar, BookOpen, Link as LinkIcon, Youtube, Type
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ScheduleMakerModal from './ScheduleMakerModal';
+import SourcesModal, { SavedSource } from './SourcesModal';
 
 // Global state to track the current API key index across the session
 let currentApiKeyIndex = 0;
@@ -45,9 +46,11 @@ interface Message {
 
 interface Chat {
   id: string;
+  user_id: string;
   title: string;
   messages: Message[];
   created_at: string;
+  updated_at?: string;
 }
 
 interface Props {
@@ -95,6 +98,8 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
   const [selectedModel, setSelectedModel] = useState('gemini-flash-latest');
   const [showHistory, setShowHistory] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [activeSources, setActiveSources] = useState<SavedSource[]>([]);
+  const [showSourcesModal, setShowSourcesModal] = useState(false);
   const [attachments, setAttachments] = useState<{name: string, mimeType: string, base64: string}[]>([]);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -102,10 +107,9 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    fetchChats();
-  }, [userId]);
+  const removeActiveSource = (id: string) => {
+    setActiveSources(prev => prev.filter(s => s.id !== id));
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -124,15 +128,36 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
     }
   }, [initialPrompt, currentChatId]);
 
+  useEffect(() => {
+    fetchChats();
+  }, [userId]);
+
   const fetchChats = async () => {
     try {
+      if (userId === 'guest_user' || userId.includes('guest')) {
+        const localChats = localStorage.getItem(`ai_chats_${userId}`);
+        const parsedChats = localChats ? JSON.parse(localChats) : [];
+        setChats(parsedChats);
+        
+        if (parsedChats.length > 0 && !currentChatId) {
+          setCurrentChatId(parsedChats[0].id);
+          setMessages(parsedChats[0].messages || []);
+        } else if (parsedChats.length === 0) {
+          startNewChat();
+        }
+        return;
+      }
+
       const { data, error } = await supabase
         .from('ai_chats')
         .select('*')
         .eq('user_id', userId)
-        .order('updated_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase fetch error:', error);
+        throw error;
+      }
       setChats(data || []);
       
       if (data && data.length > 0 && !currentChatId) {
@@ -164,6 +189,16 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
   const deleteChat = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     try {
+      if (userId === 'guest_user' || userId.includes('guest')) {
+        const parsedChats = chats.filter(c => c.id !== id);
+        setChats(parsedChats);
+        localStorage.setItem(`ai_chats_${userId}`, JSON.stringify(parsedChats));
+        if (currentChatId === id) {
+          startNewChat();
+        }
+        return;
+      }
+
       await supabase.from('ai_chats').delete().eq('id', id);
       setChats(chats.filter(c => c.id !== id));
       if (currentChatId === id) {
@@ -176,15 +211,48 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
 
   const saveChatToDb = async (newMessages: Message[], title?: string) => {
     try {
+      if (userId === 'guest_user' || userId.includes('guest')) {
+        let updatedChats = [...chats];
+        if (currentChatId) {
+          updatedChats = updatedChats.map(c => 
+            c.id === currentChatId ? { ...c, messages: newMessages, updated_at: new Date().toISOString() } : c
+          );
+          setChats(updatedChats);
+        } else {
+          const chatTitle = title || newMessages.find(m => m.role === 'user')?.text.substring(0, 30) + '...' || 'محادثة جديدة';
+          const newChat: Chat = {
+            id: Date.now().toString(),
+            user_id: userId,
+            title: chatTitle,
+            messages: newMessages,
+            updated_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+          };
+          updatedChats = [newChat, ...chats];
+          setCurrentChatId(newChat.id);
+          setChats(updatedChats);
+        }
+        localStorage.setItem(`ai_chats_${userId}`, JSON.stringify(updatedChats));
+        return;
+      }
+
       if (currentChatId) {
-        await supabase
+        const { error } = await supabase
           .from('ai_chats')
           .update({ 
             messages: newMessages,
+            title: title || chats.find(c => c.id === currentChatId)?.title || 'محادثة',
             updated_at: new Date().toISOString()
           })
           .eq('id', currentChatId);
           
+        if (error) {
+           console.error("Supabase update error:", error);
+           // Fallback to order by created_at if updated_at fails due to not existing
+           if (error.message && error.message.includes("updated_at")) {
+             await supabase.from('ai_chats').update({ messages: newMessages }).eq('id', currentChatId);
+           }
+        }
         setChats(chats.map(c => c.id === currentChatId ? { ...c, messages: newMessages } : c));
       } else {
         const chatTitle = title || newMessages.find(m => m.role === 'user')?.text.substring(0, 30) + '...' || 'محادثة جديدة';
@@ -195,13 +263,16 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
             title: chatTitle,
             messages: newMessages
           })
-          .select()
-          .single();
+          .select();
 
-        if (error) throw error;
-        if (data) {
-          setCurrentChatId(data.id);
-          setChats([data, ...chats]);
+        if (error) {
+          console.error("Supabase insert error:", error);
+          throw error;
+        }
+        if (data && data.length > 0) {
+          const newChat = data[0] as Chat;
+          setCurrentChatId(newChat.id);
+          setChats([newChat, ...chats]);
         }
       }
     } catch (err) {
@@ -243,10 +314,6 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
   const getSystemInstruction = () => {
     return `أنت مدرس أكاديمي عراقي ذكي وودود. 
     الطالب الحالي في الصف: ${grade}. اسم الطالب: ${userName}.
@@ -255,23 +322,23 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
     2. تلخيص المواضيع بأسلوب عراقي مبسط.
     3. الإجابة على الأسئلة العلمية.
     
-    **قاعدة هامة جداً (RAG Mode و YouTube):**
-    - إذا قام الطالب بإرفاق ملفات (صور أو مستندات PDF)، **يجب عليك استخراج الإجابة أو الشرح حصراً من هذه المرفقات**. 
-    - إذا أرسل الطالب رابط يوتيوب (YouTube Link)، حاول استخراج المعلومات من الرابط وتلخيص المحاضرة أو شرحها بأفضل شكل ممكن.
-    لا تستخدم معلوماتك العامة للإجابة إذا كان السؤال يتعلق بالمرفق. 
-    إذا سأل الطالب سؤالاً خارج نطاق الملفات المرفقة، اعتذر بلطف وأخبره أنك مقيد بالملفات المرفقة في هذه المحادثة.
+    **قواعد الإجابة:**
+    - إذا كانت رسالة الطالب سؤالاً عاماً بدون إرفاق مصادر، أجب بشكل حر من معلوماتك العامة.
+    - إذا قام الطالب بإرفاق مصادر (سواء روابط ويب، يوتيوب، ملفات PDF، أو نص)، **فيجب عليك استخراج الإجابة أو الشرح حصراً من هذه المصادر المرفقة**.
+    - استخدم ميزة البحث الخاصة بك (Google Search) لفتح الروابط وفهم محتواها إذا أرفق الطالب رابطاً.
+    - إذا سأل الطالب سؤالاً عن المصادر ولم تكن المعلومة موجودة فيها، وضح له أنك لم تجدها في المصدر.
     
-    استخدم لهجة عراقية بيضاء محببة عند الشرح، والتزم باللغة العربية الفصحى في المعلومات العلمية.`;
+    استخدم لهجة عراقية بيضاء محببة عند الشرح (مثل "شوف عيني"، "السالفة وما بيها").`;
   };
 
   const handleSend = async (customPrompt?: string) => {
     const textToSend = customPrompt || input;
-    if ((!textToSend.trim() && attachments.length === 0) || loading) return;
+    if ((!textToSend.trim() && activeSources.length === 0) || loading) return;
 
     let dbText = textToSend;
-    if (attachments.length > 0) {
-      const attachmentNames = attachments.map(a => a.name).join('، ');
-      dbText = textToSend ? `${textToSend}\n\n[مرفقات: ${attachmentNames}]` : `[مرفقات: ${attachmentNames}]`;
+    if (activeSources.length > 0) {
+      const sourceNames = activeSources.map(s => s.title).join('، ');
+      dbText = textToSend ? `${textToSend}\n\n[مصادر مرفقة: ${sourceNames}]` : `[مصادر مرفقة: ${sourceNames}]`;
     }
 
     const newMessages = [...messages, { role: 'user', text: dbText } as Message];
@@ -280,19 +347,26 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
     setLoading(true);
 
     const userParts: any[] = [];
-    if (textToSend.trim()) userParts.push({ text: textToSend });
-    else if (attachments.length > 0) userParts.push({ text: "اشرح لي هذه المرفقات." });
-
-    attachments.forEach(att => {
-      userParts.push({
-        inlineData: {
-          data: att.base64,
-          mimeType: att.mimeType
-        }
-      });
+    let fullText = textToSend.trim() || 'اشرح لي هذه المصادر المرفقة.';
+    
+    activeSources.forEach(source => {
+      if (source.type === 'pdf') {
+        userParts.push({
+          inlineData: {
+            data: source.content,
+            mimeType: source.mime_type || 'application/pdf'
+          }
+        });
+      } else if (source.type === 'link' || source.type === 'youtube') {
+        fullText += `\n\n[رابط مرفق: ${source.title}]\n${source.content}`;
+      } else if (source.type === 'text') {
+        fullText += `\n\n[نص مرفق: ${source.title}]\n${source.content}`;
+      }
     });
+    
+    userParts.unshift({ text: fullText });
 
-    setAttachments([]);
+    setActiveSources([]);
 
     try {
       let response;
@@ -316,6 +390,7 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
             ],
             config: {
               systemInstruction: getSystemInstruction(),
+              tools: [{ googleSearch: {} }]
             }
           });
           break;
@@ -517,11 +592,12 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
                   </div>
                   <button 
                     onClick={(e) => deleteChat(e, chat.id)}
-                    className={`p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-all ${
-                      currentChatId === chat.id ? 'hover:bg-blue-700 text-blue-200' : 'hover:bg-red-50 text-red-500'
+                    className={`p-1.5 rounded-md transition-all ${
+                      currentChatId === chat.id ? 'text-blue-200 hover:bg-blue-700' : 'text-slate-400 hover:bg-red-50 hover:text-red-500'
                     }`}
+                    title="حذف المحادثة"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               ))}
@@ -555,14 +631,17 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
       {/* Input Area */}
       <div className="p-3 sm:p-6 bg-white border-t border-slate-200 z-10 w-full">
         <div className="max-w-4xl mx-auto w-full">
-          {/* Attachments Preview */}
-          {attachments.length > 0 && (
+          {/* Active Sources Preview */}
+          {activeSources.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3 px-2">
-              {attachments.map((att, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs border border-blue-100">
-                  {att.mimeType.includes('image') ? <ImageIcon size={14} /> : <FileText size={14} />}
-                  <span className="truncate max-w-[100px]">{att.name}</span>
-                  <button type="button" onClick={() => removeAttachment(idx)} className="hover:text-red-500 transition-colors">
+              {activeSources.map((source) => (
+                <div key={source.id} className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs border border-blue-100">
+                  {source.type === 'youtube' && <Youtube size={14} />}
+                  {source.type === 'link' && <LinkIcon size={14} />}
+                  {source.type === 'pdf' && <FileText size={14} />}
+                  {source.type === 'text' && <Type size={14} />}
+                  <span className="truncate max-w-[100px]">{source.title}</span>
+                  <button type="button" onClick={() => removeActiveSource(source.id)} className="hover:text-red-500 transition-colors">
                     <X size={14} />
                   </button>
                 </div>
@@ -570,14 +649,6 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
             </div>
           )}
           <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="relative flex items-center gap-2 sm:gap-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              className="hidden"
-              multiple
-              accept="image/*,application/pdf"
-            />
             <button
               type="button"
               onClick={() => setShowScheduleModal(true)}
@@ -588,16 +659,16 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
             </button>
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setShowSourcesModal(true)}
               disabled={selectedModel.includes('gemma') || isRecording}
-              title={selectedModel.includes('gemma') ? "المرفقات غير مدعومة في نموذج Gemma" : "إرفاق ملف أو صورة"}
+              title={selectedModel.includes('gemma') ? "المصادر غير مدعومة في نموذج Gemma" : "المصادر المحفوظة"}
               className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all shadow-sm flex-shrink-0 ${
                 selectedModel.includes('gemma')
                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200'
               }`}
             >
-              <Paperclip size={18} className="sm:w-6 sm:h-6" />
+              <BookOpen size={18} className="sm:w-6 sm:h-6" />
             </button>
             <input
               type="text"
@@ -624,7 +695,7 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
             </button>
             <button
               type="submit"
-              disabled={(!input.trim() && attachments.length === 0) || loading || isRecording}
+              disabled={(!input.trim() && activeSources.length === 0) || loading || isRecording}
               className="w-10 h-10 sm:w-14 sm:h-14 bg-blue-600 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:shadow-none flex-shrink-0"
             >
               <Send size={18} className="rotate-180 sm:w-6 sm:h-6" />
@@ -638,6 +709,19 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
         <ScheduleMakerModal 
           onClose={() => setShowScheduleModal(false)} 
           onSubmit={handleScheduleSubmit} 
+        />
+      )}
+
+      {/* Sources Modal */}
+      {showSourcesModal && (
+        <SourcesModal 
+          userId={userId} 
+          onClose={() => setShowSourcesModal(false)}
+          onAttachSource={(source) => {
+            if (!activeSources.find(s => s.id === source.id)) {
+              setActiveSources([...activeSources, source]);
+            }
+          }}
         />
       )}
     </div>

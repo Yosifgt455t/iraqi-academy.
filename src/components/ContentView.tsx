@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Material, Flashcard, Chapter, Grade } from '../types';
-import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award } from 'lucide-react';
+import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactPlayer from 'react-player';
+
+const Player = ReactPlayer as any;
 
 interface Props {
   chapter: Chapter;
@@ -18,9 +21,102 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'materials' | 'flashcards' | 'ministerial'>('materials');
-  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<Material | null>(null);
+  const openVideoModal = (m: Material) => {
+    setSelectedVideo(m);
+    setIsModalOpen(true);
+  };
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
+  const [expandedMaterialId, setExpandedMaterialId] = useState<string | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_completed'));
+  
+  const [videoProgress, setVideoProgress] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem(`videoProgress_${userId}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalPlaying, setIsModalPlaying] = useState(false);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const playRequestTimeRef = useRef<number>(0);
+
+  const closeVideoModal = () => {
+    const now = Date.now();
+    const timeSincePlay = now - playRequestTimeRef.current;
+    
+    // If we just requested play (< 1s ago), don't call pause immediately to avoid interruption error
+    // The unmount (via setSelectedVideo(null)) will handle stopping the media safely
+    if (timeSincePlay > 1000) {
+      setIsModalPlaying(false);
+    }
+    
+    setIsModalOpen(false);
+    setIsPlayerReady(false);
+    setTimeout(() => {
+      setSelectedVideo(null);
+    }, 300);
+  };
+
+  useEffect(() => {
+    if (selectedVideo) {
+      // Delay playing to ensure modal animation is mostly done
+      const timer = setTimeout(() => {
+        setIsModalPlaying(true);
+        playRequestTimeRef.current = Date.now();
+      }, 600);
+      return () => {
+        clearTimeout(timer);
+        setIsModalPlaying(false);
+        playRequestTimeRef.current = 0;
+      };
+    } else {
+      setIsModalPlaying(false);
+      setIsPlayerReady(false);
+      playRequestTimeRef.current = 0;
+    }
+  }, [selectedVideo]);
+
+  const markAsCompleted = async (materialId: string) => {
+    if (completedIds.includes(materialId)) return;
+    const newCompletedIds = [...completedIds, materialId];
+    setCompletedIds(newCompletedIds);
+    localStorage.setItem(`progress_${userId}`, JSON.stringify(newCompletedIds));
+
+    try {
+      await supabase
+        .from('profiles')
+        .update({ completed_materials: newCompletedIds })
+        .eq('id', userId);
+    } catch (err) {
+      console.error('Error updating progress in Supabase:', err);
+    }
+  };
+
+  const handleVideoProgress = (materialId: string, played: number) => {
+    const percentage = played * 100;
+    
+    setVideoProgress(prev => {
+      const current = prev[materialId] || 0;
+      if (percentage <= current && current > 0) return prev;
+      
+      const newProgress = { ...prev, [materialId]: percentage };
+      localStorage.setItem(`videoProgress_${userId}`, JSON.stringify(newProgress));
+      return newProgress;
+    });
+
+    if (percentage >= 80 && !completedIds.includes(materialId)) {
+      markAsCompleted(materialId);
+    }
+  };
+
+  const getYoutubeUrl = (url: string) => {
+    if (!url) return '';
+    // If it's an embed URL, ReactPlayer might prefer the standard one but can handle it.
+    // However, if it's just an ID, we fix it.
+    if (url.includes('youtube.com') || url.includes('youtu.be')) return url;
+    if (url.length === 11) return `https://www.youtube.com/watch?v=${url}`;
+    return url;
+  };
 
   const isMinisterialGrade = ['primary_6', 'middle_3', 'secondary_6_sci', 'secondary_6_lit'].includes(grade);
   
@@ -244,62 +340,114 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                 {materials.filter(m => m.type !== 'Ministerial').map((m) => {
                   const isCompleted = completedIds.includes(m.id);
                   return (
-                    <div key={m.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 space-x-reverse relative group">
-                      <button
-                        onClick={() => toggleCompletion(m.id)}
-                        className={`absolute -top-2 -left-2 p-1.5 rounded-full shadow-md transition-all z-10 ${
-                          isCompleted ? 'bg-green-500 text-white' : 'bg-white text-slate-300 hover:text-green-500'
-                        }`}
-                        title={isCompleted ? 'تم الإكمال' : 'تحديد كمكتمل'}
-                      >
-                        <CheckCircle size={16} />
-                      </button>
+                    <div key={m.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col relative group overflow-hidden">
+                      <div className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4 relative z-10 bg-white">
+                        <button
+                          onClick={() => toggleCompletion(m.id)}
+                          className={`absolute -top-2 -left-2 p-1.5 rounded-full shadow-md transition-all z-10 ${
+                            isCompleted ? 'bg-green-500 text-white' : 'bg-white text-slate-300 hover:text-green-500'
+                          }`}
+                          title={isCompleted ? 'تم الإكمال' : (m.type === 'PDF' ? 'تحديد كمكتمل' : 'تحديد كمكتمل (يتم تلقائياً بعد مشاهدة 80%)')}
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                        
+                        <div className={`p-3 sm:p-4 rounded-xl transition-colors flex-shrink-0 mt-1 sm:mt-0 ${
+                          isCompleted 
+                            ? 'bg-green-50 text-green-600' 
+                            : m.type === 'PDF' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+                        }`}>
+                          {m.type === 'PDF' ? <FileText size={24} /> : <Play size={24} />}
+                        </div>
+                        <div className="flex-1 min-w-0 pr-1">
+                          <h4 className={`font-bold transition-colors text-sm sm:text-base leading-relaxed break-words ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                            {m.title}
+                          </h4>
+                          <p className="text-xs text-slate-500 mt-1">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
+                          {m.type !== 'PDF' && (
+                            <div className="mt-3 w-full max-w-[200px] bg-slate-100 rounded-full h-1.5 overflow-hidden flex items-center">
+                              <div 
+                                className={`h-full transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
+                                style={{ width: `${isCompleted ? 100 : Math.min(100, Math.max(0, videoProgress[m.id] || 0))}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => setExpandedMaterialId(expandedMaterialId === m.id ? null : m.id)}
+                            className={`p-2 rounded-lg transition-all ${expandedMaterialId === m.id ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                            title="عرض سريع"
+                          >
+                            <Eye size={20} />
+                          </button>
+                          {onAskAI && (
+                            <button
+                              onClick={() => {
+                                if (m.type === 'Video') {
+                                  onAskAI(`اشرح لي ولخص هذه المحاضرة (فيديو يوتيوب): ${m.url || (m as any).content}\n\nعنوان المحاضرة: ${m.title} (فصل ${chapter.name})`);
+                                } else {
+                                  onAskAI(`أريد شرح هذا الموضوع: ${m.title} في فصل ${chapter.name}. (ملاحظة: إذا كان لديك ملف PDF يرجى إرفاقه في المحادثة باستخدام زر الإرفاق 📎 لكي أتمكن من قراءته وشرحه لك).`);
+                                }
+                              }}
+                              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                              title="اشرح لي بالذكاء الاصطناعي"
+                            >
+                              <Sparkles size={20} />
+                            </button>
+                          )}
+                          {m.type === 'PDF' ? (
+                            <button
+                              onClick={() => setSelectedPdf(m.url || (m as any).content)}
+                              className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title="عرض بشاشة كاملة"
+                            >
+                              <ExternalLink size={20} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openVideoModal(m)}
+                              className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title="عرض بشاشة كاملة"
+                            >
+                              <Play size={20} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                       
-                      <div className={`p-4 rounded-xl transition-colors ${
-                        isCompleted 
-                          ? 'bg-green-50 text-green-600' 
-                          : m.type === 'PDF' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
-                      }`}>
-                        {m.type === 'PDF' ? <FileText size={24} /> : <Play size={24} />}
-                      </div>
-                      <div className="flex-1">
-                        <h4 className={`font-bold transition-colors ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                          {m.title}
-                        </h4>
-                        <p className="text-xs text-slate-500">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {onAskAI && (
-                          <button
-                            onClick={() => {
-                              if (m.type === 'Video') {
-                                onAskAI(`اشرح لي ولخص هذه المحاضرة (فيديو يوتيوب): ${m.url || (m as any).content}\n\nعنوان المحاضرة: ${m.title} (فصل ${chapter.name})`);
-                              } else {
-                                onAskAI(`أريد شرح هذا الموضوع: ${m.title} في فصل ${chapter.name}. (ملاحظة: إذا كان لديك ملف PDF يرجى إرفاقه في المحادثة باستخدام زر الإرفاق 📎 لكي أتمكن من قراءته وشرحه لك).`);
-                              }
-                            }}
-                            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                            title="اشرح لي بالذكاء الاصطناعي"
+                      <AnimatePresence>
+                        {expandedMaterialId === m.id && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="bg-slate-50 border-t border-slate-100"
                           >
-                            <Sparkles size={20} />
-                          </button>
+                            <div className="p-4">
+                              {m.type === 'PDF' ? (
+                                <iframe
+                                  src={`https://docs.google.com/gview?url=${encodeURIComponent(m.url || (m as any).content)}&embedded=true`}
+                                  className="w-full h-80 sm:h-96 rounded-xl border border-slate-200"
+                                  title="PDF Quick View"
+                                ></iframe>
+                              ) : (
+                                <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-sm relative">
+                                  <Player
+                                    url={getYoutubeUrl(m.url || (m as any).content)}
+                                    width="100%"
+                                    height="100%"
+                                    controls
+                                    playing={false}
+                                    onProgress={(progress: any) => handleVideoProgress(m.id, progress.played)}
+                                    style={{ position: 'absolute', top: 0, left: 0 }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
                         )}
-                        {m.type === 'PDF' ? (
-                          <button
-                            onClick={() => setSelectedPdf(m.url || (m as any).content)}
-                            className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                          >
-                            <ExternalLink size={20} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setSelectedVideo(getEmbedUrl(m.url || (m as any).content))}
-                            className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                          >
-                            <Play size={20} />
-                          </button>
-                        )}
-                      </div>
+                      </AnimatePresence>
                     </div>
                   );
                 })}
@@ -333,22 +481,53 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                 {materials.filter(m => m.type === 'Ministerial').map((m) => {
                   const isCompleted = completedIds.includes(m.id);
                   return (
-                    <div key={m.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 space-x-reverse relative group">
-                      <div className="p-4 rounded-xl bg-purple-50 text-purple-600">
-                        <Award size={24} />
+                    <div key={m.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col relative group overflow-hidden">
+                      <div className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4 relative z-10 bg-white">
+                        <div className="p-3 sm:p-4 rounded-xl bg-purple-50 text-purple-600 flex-shrink-0 mt-1 sm:mt-0">
+                          <Award size={24} />
+                        </div>
+                        <div className="flex-1 min-w-0 pr-1">
+                          <h4 className="font-bold text-slate-900 text-sm sm:text-base leading-relaxed break-words">
+                            {m.title}
+                          </h4>
+                          <p className="text-xs text-slate-500 mt-2">أسئلة وزارية مع الحلول</p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => setExpandedMaterialId(expandedMaterialId === m.id ? null : m.id)}
+                            className={`p-2 rounded-lg transition-all ${expandedMaterialId === m.id ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                            title="عرض سريع"
+                          >
+                            <Eye size={20} />
+                          </button>
+                          <button
+                            onClick={() => setSelectedPdf(m.url)}
+                            className="p-2 bg-slate-50 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                            title="عرض بشاشة كاملة"
+                          >
+                            <ExternalLink size={20} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-slate-900">
-                          {m.title}
-                        </h4>
-                        <p className="text-xs text-slate-500">أسئلة وزارية مع الحلول</p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedPdf(m.url)}
-                        className="p-2 bg-slate-50 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-                      >
-                        <ExternalLink size={20} />
-                      </button>
+
+                      <AnimatePresence>
+                        {expandedMaterialId === m.id && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="bg-slate-50 border-t border-slate-100"
+                          >
+                            <div className="p-4">
+                                <iframe
+                                  src={`https://docs.google.com/gview?url=${encodeURIComponent(m.url)}&embedded=true`}
+                                  className="w-full h-80 sm:h-96 rounded-xl border border-slate-200"
+                                  title="PDF Quick View"
+                                ></iframe>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
@@ -506,35 +685,39 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
 
       {/* Video Player Modal */}
       <AnimatePresence>
-        {selectedVideo && (
+        {isModalOpen && selectedVideo && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl overflow-hidden w-full max-w-4xl shadow-2xl"
+              className="bg-black rounded-xl sm:rounded-2xl overflow-hidden w-full h-full max-h-[100dvh] flex flex-col shadow-2xl"
             >
-              <div className="p-4 flex items-center justify-between border-b border-slate-100">
-                <h3 className="font-bold text-slate-900">مشاهدة المحاضرة</h3>
+              <div className="p-3 sm:p-4 flex items-center justify-between border-b border-white/10 bg-black/50 text-white z-10">
+                <h3 className="font-bold text-sm sm:text-base">{selectedVideo.title}</h3>
                 <button
-                  onClick={() => setSelectedVideo(null)}
-                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  onClick={closeVideoModal}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <div className="aspect-video bg-black">
-                <iframe
-                  src={selectedVideo}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
+              <div className="flex-1 w-full h-full relative bg-black">
+                <Player
+                  url={getYoutubeUrl(selectedVideo.url || (selectedVideo as any).content)}
+                  width="100%"
+                  height="100%"
+                  controls
+                  playing={isModalPlaying}
+                  onReady={() => setIsPlayerReady(true)}
+                  onProgress={(progress: any) => handleVideoProgress(selectedVideo.id, progress.played)}
+                  style={{ position: 'absolute', top: 0, left: 0 }}
+                />
               </div>
             </motion.div>
           </motion.div>
@@ -548,13 +731,13 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl overflow-hidden w-full h-full max-w-5xl max-h-[90vh] shadow-2xl flex flex-col"
+              className="bg-white rounded-xl sm:rounded-2xl overflow-hidden w-full h-full max-h-[100dvh] shadow-2xl flex flex-col"
             >
               <div className="p-4 flex items-center justify-between border-b border-slate-100">
                 <h3 className="font-bold text-slate-900">عرض الملزمة</h3>

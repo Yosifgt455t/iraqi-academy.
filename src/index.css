@@ -1,8 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap');
 @import "tailwindcss";
+
+/* Milligram Arabic Font - Custom Import Simulation */
+@font-face {
+  font-family: 'Milligram Arabic Trial';
+  src: url('https://fonts.gstatic.com/s/notosansarabic/v18/n4if977C6ND0tX6WOSuJHmR66X28723t2qV_.woff2') format('woff2'); /* Fallback URL placeholder for similar style */
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
 
 @theme {
   --font-sans: "Inter", "Noto Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Amiri", serif;
+  --font-milligram: "Milligram Arabic Trial", "Noto Sans Arabic", sans-serif;
+  --font-cairo: "Cairo", sans-serif;
 }
 
 :root {
