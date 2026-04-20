@@ -80,6 +80,12 @@ export default function AdminDashboard({ onBack }: Props) {
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [bulkInput, setBulkInput] = useState('');
   const [builderRows, setBuilderRows] = useState<string[]>(['']); // Array of chapter names
+  const [materialRows, setMaterialRows] = useState<{ title: string; type: 'Video' | 'PDF' | 'Ministerial'; url: string }[]>([
+    { title: '', type: 'Video', url: '' }
+  ]);
+  const [flashcardRows, setFlashcardRows] = useState<{ question: string; answer: string }[]>([
+    { question: '', answer: '' }
+  ]);
   const [multiSelectedSubjectIds, setMultiSelectedSubjectIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -107,6 +113,8 @@ export default function AdminDashboard({ onBack }: Props) {
   const resetForm = () => {
     setBulkInput('');
     setBuilderRows(['']);
+    setMaterialRows([{ title: '', type: 'Video', url: '' }]);
+    setFlashcardRows([{ question: '', answer: '' }]);
     setMultiSelectedSubjectIds([]);
     setEditingId(null);
     setSubjectName('');
@@ -345,18 +353,21 @@ export default function AdminDashboard({ onBack }: Props) {
         });
         showToast('success', 'تم التعديل بنجاح');
       } else if (isBulkMode) {
-        const lines = bulkInput.split('\n').filter(l => l.trim());
-        for (const line of lines) {
-          const [title, type, url] = line.split('|').map(s => s.trim());
-          if (title && url) {
-            await addDoc(collection(db, 'materials'), {
-              chapterId: selectedChapterId,
-              subjectId: selectedSubjectId,
-              title,
-              type: (type as any) || 'Video',
-              url
-            });
-          }
+        const validMaterials = materialRows.filter(m => m.title.trim() && m.url.trim());
+        if (validMaterials.length === 0) {
+          showToast('error', 'يرجى إضافة محاضرة واحدة على الأقل');
+          setLoading(false);
+          return;
+        }
+
+        for (const mat of validMaterials) {
+          await addDoc(collection(db, 'materials'), {
+            chapterId: selectedChapterId,
+            subjectId: selectedSubjectId,
+            title: mat.title.trim(),
+            type: mat.type,
+            url: mat.url.trim()
+          });
         }
       } else {
         let finalUrl = materialUrl;
@@ -410,16 +421,19 @@ export default function AdminDashboard({ onBack }: Props) {
         });
         showToast('success', 'تم التعديل بنجاح');
       } else if (isBulkMode) {
-        const lines = bulkInput.split('\n').filter(l => l.trim());
-        for (const line of lines) {
-          const [q, a] = line.split('|').map(s => s.trim());
-          if (q && a) {
-            await addDoc(collection(db, 'flashcards'), {
-              chapterId: selectedChapterId,
-              question: q,
-              answer: a
-            });
-          }
+        const validCards = flashcardRows.filter(f => f.question.trim() && f.answer.trim());
+        if (validCards.length === 0) {
+          showToast('error', 'يرجى إضافة بطاقة واحدة على الأقل');
+          setLoading(false);
+          return;
+        }
+
+        for (const card of validCards) {
+          await addDoc(collection(db, 'flashcards'), {
+            chapterId: selectedChapterId,
+            question: card.question.trim(),
+            answer: card.answer.trim()
+          });
         }
       } else {
         if (!flashcardQuestion || !flashcardAnswer) return;
@@ -788,7 +802,7 @@ export default function AdminDashboard({ onBack }: Props) {
                             </div>
                           )}
 
-                          {activeTab !== 'chapters' && (
+                          {activeTab !== 'chapters' && activeTab !== 'materials' && activeTab !== 'flashcards' && (
                             <div className="space-y-6">
                               <div className="flex items-center justify-between">
                                 <h3 className="font-black text-slate-900">نظام الرفع الجماعي الذكي</h3>
@@ -801,12 +815,6 @@ export default function AdminDashboard({ onBack }: Props) {
                                  <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">تنسيق الإدخال:</p>
                                  <p className="text-xs font-bold text-slate-600">
                                     {activeTab === 'subjects' && 'أدخل اسم المادة في كل سطر'}
-                                    {activeTab === 'materials' && (
-                                      <>تنسيق المحاضرات: <span dir="ltr" className="bg-white px-1 rounded">العنوان | النوع | الرابط</span></>
-                                    )}
-                                    {activeTab === 'flashcards' && (
-                                      <>تنسيق البطاقات: <span dir="ltr" className="bg-white px-1 rounded">السؤال | الجواب</span></>
-                                    )}
                                  </p>
                               </div>
 
@@ -816,8 +824,7 @@ export default function AdminDashboard({ onBack }: Props) {
                                 onChange={(e) => setBulkInput(e.target.value)}
                                 placeholder={
                                   activeTab === 'subjects' ? "الفيزياء\nالكيمياء\nالرياضيات" :
-                                  activeTab === 'materials' ? "المحاضرة 1 | Video | https://...\nملزمة 1 | PDF | https://..." :
-                                  "ماهي القوة؟ | هي المؤثر الذي يغير الحالة الحركية للجسم"
+                                  ""
                                 }
                                 className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-mono text-sm leading-relaxed transition-all"
                               />
@@ -831,6 +838,159 @@ export default function AdminDashboard({ onBack }: Props) {
                                 معالجة وإضافة البيانات فوراً
                               </button>
                             </div>
+                          )}
+
+                          {activeTab === 'materials' && (
+                             <div className="space-y-6">
+                               <div className="flex items-center justify-between">
+                                 <h3 className="font-black text-slate-900">منشئ المحاضرات الجماعي</h3>
+                                 <button 
+                                   type="button"
+                                   onClick={() => setMaterialRows([...materialRows, { title: '', type: 'Video', url: '' }])}
+                                   className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"
+                                 >
+                                   <Plus size={18} />
+                                 </button>
+                               </div>
+                               
+                               <div className="space-y-4">
+                                 {materialRows.map((row, idx) => (
+                                   <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 relative group">
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                       <input 
+                                         type="text"
+                                         placeholder="عنوان المحاضرة"
+                                         value={row.title}
+                                         onChange={(e) => {
+                                           const newRows = [...materialRows];
+                                           newRows[idx].title = e.target.value;
+                                           setMaterialRows(newRows);
+                                         }}
+                                         className="p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm"
+                                       />
+                                       <select 
+                                         value={row.type}
+                                         onChange={(e) => {
+                                           const newRows = [...materialRows];
+                                           newRows[idx].type = e.target.value as any;
+                                           setMaterialRows(newRows);
+                                         }}
+                                         className="p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm"
+                                       >
+                                         <option value="Video">فيديو</option>
+                                         <option value="PDF">ملزمة</option>
+                                         <option value="Ministerial">وزاريات</option>
+                                       </select>
+                                     </div>
+                                     <input 
+                                       type="text"
+                                       placeholder="رابط المحتوى (YouTube/Drive)"
+                                       value={row.url}
+                                       onChange={(e) => {
+                                         const newRows = [...materialRows];
+                                         newRows[idx].url = e.target.value;
+                                         setMaterialRows(newRows);
+                                       }}
+                                       className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm"
+                                     />
+                                     {materialRows.length > 1 && (
+                                       <button 
+                                         type="button"
+                                         onClick={() => setMaterialRows(materialRows.filter((_, i) => i !== idx))}
+                                         className="absolute -left-2 -top-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
+                                       >
+                                         <X size={12} />
+                                       </button>
+                                     )}
+                                   </div>
+                                 ))}
+                                 <button 
+                                   type="button"
+                                   onClick={() => setMaterialRows([...materialRows, { title: '', type: 'Video', url: '' }])}
+                                   className="w-full py-3 border-2 border-dashed border-slate-300 text-slate-400 rounded-xl hover:border-blue-400 hover:text-blue-500 transition-all font-bold text-xs"
+                                 >
+                                   + إضافة محاضرة أخرى
+                                 </button>
+                               </div>
+
+                               <button 
+                                 type="submit"
+                                 disabled={loading || !selectedChapterId}
+                                 className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-3 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100 transition-all"
+                               >
+                                 {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                                 حفظ جميع المحاضرات ({materialRows.length})
+                               </button>
+                             </div>
+                          )}
+
+                          {activeTab === 'flashcards' && (
+                             <div className="space-y-6">
+                               <div className="flex items-center justify-between">
+                                 <h3 className="font-black text-slate-900">منشئ البطاقات الجماعي</h3>
+                                 <button 
+                                   type="button"
+                                   onClick={() => setFlashcardRows([...flashcardRows, { question: '', answer: '' }])}
+                                   className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200"
+                                 >
+                                   <Plus size={18} />
+                                 </button>
+                               </div>
+                               
+                               <div className="space-y-4">
+                                 {flashcardRows.map((row, idx) => (
+                                   <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 relative group">
+                                     <textarea 
+                                       placeholder="السؤال"
+                                       value={row.question}
+                                       rows={2}
+                                       onChange={(e) => {
+                                         const newRows = [...flashcardRows];
+                                         newRows[idx].question = e.target.value;
+                                         setFlashcardRows(newRows);
+                                       }}
+                                       className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm resize-none"
+                                     />
+                                     <textarea 
+                                       placeholder="الجواب"
+                                       value={row.answer}
+                                       rows={2}
+                                       onChange={(e) => {
+                                         const newRows = [...flashcardRows];
+                                         newRows[idx].answer = e.target.value;
+                                         setFlashcardRows(newRows);
+                                       }}
+                                       className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm resize-none"
+                                     />
+                                     {flashcardRows.length > 1 && (
+                                       <button 
+                                         type="button"
+                                         onClick={() => setFlashcardRows(flashcardRows.filter((_, i) => i !== idx))}
+                                         className="absolute -left-2 -top-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
+                                       >
+                                         <X size={12} />
+                                       </button>
+                                     )}
+                                   </div>
+                                 ))}
+                                 <button 
+                                   type="button"
+                                   onClick={() => setFlashcardRows([...flashcardRows, { question: '', answer: '' }])}
+                                   className="w-full py-3 border-2 border-dashed border-slate-300 text-slate-400 rounded-xl hover:border-purple-400 hover:text-purple-500 transition-all font-bold text-xs"
+                                 >
+                                   + إضافة بطاقة أخرى
+                                 </button>
+                               </div>
+
+                               <button 
+                                 type="submit"
+                                 disabled={loading || !selectedChapterId}
+                                 className="w-full py-5 bg-purple-600 text-white rounded-3xl font-black flex items-center justify-center gap-3 hover:bg-purple-700 disabled:opacity-50 shadow-xl shadow-purple-100 transition-all"
+                               >
+                                 {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                                 حفظ جميع البطاقات ({flashcardRows.length})
+                               </button>
+                             </div>
                           )}
                         </form>
                       ) : (
