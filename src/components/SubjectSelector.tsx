@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-// Force update for Vercel deployment
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { Subject, Grade } from '../types';
 import { Book, Atom, Calculator, FlaskConical, Languages, Loader2, ChevronLeft, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -29,15 +29,25 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [subjectsRes, materialsRes, profileRes] = await Promise.all([
-          supabase.from('subjects').select('*').eq('grade', grade),
-          supabase.from('materials').select('id, chapter_id, chapters!inner(subject_id)'),
-          supabase.from('profiles').select('completed_materials').eq('id', userId).single()
-        ]);
-        
-        setSubjects(subjectsRes.data || []);
-        setAllMaterials(materialsRes.data || []);
-        setCompletedMaterials(profileRes.data?.completed_materials || []);
+        // Fetch Subjects for this grade
+        const subjectsQuery = query(collection(db, 'subjects'), where('grade', '==', grade));
+        const subjectsSnap = await getDocs(subjectsQuery);
+        const subjectsData = subjectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject));
+        setSubjects(subjectsData);
+
+        // Fetch Materials (for progress calculation)
+        const materialsSnap = await getDocs(collection(db, 'materials'));
+        setAllMaterials(materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+        // Fetch User profile (completed materials) - Using getDoc instead of query
+        try {
+          const userDoc = await getDoc(doc(db, 'users', userId));
+          if (userDoc.exists()) {
+            setCompletedMaterials(userDoc.data().completed_materials || []);
+          }
+        } catch (profileErr) {
+          console.warn('Could not fetch profile, progress might be inaccurate:', profileErr);
+        }
       } catch (err) {
         console.error('Error fetching subjects data:', err);
       } finally {
@@ -48,7 +58,9 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
   }, [grade, userId]);
 
   const getSubjectProgress = (subjectId: string) => {
-    const subjectMaterials = allMaterials.filter(m => m.chapters.subject_id === subjectId);
+    // Note: In Firestore structure, materials would ideally contain subjectId as well for easier filtering
+    // or we fetch them per subject. For now keeping similar logic as before.
+    const subjectMaterials = allMaterials.filter(m => m.subjectId === subjectId);
     if (subjectMaterials.length === 0) return 0;
     const completedInSubject = subjectMaterials.filter(m => completedMaterials.includes(m.id)).length;
     return Math.round((completedInSubject / subjectMaterials.length) * 100);

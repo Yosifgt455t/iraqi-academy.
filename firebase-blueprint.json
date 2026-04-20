@@ -1,0 +1,145 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores basic user information and preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique ID of the user." },
+        "displayName": { "type": "string", "description": "User's display name." },
+        "email": { "type": "string", "description": "User's email address." },
+        "photoURL": { "type": "string", "description": "URL to the user's profile picture." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the account was created." }
+      },
+      "required": ["uid", "email"]
+    },
+    "Exam": {
+      "title": "Saved Exam",
+      "description": "An exam created and saved by a teacher.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "subject": { "type": "string" },
+        "examType": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "questions": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "branches": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teacherId", "subject", "questions"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "A study subject for a specific grade.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "grade": { "type": "string" },
+        "icon": { "type": "string" }
+      },
+      "required": ["name", "grade"]
+    },
+    "Chapter": {
+      "title": "Chapter",
+      "description": "A chapter within a subject.",
+      "type": "object",
+      "properties": {
+        "subjectId": { "type": "string" },
+        "name": { "type": "string" },
+        "orderIndex": { "type": "number" }
+      },
+      "required": ["subjectId", "name"]
+    },
+    "Material": {
+      "title": "Material (Lecture)",
+      "description": "An educational resource like a PDF or Video.",
+      "type": "object",
+      "properties": {
+        "chapterId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["PDF", "Video", "Ministerial"] },
+        "url": { "type": "string" }
+      },
+      "required": ["chapterId", "title", "type", "url"]
+    },
+    "Flashcard": {
+      "title": "Flashcard",
+      "description": "A digital flashcard for smart testing.",
+      "type": "object",
+      "properties": {
+        "chapterId": { "type": "string" },
+        "question": { "type": "string" },
+        "answer": { "type": "string" }
+      },
+      "required": ["chapterId", "question", "answer"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "An AI chat session storage.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "messages": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Source": {
+      "title": "Source",
+      "description": "A learning source saved by the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["pdf", "link", "text", "youtube"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User account documents."
+    },
+    "/exams/{examId}": {
+      "schema": "Exam",
+      "description": "Exams collection."
+    },
+    "/subjects/{subjectId}": {
+      "schema": "Subject",
+      "description": "All subjects across all grades."
+    },
+    "/chapters/{chapterId}": {
+      "schema": "Chapter",
+      "description": "Chapters for subjects."
+    },
+    "/materials/{materialId}": {
+      "schema": "Material",
+      "description": "Lectures, PDFs, and videos."
+    },
+    "/flashcards/{flashcardId}": {
+      "schema": "Flashcard",
+      "description": "Smart study cards."
+    },
+    "/ai_chats/{chatId}": {
+      "schema": "Chat",
+      "description": "AI chat history."
+    },
+    "/sources/{sourceId}": {
+      "schema": "Source",
+      "description": "User's saved sources for contextual AI AI."
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { Material, Flashcard, Chapter, Grade } from '../types';
 import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,36 +23,31 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
   const [dbError, setDbError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'materials' | 'flashcards' | 'ministerial'>('materials');
   const [selectedVideo, setSelectedVideo] = useState<Material | null>(null);
-  const openVideoModal = (m: Material) => {
-    setSelectedVideo(m);
-    setIsModalOpen(true);
-  };
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
   const [expandedMaterialId, setExpandedMaterialId] = useState<string | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_completed'));
-  
-  const [videoProgress, setVideoProgress] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem(`videoProgress_${userId}`);
-    return saved ? JSON.parse(saved) : {};
-  });
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isModalPlaying, setIsModalPlaying] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const playRequestTimeRef = useRef<number>(0);
 
+  const openVideoModal = (m: Material) => {
+    setSelectedVideo(m);
+    setIsModalOpen(true);
+  };
+
+  const [videoProgress, setVideoProgress] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem(`videoProgress_${userId}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+
   const closeVideoModal = () => {
     const now = Date.now();
     const timeSincePlay = now - playRequestTimeRef.current;
-    
-    // If we just requested play (< 1s ago), don't call pause immediately to avoid interruption error
-    // The unmount (via setSelectedVideo(null)) will handle stopping the media safely
     if (timeSincePlay > 1000) {
       setIsModalPlaying(false);
     }
-    
     setIsModalOpen(false);
-    setIsPlayerReady(false);
     setTimeout(() => {
       setSelectedVideo(null);
     }, 300);
@@ -59,7 +55,6 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
 
   useEffect(() => {
     if (selectedVideo) {
-      // Delay playing to ensure modal animation is mostly done
       const timer = setTimeout(() => {
         setIsModalPlaying(true);
         playRequestTimeRef.current = Date.now();
@@ -71,10 +66,14 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
       };
     } else {
       setIsModalPlaying(false);
-      setIsPlayerReady(false);
       playRequestTimeRef.current = 0;
     }
   }, [selectedVideo]);
+
+  const getPdfSource = (url: string) => {
+    if (url.startsWith('data:')) return url;
+    return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+  };
 
   const markAsCompleted = async (materialId: string) => {
     if (completedIds.includes(materialId)) return;
@@ -83,22 +82,20 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
     localStorage.setItem(`progress_${userId}`, JSON.stringify(newCompletedIds));
 
     try {
-      await supabase
-        .from('profiles')
-        .update({ completed_materials: newCompletedIds })
-        .eq('id', userId);
+      await updateDoc(doc(db, 'users', userId), {
+        completed_materials: newCompletedIds,
+        updatedAt: new Date().toISOString()
+      });
     } catch (err) {
-      console.error('Error updating progress in Supabase:', err);
+      console.error('Error updating progress in Firestore:', err);
     }
   };
 
   const handleVideoProgress = (materialId: string, played: number) => {
     const percentage = played * 100;
-    
     setVideoProgress(prev => {
       const current = prev[materialId] || 0;
       if (percentage <= current && current > 0) return prev;
-      
       const newProgress = { ...prev, [materialId]: percentage };
       localStorage.setItem(`videoProgress_${userId}`, JSON.stringify(newProgress));
       return newProgress;
@@ -111,15 +108,12 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
 
   const getYoutubeUrl = (url: string) => {
     if (!url) return '';
-    // If it's an embed URL, ReactPlayer might prefer the standard one but can handle it.
-    // However, if it's just an ID, we fix it.
     if (url.includes('youtube.com') || url.includes('youtu.be')) return url;
     if (url.length === 11) return `https://www.youtube.com/watch?v=${url}`;
     return url;
   };
 
   const isMinisterialGrade = ['primary_6', 'middle_3', 'secondary_6_sci', 'secondary_6_lit'].includes(grade);
-  
   const chapterProgress = materials.length > 0 
     ? Math.round((materials.filter(m => completedIds.includes(m.id)).length / materials.length) * 100)
     : 0;
@@ -128,84 +122,41 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
     setShowTutorial(false);
     localStorage.setItem('tutorial_completed', 'true');
   };
-  
-  // Flashcard state
+
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      console.log('Fetching materials for chapter:', chapter.id);
       try {
         setDbError(null);
-        const { data, error } = await supabase
-          .from('materials')
-          .select('*')
-          .eq('chapter_id', chapter.id);
+        // Fetch materials for this chapter
+        const materialsQuery = query(collection(db, 'materials'), where('chapterId', '==', chapter.id));
+        const materialsSnap = await getDocs(materialsQuery);
+        setMaterials(materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Material)));
+        
+        // Fetch flashcards for this chapter
+        const flashcardsQuery = query(collection(db, 'flashcards'), where('chapterId', '==', chapter.id));
+        const flashcardsSnap = await getDocs(flashcardsQuery);
+        setFlashcards(flashcardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Flashcard)));
 
-        if (error) {
-          console.error('Supabase error details:', error);
-          setDbError(error.message);
-          throw error;
-        }
-        
-        console.log('Supabase materials data:', data);
-        
-        if (data && data.length > 0) {
-          setMaterials(data);
-        } else {
-          setMaterials([]);
-        }
-      } catch (err) {
-        console.error('Error fetching materials from Supabase:', err);
-        setMaterials([]);
-      }
-      
-      try {
-        const { data: flashcardsData, error: flashcardsError } = await supabase
-          .from('flashcards')
-          .select('*')
-          .eq('chapter_id', chapter.id);
-          
-        if (flashcardsError) {
-          console.error('Error fetching flashcards:', flashcardsError);
-          setFlashcards([]);
-        } else if (flashcardsData) {
-          setFlashcards(flashcardsData);
-        } else {
-          setFlashcards([]);
-        }
-      } catch (err) {
-        console.error('Error fetching flashcards:', err);
-        setFlashcards([]);
-      }
-      
-      try {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('completed_materials')
-          .eq('id', userId)
-          .single();
-          
-        if (profileData?.completed_materials) {
-          setCompletedIds(profileData.completed_materials);
-          localStorage.setItem(`progress_${userId}`, JSON.stringify(profileData.completed_materials));
+        // Fetch user progress
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          const progress = userDoc.data().completed_materials || [];
+          setCompletedIds(progress);
+          localStorage.setItem(`progress_${userId}`, JSON.stringify(progress));
         } else {
           const savedProgress = localStorage.getItem(`progress_${userId}`);
-          if (savedProgress) {
-            setCompletedIds(JSON.parse(savedProgress));
-          }
+          if (savedProgress) setCompletedIds(JSON.parse(savedProgress));
         }
-      } catch (err) {
-        console.error('Error fetching profile progress:', err);
-        const savedProgress = localStorage.getItem(`progress_${userId}`);
-        if (savedProgress) {
-          setCompletedIds(JSON.parse(savedProgress));
-        }
+      } catch (err: any) {
+        console.error('Error fetching data from Firestore:', err);
+        setDbError(err.message);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
     fetchData();
   }, [chapter, userId]);
@@ -220,12 +171,12 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
     localStorage.setItem(`progress_${userId}`, JSON.stringify(newCompletedIds));
 
     try {
-      await supabase
-        .from('profiles')
-        .update({ completed_materials: newCompletedIds })
-        .eq('id', userId);
+      await updateDoc(doc(db, 'users', userId), {
+        completed_materials: newCompletedIds,
+        updatedAt: new Date().toISOString()
+      });
     } catch (err) {
-      console.error('Error updating progress in Supabase:', err);
+      console.error('Error updating progress in Firestore:', err);
     }
   };
 
@@ -427,7 +378,7 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                             <div className="p-4">
                               {m.type === 'PDF' ? (
                                 <iframe
-                                  src={`https://docs.google.com/gview?url=${encodeURIComponent(m.url || (m as any).content)}&embedded=true`}
+                                  src={getPdfSource(m.url || (m as any).content)}
                                   className="w-full h-80 sm:h-96 rounded-xl border border-slate-200"
                                   title="PDF Quick View"
                                 ></iframe>
@@ -520,7 +471,7 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                           >
                             <div className="p-4">
                                 <iframe
-                                  src={`https://docs.google.com/gview?url=${encodeURIComponent(m.url)}&embedded=true`}
+                                  src={getPdfSource(m.url)}
                                   className="w-full h-80 sm:h-96 rounded-xl border border-slate-200"
                                   title="PDF Quick View"
                                 ></iframe>
@@ -761,7 +712,7 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
               </div>
               <div className="flex-1 bg-slate-100 overflow-hidden">
                 <iframe
-                  src={`https://docs.google.com/gview?url=${encodeURIComponent(selectedPdf)}&embedded=true`}
+                  src={getPdfSource(selectedPdf)}
                   className="w-full h-full border-none"
                   title="PDF Viewer"
                 ></iframe>

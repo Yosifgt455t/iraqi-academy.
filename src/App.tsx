@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase';
+import { auth, logout, getUserProfile } from './lib/firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { Grade } from './types';
 import Auth from './components/Auth';
+import ProfileSetup from './components/ProfileSetup';
 import GradeSelector from './components/GradeSelector';
 import Dashboard from './components/Dashboard';
 import { Loader2 } from 'lucide-react';
 
 export default function App() {
-  const [session, setSession] = useState<any>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [grade, setGrade] = useState<Grade | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if guest mode was previously active
     const savedGuest = localStorage.getItem('isGuest') === 'true';
     if (savedGuest) {
       setIsGuest(true);
@@ -21,69 +23,30 @@ export default function App() {
       if (savedGrade) setGrade(savedGrade);
     }
 
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Auth session error:', error.message);
-        // If refresh token is invalid, sign out to clear local state
-        if (error.message.includes('refresh_token')) {
-          supabase.auth.signOut();
-        }
-        setLoading(false);
-        return;
-      }
-      setSession(session);
-      if (session) {
-        setIsGuest(false);
-        fetchProfile(session.user.id);
-      } else if (!savedGuest) {
-        setLoading(false);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
         setIsGuest(false);
         localStorage.removeItem('isGuest');
-        fetchProfile(session.user.id);
-      } else if (!isGuest) {
+        
+        try {
+          const userProfile = await getUserProfile(firebaseUser.uid);
+          if (userProfile) {
+            setProfile(userProfile);
+            if (userProfile.grade) setGrade(userProfile.grade);
+          }
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+        }
+      } else if (!savedGuest) {
         setGrade(null);
-        setLoading(false);
+        setProfile(null);
       }
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, [isGuest]);
-
-  const fetchProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('grade')
-        .eq('id', userId)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') throw error;
-      if (data?.grade) {
-        setGrade(data.grade);
-        localStorage.setItem('savedGrade', data.grade);
-      } else {
-        // Check if we have a locally saved grade as fallback
-        const localGrade = localStorage.getItem('savedGrade') as Grade;
-        if (localGrade) setGrade(localGrade);
-      }
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-      const localGrade = localStorage.getItem('savedGrade') as Grade;
-      if (localGrade) setGrade(localGrade);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => unsubscribe();
+  }, []);
 
   const handleGuestMode = () => {
     setIsGuest(true);
@@ -92,12 +55,30 @@ export default function App() {
     if (localGrade) setGrade(localGrade);
   };
 
-  const handleSetGrade = (newGrade: Grade) => {
+  const handleSetGrade = async (newGrade: Grade) => {
     setGrade(newGrade);
     if (isGuest) {
       localStorage.setItem('guestGrade', newGrade);
     } else {
       localStorage.setItem('savedGrade', newGrade);
+      // Also update local profile state so we don't show selector again
+      if (profile) {
+        setProfile({ ...profile, grade: newGrade });
+      }
+    }
+  };
+
+  const handleProfileComplete = async (name: string) => {
+    if (user) {
+      // Re-fetch the actual profile from DB to ensure we have the most up-to-date structure
+      const newProfile = await getUserProfile(user.uid);
+      if (newProfile) {
+        setProfile(newProfile);
+        if (newProfile.grade) setGrade(newProfile.grade);
+      } else {
+        // Fallback if fetch fails
+        setProfile({ uid: user.uid, displayName: name, grade: null });
+      }
     }
   };
 
@@ -105,12 +86,12 @@ export default function App() {
     localStorage.removeItem('savedGrade');
     localStorage.removeItem('guestGrade');
     localStorage.removeItem('isGuest');
-    if (isGuest) {
-      setIsGuest(false);
-      setGrade(null);
-    } else {
-      await supabase.auth.signOut();
+    setGrade(null);
+    setProfile(null);
+    if (!isGuest) {
+      await logout();
     }
+    setIsGuest(false);
   };
 
   if (loading) {
@@ -124,16 +105,34 @@ export default function App() {
     );
   }
 
-  if (!session && !isGuest) {
+  // Not logged in and not guest
+  if (!user && !isGuest) {
     return <Auth onGuest={handleGuestMode} />;
   }
 
-  const userId = session?.user?.id || 'guest_user';
-  const user = session?.user || { id: 'guest_user', user_metadata: { full_name: 'زائر' } };
-
-  if (!grade) {
-    return <GradeSelector userId={userId} onComplete={handleSetGrade} />;
+  // Logged in but No Profile in DB (or missing displayName)
+  if (user && (!profile || !profile.displayName) && !isGuest) {
+    return <ProfileSetup user={user} onComplete={handleProfileComplete} />;
   }
 
-  return <Dashboard user={user} grade={grade} onChangeGrade={() => setGrade(null)} onLogout={handleLogout} />;
+  const displayUser = user ? {
+    id: user.uid,
+    email: user.email,
+    user_metadata: { 
+      full_name: profile?.displayName || user.displayName || 'مستخدم',
+      avatar_url: profile?.photoURL || user.photoURL 
+    }
+  } : { id: 'guest_user', email: null, user_metadata: { full_name: 'زائر' } };
+
+  // Logged in but No Grade set yet
+  if (!grade && !isGuest) {
+    return <GradeSelector userId={displayUser.id} onComplete={handleSetGrade} />;
+  }
+
+  // Guest mode without grade
+  if (isGuest && !grade) {
+    return <GradeSelector userId="guest_user" onComplete={handleSetGrade} />;
+  }
+
+  return <Dashboard user={displayUser} grade={grade} onChangeGrade={() => setGrade(null)} onLogout={handleLogout} />;
 }

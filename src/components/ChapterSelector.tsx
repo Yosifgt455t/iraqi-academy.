@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
 import { Chapter, Subject } from '../types';
 import { ListChecks, Loader2, ChevronLeft, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -19,31 +20,33 @@ export default function ChapterSelector({ subject, userId, onSelect }: Props) {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      console.log('Fetching chapters for subject:', subject.id);
       try {
-        const [chaptersRes, materialsRes, profileRes] = await Promise.all([
-          supabase.from('chapters').select('*').eq('subject_id', subject.id).order('order_index', { ascending: true }),
-          supabase.from('materials').select('id, chapter_id'),
-          supabase.from('profiles').select('completed_materials').eq('id', userId).single()
-        ]);
+        // Fetch chapters for this subject
+        const chaptersQuery = query(
+          collection(db, 'chapters'), 
+          where('subjectId', '==', subject.id),
+          orderBy('orderIndex', 'asc')
+        );
+        const chaptersSnap = await getDocs(chaptersQuery);
+        setChapters(chaptersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chapter)));
 
-        if (chaptersRes.error) throw chaptersRes.error;
-        
-        setChapters(chaptersRes.data || []);
-        setAllMaterials(materialsRes.data || []);
-        
-        if (profileRes.data?.completed_materials) {
-          setCompletedMaterials(profileRes.data.completed_materials);
-          localStorage.setItem(`progress_${userId}`, JSON.stringify(profileRes.data.completed_materials));
-        } else {
-          const savedProgress = localStorage.getItem(`progress_${userId}`);
-          if (savedProgress) {
-            setCompletedMaterials(JSON.parse(savedProgress));
+        // Fetch all materials to calculate chapter progress
+        const materialsSnap = await getDocs(collection(db, 'materials'));
+        setAllMaterials(materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+        // Fetch user progress
+        try {
+          const userDoc = await getDoc(doc(db, 'users', userId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const progress = userData.completed_materials || [];
+            setCompletedMaterials(progress);
           }
+        } catch (profileErr) {
+          console.warn('Could not fetch profile progress:', profileErr);
         }
       } catch (err) {
-        console.error('Error fetching chapters from Supabase:', err);
-        setChapters([]);
+        console.error('Error fetching chapters from Firestore:', err);
       }
       setLoading(false);
     };
@@ -51,7 +54,7 @@ export default function ChapterSelector({ subject, userId, onSelect }: Props) {
   }, [subject, userId]);
 
   const getChapterProgress = (chapterId: string) => {
-    const chapterMaterials = allMaterials.filter(m => m.chapter_id === chapterId);
+    const chapterMaterials = allMaterials.filter(m => m.chapterId === chapterId);
     if (chapterMaterials.length === 0) return 0;
     const completedInChapter = chapterMaterials.filter(m => completedMaterials.includes(m.id)).length;
     return Math.round((completedInChapter / chapterMaterials.length) * 100);
@@ -94,7 +97,7 @@ export default function ChapterSelector({ subject, userId, onSelect }: Props) {
             >
               <div className="flex items-center w-full mb-3">
                 <div className="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center ml-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors font-bold">
-                  {chapter.order_index}
+                  {chapter.orderIndex}
                 </div>
                 <span className="flex-1 text-lg font-medium text-slate-800">{chapter.name}</span>
                 <div className="flex items-center gap-2">

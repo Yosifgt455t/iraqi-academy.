@@ -55,7 +55,17 @@ export default function ExamBuilderModal({ onClose }: Props) {
 
   const addBranch = (qIndex: number) => {
     const newQs = [...questions];
-    newQs[qIndex].branches.push('');
+    const q = newQs[qIndex];
+    
+    // Smart Branching: If the question has text but no branches yet,
+    // move the text to Branch A and create Branch B.
+    if (q.branches.length === 0 && q.text.trim() !== '') {
+      q.branches = [q.text, ''];
+      q.text = ''; // Clear main text (now it's just a preamble if they want to add one)
+    } else {
+      q.branches.push('');
+    }
+    
     setQuestions(newQs);
   };
 
@@ -335,7 +345,9 @@ export default function ExamBuilderModal({ onClose }: Props) {
                   <div className="flex gap-3 group">
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-400">سؤال {idx + 1}</span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {q.branches.length > 0 ? `سؤال ${idx + 1} (منطوق السؤال أو الملاحظة)` : `سؤال ${idx + 1}`}
+                        </span>
                         <button 
                           onClick={() => removeQuestion(idx)}
                           disabled={questions.length === 1}

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, onSnapshot } from 'firebase/firestore';
 import { GoogleGenAI } from "@google/genai";
 import { 
   Mic, MicOff, Sparkles, Send, Loader2, 
@@ -46,11 +47,11 @@ interface Message {
 
 interface Chat {
   id: string;
-  user_id: string;
+  userId: string;
   title: string;
   messages: Message[];
-  created_at: string;
-  updated_at?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 interface Props {
@@ -119,7 +120,6 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
 
   useEffect(() => {
     if (initialPrompt && currentChatId && !loading) {
-      // Small delay to ensure state is fully settled before sending
       const timer = setTimeout(() => {
         handleSend(initialPrompt);
         if (onClearInitialPrompt) onClearInitialPrompt();
@@ -129,47 +129,42 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
   }, [initialPrompt, currentChatId]);
 
   useEffect(() => {
-    fetchChats();
-  }, [userId]);
-
-  const fetchChats = async () => {
-    try {
-      if (userId === 'guest_user' || userId.includes('guest')) {
-        const localChats = localStorage.getItem(`ai_chats_${userId}`);
-        const parsedChats = localChats ? JSON.parse(localChats) : [];
-        setChats(parsedChats);
-        
-        if (parsedChats.length > 0 && !currentChatId) {
-          setCurrentChatId(parsedChats[0].id);
-          setMessages(parsedChats[0].messages || []);
-        } else if (parsedChats.length === 0) {
-          startNewChat();
-        }
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('ai_chats')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Supabase fetch error:', error);
-        throw error;
-      }
-      setChats(data || []);
-      
-      if (data && data.length > 0 && !currentChatId) {
-        setCurrentChatId(data[0].id);
-        setMessages(data[0].messages || []);
-      } else if (data && data.length === 0) {
+    if (!userId) return;
+    
+    if (userId === 'guest_user' || userId.includes('guest')) {
+      const localChats = localStorage.getItem(`ai_chats_${userId}`);
+      const parsedChats = localChats ? JSON.parse(localChats) : [];
+      setChats(parsedChats);
+      if (parsedChats.length > 0 && !currentChatId) {
+        setCurrentChatId(parsedChats[0].id);
+        setMessages(parsedChats[0].messages || []);
+      } else if (parsedChats.length === 0) {
         startNewChat();
       }
-    } catch (err) {
-      console.error('Error fetching chats:', err);
+      return;
     }
-  };
+
+    // Subscribe to chats
+    const q = query(
+      collection(db, 'ai_chats'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
+      setChats(docs);
+      
+      if (docs.length > 0 && !currentChatId) {
+        setCurrentChatId(docs[0].id);
+        setMessages(docs[0].messages || []);
+      } else if (docs.length === 0) {
+        startNewChat();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
 
   const startNewChat = () => {
     setCurrentChatId(null);
@@ -199,8 +194,7 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
         return;
       }
 
-      await supabase.from('ai_chats').delete().eq('id', id);
-      setChats(chats.filter(c => c.id !== id));
+      await deleteDoc(doc(db, 'ai_chats', id));
       if (currentChatId === id) {
         startNewChat();
       }
@@ -215,18 +209,18 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
         let updatedChats = [...chats];
         if (currentChatId) {
           updatedChats = updatedChats.map(c => 
-            c.id === currentChatId ? { ...c, messages: newMessages, updated_at: new Date().toISOString() } : c
+            c.id === currentChatId ? { ...c, messages: newMessages, updatedAt: new Date().toISOString() } : c
           );
           setChats(updatedChats);
         } else {
           const chatTitle = title || newMessages.find(m => m.role === 'user')?.text.substring(0, 30) + '...' || 'محادثة جديدة';
           const newChat: Chat = {
             id: Date.now().toString(),
-            user_id: userId,
+            userId: userId,
             title: chatTitle,
             messages: newMessages,
-            updated_at: new Date().toISOString(),
-            created_at: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
           };
           updatedChats = [newChat, ...chats];
           setCurrentChatId(newChat.id);
@@ -237,43 +231,21 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
       }
 
       if (currentChatId) {
-        const { error } = await supabase
-          .from('ai_chats')
-          .update({ 
-            messages: newMessages,
-            title: title || chats.find(c => c.id === currentChatId)?.title || 'محادثة',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', currentChatId);
-          
-        if (error) {
-           console.error("Supabase update error:", error);
-           // Fallback to order by created_at if updated_at fails due to not existing
-           if (error.message && error.message.includes("updated_at")) {
-             await supabase.from('ai_chats').update({ messages: newMessages }).eq('id', currentChatId);
-           }
-        }
-        setChats(chats.map(c => c.id === currentChatId ? { ...c, messages: newMessages } : c));
+        await updateDoc(doc(db, 'ai_chats', currentChatId), { 
+          messages: newMessages,
+          title: title || chats.find(c => c.id === currentChatId)?.title || 'محادثة',
+          updatedAt: new Date().toISOString()
+        });
       } else {
         const chatTitle = title || newMessages.find(m => m.role === 'user')?.text.substring(0, 30) + '...' || 'محادثة جديدة';
-        const { data, error } = await supabase
-          .from('ai_chats')
-          .insert({
-            user_id: userId,
-            title: chatTitle,
-            messages: newMessages
-          })
-          .select();
-
-        if (error) {
-          console.error("Supabase insert error:", error);
-          throw error;
-        }
-        if (data && data.length > 0) {
-          const newChat = data[0] as Chat;
-          setCurrentChatId(newChat.id);
-          setChats([newChat, ...chats]);
-        }
+        const docRef = await addDoc(collection(db, 'ai_chats'), {
+          userId: userId,
+          title: chatTitle,
+          messages: newMessages,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        setCurrentChatId(docRef.id);
       }
     } catch (err) {
       console.error('Error saving chat:', err);
@@ -354,7 +326,7 @@ export default function AIChatPage({ userId, userName, grade, onBack, initialPro
         userParts.push({
           inlineData: {
             data: source.content,
-            mimeType: source.mime_type || 'application/pdf'
+            mimeType: source.mimeType || 'application/pdf'
           }
         });
       } else if (source.type === 'link' || source.type === 'youtube') {

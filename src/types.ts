@@ -22,17 +22,19 @@ export interface Subject {
 
 export interface Chapter {
   id: string;
-  subject_id: string;
+  subjectId: string;
   name: string;
-  order_index: number;
+  orderIndex: number;
 }
 
 export interface Material {
   id: string;
-  chapter_id: string;
+  chapterId: string;
+  subjectId?: string;
   title: string;
   type: 'PDF' | 'Video' | 'Ministerial';
   url: string;
+  isUploaded?: boolean;
 }
 
 export interface Flashcard {

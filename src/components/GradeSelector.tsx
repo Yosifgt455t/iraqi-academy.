@@ -1,15 +1,13 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { updateUserProfile } from '../lib/firebase';
 import { Grade } from '../types';
-import { GraduationCap, ChevronLeft, BookOpen, School, Award, ArrowRight, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { GraduationCap, ChevronLeft, Award, Sparkles } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface Props {
   userId: string;
   onComplete: (grade: Grade) => void;
 }
-
-type Category = 'primary' | 'middle' | 'secondary' | null;
 
 export default function GradeSelector({ userId, onComplete }: Props) {
   const [loading, setLoading] = useState(false);
@@ -22,18 +20,11 @@ export default function GradeSelector({ userId, onComplete }: Props) {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({ 
-          id: userId, 
-          grade,
-          updated_at: new Date().toISOString()
-        });
-      
-      if (error) throw error;
+      await updateUserProfile(userId, { grade });
       onComplete(grade);
     } catch (err) {
       console.error('Error saving grade:', err);
+      // Fallback: still complete locally
       onComplete(grade);
     } finally {
       setLoading(false);
@@ -58,12 +49,13 @@ export default function GradeSelector({ userId, onComplete }: Props) {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex justify-center"
+          className="flex flex-col sm:flex-row justify-center gap-6"
         >
+          {/* Fifth Scientific */}
           <button
             disabled={loading}
             onClick={() => selectGrade('secondary_5_sci')}
-            className="w-full max-w-md bg-white p-8 rounded-[2.5rem] shadow-xl shadow-blue-100/20 border-2 border-transparent hover:border-blue-500 transition-all text-center group relative overflow-hidden"
+            className="w-full max-w-sm bg-white p-8 rounded-[2.5rem] shadow-xl shadow-blue-100/20 border-2 border-transparent hover:border-blue-500 transition-all text-center group relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 p-4">
               <Sparkles className="text-blue-500 w-6 h-6 animate-pulse" />
@@ -73,10 +65,59 @@ export default function GradeSelector({ userId, onComplete }: Props) {
               <Award size={40} />
             </div>
             
-            <h3 className="text-3xl font-bold text-slate-900 mb-2">الخامس العلمي</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">الخامس العلمي</h3>
             <p className="text-slate-500 font-medium">المرحلة الإعدادية</p>
             
             <div className="mt-8 flex items-center justify-center text-blue-600 font-bold gap-2 group-hover:translate-x-[-8px] transition-transform">
+              دخول الآن
+              <ChevronLeft className="w-5 h-5" />
+            </div>
+          </button>
+
+          {/* Sixth Scientific */}
+          <button
+            disabled={loading}
+            onClick={() => selectGrade('secondary_6_sci')}
+            className="w-full max-w-sm bg-white p-8 rounded-[2.5rem] shadow-xl shadow-blue-100/20 border-2 border-transparent hover:border-emerald-500 transition-all text-center group relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-4">
+              <Sparkles className="text-emerald-500 w-6 h-6 animate-pulse" />
+            </div>
+            
+            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform group-hover:bg-emerald-600 group-hover:text-white">
+              <Award size={40} />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">السادس العلمي</h3>
+            <p className="text-slate-500 font-medium">الدفعة الذهبية</p>
+            
+            <div className="mt-8 flex items-center justify-center text-emerald-600 font-bold gap-2 group-hover:translate-x-[-8px] transition-transform">
+              دخول الآن
+              <ChevronLeft className="w-5 h-5" />
+            </div>
+          </button>
+        </motion.div>
+
+        {/* Literary Grades */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row justify-center gap-6"
+        >
+          {/* Sixth Literary */}
+          <button
+            disabled={loading}
+            onClick={() => selectGrade('secondary_6_lit')}
+            className="w-full max-w-sm bg-white p-8 rounded-[2.5rem] shadow-xl shadow-purple-100/20 border-2 border-transparent hover:border-purple-500 transition-all text-center group relative overflow-hidden"
+          >
+            <div className="w-20 h-20 bg-purple-50 text-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform group-hover:bg-purple-600 group-hover:text-white">
+              <GraduationCap size={40} />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">السادس الأدبي</h3>
+            <p className="text-slate-500 font-medium">الدفعة الذهبية</p>
+            
+            <div className="mt-8 flex items-center justify-center text-purple-600 font-bold gap-2 group-hover:translate-x-[-8px] transition-transform">
               دخول الآن
               <ChevronLeft className="w-5 h-5" />
             </div>

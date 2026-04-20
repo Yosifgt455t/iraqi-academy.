@@ -1,18 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, Trash2, Link as LinkIcon, FileText, CheckCircle2, Type, Youtube, BookOpen, Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, orderBy, onSnapshot } from 'firebase/firestore';
 
 export type SourceType = 'link' | 'pdf' | 'text' | 'youtube';
 
 export interface SavedSource {
   id: string;
-  user_id: string;
+  userId: string;
   type: SourceType;
   title: string;
   content: string; // url, text, or base64
-  mime_type?: string;
-  created_at: string;
+  mimeType?: string;
+  createdAt: string;
 }
 
 interface Props {
@@ -35,32 +36,32 @@ export default function SourcesModal({ userId, onClose, onAttachSource }: Props)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchSources();
-  }, [userId]);
+    if (!userId) return;
 
-  const fetchSources = async () => {
-    setIsLoadingSources(true);
-    try {
-      if (userId === 'guest_user' || userId.includes('guest')) {
-        const saved = localStorage.getItem(`user_sources_${userId}`);
-        if (saved) setSources(JSON.parse(saved));
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('saved_sources')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      if (data) setSources(data);
-    } catch (err) {
-      console.error('Error fetching sources:', err);
-    } finally {
+    if (userId === 'guest_user' || userId.includes('guest')) {
+      const saved = localStorage.getItem(`user_sources_${userId}`);
+      if (saved) setSources(JSON.parse(saved));
       setIsLoadingSources(false);
+      return;
     }
-  };
+
+    // Subscribe to sources
+    const q = query(
+      collection(db, 'sources'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setSources(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SavedSource)));
+      setIsLoadingSources(false);
+    }, (err) => {
+      console.error('Error fetching sources:', err);
+      setIsLoadingSources(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -71,8 +72,7 @@ export default function SourcesModal({ userId, onClose, onAttachSource }: Props)
         return;
       }
 
-      await supabase.from('saved_sources').delete().eq('id', id);
-      setSources(sources.filter(s => s.id !== id));
+      await deleteDoc(doc(db, 'sources', id));
     } catch (err) {
       console.error('Error deleting source:', err);
     }
@@ -127,17 +127,17 @@ export default function SourcesModal({ userId, onClose, onAttachSource }: Props)
     }
 
     try {
-      const newSource = {
-        id: Date.now().toString(),
-        user_id: userId,
+      const sourceData = {
+        userId,
         type,
         title: newTitle.trim() || 'مصدر بدون عنوان',
         content,
-        mime_type: mimeType,
-        created_at: new Date().toISOString()
+        mimeType,
+        createdAt: new Date().toISOString()
       };
 
       if (userId === 'guest_user' || userId.includes('guest')) {
+        const newSource = { id: Date.now().toString(), ...sourceData };
         const updatedSources = [newSource, ...sources];
         setSources(updatedSources);
         localStorage.setItem(`user_sources_${userId}`, JSON.stringify(updatedSources));
@@ -148,27 +148,12 @@ export default function SourcesModal({ userId, onClose, onAttachSource }: Props)
         return;
       }
 
-      const { data, error } = await supabase
-        .from('saved_sources')
-        .insert([{
-          user_id: newSource.user_id,
-          type: newSource.type,
-          title: newSource.title,
-          content: newSource.content,
-          mime_type: newSource.mime_type
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
+      await addDoc(collection(db, 'sources'), sourceData);
       
-      if (data) {
-        setSources([data, ...sources]);
-        setIsAdding(false);
-        setNewTitle('');
-        setNewContent('');
-        setSelectedFile(null);
-      }
+      setIsAdding(false);
+      setNewTitle('');
+      setNewContent('');
+      setSelectedFile(null);
     } catch (err) {
       console.error('Error saving source:', err);
       alert('حدث خطأ أثناء حفظ المصدر');

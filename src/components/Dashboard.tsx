@@ -31,6 +31,9 @@ import TextToPdfModal from './TextToPdfModal';
 import FileTranslatorModal from './FileTranslatorModal';
 import ExamBuilderModal from './ExamBuilderModal';
 
+import AccountSettingsModal from './AccountSettingsModal';
+import AdminDashboard from './AdminDashboard';
+
 interface Props {
   user: any;
   grade: Grade;
@@ -60,7 +63,7 @@ const getGradeName = (grade: Grade) => {
 };
 
 export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Props) {
-  const [view, setView] = useState<'home' | 'ai_chat' | 'todo'>('home');
+  const [view, setView] = useState<'home' | 'ai_chat' | 'todo' | 'admin'>('home');
   const [initialAIPrompt, setInitialAIPrompt] = useState<string | null>(null);
   const [showExemptionCalculator, setShowExemptionCalculator] = useState(false);
   const [showImageToPdf, setShowImageToPdf] = useState(false);
@@ -68,11 +71,14 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
   const [showFileTranslator, setShowFileTranslator] = useState(false);
   const [showExamBuilder, setShowExamBuilder] = useState(false);
   const [showToolsModal, setShowToolsModal] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
   const [pinnedSchedule, setPinnedSchedule] = useState<string | null>(() => {
     return localStorage.getItem(`schedule_${user.id}`);
   });
+
+  const isAdmin = user?.email === 'jwjwjwjueue@gmail.com';
 
   const handlePinSchedule = (schedule: string) => {
     setPinnedSchedule(schedule);
@@ -120,6 +126,12 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
         userId={user.id}
         onBack={() => setView('home')}
       />
+    );
+  }
+
+  if (view === 'admin') {
+    return (
+      <AdminDashboard onBack={() => setView('home')} />
     );
   }
 
@@ -171,18 +183,32 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowAccountSettings(true)}
+              className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-transform"
+            >
+              <img 
+                src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata?.full_name)}&background=2563eb&color=fff`} 
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setView('admin')}
+                className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all flex items-center gap-2"
+                title="إدارة المحتوى"
+              >
+                <Settings size={20} />
+                <span className="hidden md:block font-medium text-sm">الإدارة</span>
+              </button>
+            )}
+            <button
               onClick={() => setShowToolsModal(true)}
               className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all flex items-center gap-2"
               title="الأدوات الأكاديمية"
             >
               <LayoutGrid size={20} />
               <span className="hidden md:block font-medium text-sm">الأدوات</span>
-            </button>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-            >
-              <LogOut size={20} />
             </button>
           </div>
         </div>
@@ -191,12 +217,21 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
       <main className="max-w-4xl mx-auto px-4 py-8">
         {!currentSubject ? (
           <div className="space-y-8">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-              <div className="relative z-10">
-                <h2 className="text-3xl font-bold mb-2">أهلاً بك يا {user.user_metadata?.full_name?.split(' ')[0] || 'بطل'}!</h2>
-                <p className="opacity-90">اختر المادة التي تود دراستها اليوم وابدأ رحلة النجاح.</p>
+            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden group">
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl shrink-0">
+                  <img 
+                    src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata?.full_name)}&background=ffffff&color=2563eb`} 
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold mb-2">أهلاً بك يا {user.user_metadata?.full_name?.split(' ')[0] || 'بطل'}!</h2>
+                  <p className="opacity-90">اختر المادة التي تود دراستها اليوم وابدأ رحلة النجاح.</p>
+                </div>
               </div>
-              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
             </div>
 
             {/* Pinned Schedule */}
@@ -301,6 +336,14 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
       {showExamBuilder && (
         <ExamBuilderModal onClose={() => setShowExamBuilder(false)} />
       )}
+
+      {/* Account Settings Modal */}
+      <AccountSettingsModal 
+        user={user}
+        isOpen={showAccountSettings}
+        onClose={() => setShowAccountSettings(false)}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }
