@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { Material, Flashcard, Chapter, Grade, MinisterialQuestion } from '../types';
+import { getAIClient } from '../services/aiService';
+import { Type } from "@google/genai";
 import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
@@ -12,10 +14,9 @@ interface Props {
   chapter: Chapter;
   userId: string;
   grade: Grade;
-  onAskAI?: (prompt: string) => void;
 }
 
-export default function ContentView({ chapter, userId, grade, onAskAI }: Props) {
+export default function ContentView({ chapter, userId, grade }: Props) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [ministerialQuestions, setMinisterialQuestions] = useState<MinisterialQuestion[]>([]);
@@ -34,6 +35,10 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
   const [revealedAnswers, setRevealedAnswers] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, 'correct' | 'wrong' | null>>({});
   const playRequestTimeRef = useRef<number>(0);
+  
+  const [studentAnswer, setStudentAnswer] = useState<string>('');
+  const [isEvaluationLoading, setIsEvaluationLoading] = useState(false);
+  const [evaluationResult, setEvaluationResult] = useState<{ score: string, feedback: string } | null>(null);
 
   const openVideoModal = (m: Material) => {
     setIsPlayerReady(false);
@@ -278,6 +283,55 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
     return url;
   };
 
+  const handleEvaluateAnswer = async (question: string, modelAnswer: string) => {
+    if (!studentAnswer.trim()) return;
+    setIsEvaluationLoading(true);
+    setEvaluationResult(null);
+
+    try {
+      const ai = getAIClient();
+      const prompt = `أنت مصحح امتحانات وزاري عراقي.
+      السؤال: ${question}
+      الجواب النموذجي: ${modelAnswer}
+      إجابة الطالب: ${studentAnswer}
+
+      قم بمقارنة إجابة الطالب بالجواب النموذجي. 
+      رد بصيغة JSON تحتوي على:
+      {
+        "score": "النسبة المئوية (مثلا 85%)",
+        "feedback": "ملاحظات باللغة العربية توضح ما أصاب فيه الطالب وما أخطأ فيه أو نقصه."
+      }`;
+
+      const response = await ai.models.generateContent({
+        model: "gemma-4-31b-it",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              score: { type: Type.STRING },
+              feedback: { type: Type.STRING }
+            },
+            required: ["score", "feedback"]
+          }
+        }
+      });
+      
+      const text = response.text || "{}";
+      const result = JSON.parse(text);
+      setEvaluationResult(result);
+    } catch (err) {
+      console.error("Evaluation Error:", err);
+      setEvaluationResult({
+        score: "خطأ",
+        feedback: "عذراً، حدث خطأ أثناء الاتصال بالذكاء الاصطناعي للحصول على التقييم."
+      });
+    } finally {
+      setIsEvaluationLoading(false);
+    }
+  };
+
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
   return (
@@ -417,21 +471,6 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                           >
                             <Eye size={20} />
                           </button>
-                          {onAskAI && (
-                            <button
-                              onClick={() => {
-                                if (m.type === 'Video') {
-                                  onAskAI(`اشرح لي ولخص هذه المحاضرة (فيديو يوتيوب): ${m.url || (m as any).content}\n\nعنوان المحاضرة: ${m.title} (فصل ${chapter.name})`);
-                                } else {
-                                  onAskAI(`أريد شرح هذا الموضوع: ${m.title} في فصل ${chapter.name}. (ملاحظة: إذا كان لديك ملف PDF يرجى إرفاقه في المحادثة باستخدام زر الإرفاق 📎 لكي أتمكن من قراءته وشرحه لك).`);
-                                }
-                              }}
-                              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                              title="اشرح لي بالذكاء الاصطناعي"
-                            >
-                              <Sparkles size={20} />
-                            </button>
-                          )}
                           {m.type === 'PDF' ? (
                             <button
                               onClick={() => setSelectedPdf(m.url || (m as any).content)}
@@ -607,7 +646,72 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                        </div>
 
                        <div className="space-y-6">
-                          {revealedAnswers[ministerialQuestions[cardIndex].id] ? (
+                          {!evaluationResult && !revealedAnswers[ministerialQuestions[cardIndex].id] && (
+                            <div className="space-y-4">
+                              <textarea
+                                value={studentAnswer}
+                                onChange={(e) => setStudentAnswer(e.target.value)}
+                                placeholder="اكتب إجابتك هنا..."
+                                rows={4}
+                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 resize-none font-medium"
+                              />
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={() => handleEvaluateAnswer(ministerialQuestions[cardIndex].question, ministerialQuestions[cardIndex].answer)}
+                                  disabled={isEvaluationLoading || !studentAnswer.trim()}
+                                  className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                  {isEvaluationLoading ? (
+                                    <><Loader2 className="animate-spin" size={20} /> جاري التقييم... </>
+                                  ) : (
+                                    <><Sparkles size={20} /> قارن إجابتي بالذكاء الاصطناعي</>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => setRevealedAnswers(prev => ({ ...prev, [ministerialQuestions[cardIndex].id]: true }))}
+                                  className="w-14 h-14 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center flex-shrink-0"
+                                  title="أظهر الجواب"
+                                >
+                                  <Eye size={22} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {evaluationResult && !revealedAnswers[ministerialQuestions[cardIndex].id] && (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="bg-blue-50 p-6 rounded-3xl border border-blue-100 space-y-4"
+                            >
+                               <div className="flex items-center justify-between">
+                                 <div className="flex items-center gap-2 text-blue-700 font-black">
+                                   <Sparkles size={20} />
+                                   <span>تقييم الذكاء الاصطناعي</span>
+                                 </div>
+                                 <div className="text-xl font-black text-blue-700 bg-white px-3 py-1 rounded-xl shadow-sm">
+                                   {evaluationResult.score}
+                                 </div>
+                               </div>
+                               <p className="text-slate-700 leading-relaxed font-medium bg-white p-4 rounded-2xl border border-blue-50">
+                                 {evaluationResult.feedback}
+                               </p>
+                               <button 
+                                 onClick={() => setRevealedAnswers(prev => ({ ...prev, [ministerialQuestions[cardIndex].id]: true }))}
+                                 className="w-full py-3 bg-white text-blue-600 rounded-xl font-bold border border-blue-200 hover:bg-blue-50 transition-all text-sm mt-2"
+                               >
+                                 مقارنة مع الجواب النموذجي
+                               </button>
+                               <button 
+                                 onClick={() => setEvaluationResult(null)}
+                                 className="w-full py-3 bg-transparent text-slate-500 hover:text-slate-700 rounded-xl font-bold transition-all text-sm"
+                               >
+                                 تعديل الإجابة وإعادة المحاولة
+                               </button>
+                            </motion.div>
+                          )}
+
+                          {revealedAnswers[ministerialQuestions[cardIndex].id] && (
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
@@ -620,15 +724,16 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                                <p className="text-slate-800 text-lg leading-relaxed font-bold">
                                  {ministerialQuestions[cardIndex].answer}
                                </p>
+                               <button 
+                                 onClick={() => {
+                                   setRevealedAnswers(prev => ({ ...prev, [ministerialQuestions[cardIndex].id]: false }));
+                                   setEvaluationResult(null);
+                                 }}
+                                 className="text-emerald-700 text-sm font-bold underline mt-4 block w-fit"
+                               >
+                                 إخفاء الجواب وإعادة المحاولة
+                               </button>
                             </motion.div>
-                          ) : (
-                            <button 
-                              onClick={() => setRevealedAnswers(prev => ({ ...prev, [ministerialQuestions[cardIndex].id]: true }))}
-                              className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-3"
-                            >
-                               <Eye size={24} />
-                               <span>أظهر الجواب</span>
-                            </button>
                           )}
 
                           <div className="flex items-center justify-between gap-4 pt-4">
@@ -636,6 +741,8 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                                disabled={cardIndex === 0}
                                onClick={() => {
                                  setCardIndex(idx => idx - 1);
+                                 setStudentAnswer('');
+                                 setEvaluationResult(null);
                                }}
                                className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold disabled:opacity-30 transition-all flex items-center justify-center gap-2"
                              >
@@ -647,6 +754,8 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                                <button
                                  onClick={() => {
                                    setCardIndex(idx => idx + 1);
+                                   setStudentAnswer('');
+                                   setEvaluationResult(null);
                                  }}
                                  className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
                                >
@@ -722,15 +831,6 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                     <button onClick={() => { setIsFlipped(false); setCardIndex((p) => (p - 1 + flashcards.length) % flashcards.length); }} className="p-3 bg-white rounded-full shadow-sm hover:bg-slate-50"><ChevronRight /></button>
                     <div className="flex items-center gap-4">
                       <span className="text-sm font-bold text-slate-500">{cardIndex + 1} / {flashcards.length}</span>
-                      {onAskAI && (
-                        <button
-                          onClick={() => onAskAI(`اشرح لي هذا السؤال من فضلك: ${flashcards[cardIndex].question} وجوابه هو: ${flashcards[cardIndex].answer}`)}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
-                        >
-                          <Sparkles size={16} />
-                          اشرح لي
-                        </button>
-                      )}
                     </div>
                     <button onClick={() => { setIsFlipped(false); setCardIndex((p) => (p + 1) % flashcards.length); }} className="p-3 bg-white rounded-full shadow-sm hover:bg-slate-50"><ChevronLeft /></button>
                   </div>
@@ -752,15 +852,6 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                           </div>
                           <p className="text-slate-600 text-sm pr-8 leading-relaxed">{fc.answer}</p>
                         </div>
-                        {onAskAI && (
-                          <button
-                            onClick={() => onAskAI(`اشرح لي هذا السؤال من فضلك: ${fc.question} وجوابه هو: ${fc.answer}`)}
-                            className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex-shrink-0"
-                            title="اشرح لي بالذكاء الاصطناعي"
-                          >
-                            <Sparkles size={20} />
-                          </button>
-                        )}
                       </div>
                     ))}
                   </div>

@@ -16,7 +16,6 @@ import {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onOpenAI: () => void;
   onOpenCalculator: () => void;
   onOpenTodo: () => void;
   onOpenImageToPdf: () => void;
@@ -28,7 +27,6 @@ interface Props {
 export default function ToolsModal({ 
   isOpen, 
   onClose, 
-  onOpenAI, 
   onOpenCalculator, 
   onOpenTodo, 
   onOpenImageToPdf, 
@@ -82,23 +80,6 @@ export default function ToolsModal({
                   <ChevronDown size={12} />
                 </motion.div>
               </motion.div>
-
-              <button
-                onClick={() => { onOpenAI(); onClose(); }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-blue-50 hover:border-blue-200 transition-all group"
-              >
-                <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-                  <Sparkles size={24} />
-                </div>
-                <div className="flex-1 text-right">
-                  <div className="flex items-center gap-2 justify-end">
-                    <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">تجريبي</span>
-                    <h3 className="font-bold text-slate-900">المساعد الذكي (AI)</h3>
-                  </div>
-                  <p className="text-xs text-slate-500">رتب جدولك، لخص موادك، واسأل أي سؤال</p>
-                </div>
-                <ChevronLeft size={18} className="text-slate-300 group-hover:text-blue-600 group-hover:-translate-x-1 transition-all" />
-              </button>
 
               <button
                 onClick={() => { onOpenExamBuilder(); onClose(); }}

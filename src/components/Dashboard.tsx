@@ -22,7 +22,6 @@ import {
 import SubjectSelector from './SubjectSelector';
 import ChapterSelector from './ChapterSelector';
 import ContentView from './ContentView';
-import AIChatPage from './AIChatPage';
 import ExemptionCalculatorModal from './ExemptionCalculatorModal';
 import TodoPage from './TodoPage';
 import ToolsModal from './ToolsModal';
@@ -64,8 +63,7 @@ const getGradeName = (grade: Grade) => {
 };
 
 export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeGrade, onLogout }: Props) {
-  const [view, setView] = useState<'home' | 'ai_chat' | 'todo' | 'admin'>('home');
-  const [initialAIPrompt, setInitialAIPrompt] = useState<string | null>(null);
+  const [view, setView] = useState<'home' | 'todo' | 'admin'>('home');
   const [showExemptionCalculator, setShowExemptionCalculator] = useState(false);
   const [showImageToPdf, setShowImageToPdf] = useState(false);
   const [showTextToPdf, setShowTextToPdf] = useState(false);
@@ -107,19 +105,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
     setCurrentSubject(null);
     setCurrentChapter(null);
   };
-
-  if (view === 'ai_chat') {
-    return (
-      <AIChatPage 
-        userId={user.id} 
-        userName={user.user_metadata?.full_name?.split(' ')[0] || 'بطل'} 
-        grade={getGradeName(grade)}
-        initialPrompt={initialAIPrompt}
-        onClearInitialPrompt={() => setInitialAIPrompt(null)}
-        onBack={() => setView('home')} 
-      />
-    );
-  }
 
   if (view === 'todo') {
     return (
@@ -272,10 +257,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
             chapter={currentChapter} 
             userId={user.id} 
             grade={grade} 
-            onAskAI={(prompt) => {
-              setInitialAIPrompt(prompt);
-              setView('ai_chat');
-            }}
           />
         )}
       </main>
@@ -309,7 +290,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
       <ToolsModal
         isOpen={showToolsModal}
         onClose={() => setShowToolsModal(false)}
-        onOpenAI={() => setView('ai_chat')}
         onOpenCalculator={() => setShowExemptionCalculator(true)}
         onOpenTodo={() => setView('todo')}
         onOpenImageToPdf={() => setShowImageToPdf(true)}
