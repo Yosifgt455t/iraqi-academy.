@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { auth, logout, getUserProfile } from './lib/firebase';
+import { auth, logout, getUserProfile, subscribeToMaintenanceMode } from './lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { Grade } from './types';
 import Auth from './components/Auth';
 import ProfileSetup from './components/ProfileSetup';
 import GradeSelector from './components/GradeSelector';
 import Dashboard from './components/Dashboard';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Wrench } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -14,8 +14,15 @@ export default function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [grade, setGrade] = useState<Grade | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    // Maintenance Mode Subscription
+    const unsubMaintenance = subscribeToMaintenanceMode((active) => {
+      setIsMaintenanceActive(active);
+    });
+
     const savedGuest = localStorage.getItem('isGuest') === 'true';
     if (savedGuest) {
       setIsGuest(true);
@@ -29,6 +36,11 @@ export default function App() {
         setIsGuest(false);
         localStorage.removeItem('isGuest');
         
+        // Dynamic Admin Check
+        import('./services/adminService').then(({ checkIsAdmin }) => {
+          checkIsAdmin(firebaseUser.email).then(setIsAdmin);
+        });
+        
         try {
           const userProfile = await getUserProfile(firebaseUser.uid);
           if (userProfile) {
@@ -41,11 +53,15 @@ export default function App() {
       } else if (!savedGuest) {
         setGrade(null);
         setProfile(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubMaintenance();
+    };
   }, []);
 
   const handleGuestMode = () => {
@@ -105,6 +121,31 @@ export default function App() {
     );
   }
 
+  if (isMaintenanceActive && !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center" dir="rtl">
+        <div className="max-w-md space-y-6">
+          <div className="w-24 h-24 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-8">
+            <Wrench size={48} />
+          </div>
+          <h1 className="text-3xl font-black text-slate-900 leading-tight">المنصة في وضع الصيانة</h1>
+          <p className="text-slate-600 font-medium leading-relaxed">
+            نحن نقوم الآن ببعض التحديثات والتحسينات لنقدم لكم تجربة أفضل. 
+            سنعود للعمل قريباً جداً، شكراً لصبركم!
+          </p>
+          <div className="pt-8">
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+            >
+              تحديث الصفحة
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Not logged in and not guest
   if (!user && !isGuest) {
     return <Auth onGuest={handleGuestMode} />;
@@ -134,5 +175,13 @@ export default function App() {
     return <GradeSelector userId="guest_user" onComplete={handleSetGrade} />;
   }
 
-  return <Dashboard user={displayUser} grade={grade} onChangeGrade={() => setGrade(null)} onLogout={handleLogout} />;
+  return (
+    <Dashboard 
+      user={displayUser} 
+      grade={grade} 
+      isAdmin={isAdmin}
+      onChangeGrade={() => setGrade(null)} 
+      onLogout={handleLogout} 
+    />
+  );
 }

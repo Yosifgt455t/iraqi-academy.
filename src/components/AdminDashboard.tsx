@@ -1,259 +1,255 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
+import { 
+  Plus, 
+  Trash2, 
+  Edit, 
+  CheckCircle2, 
+  AlertCircle, 
+  LayoutGrid, 
+  Book, 
+  Layers, 
+  Youtube, 
+  FileText, 
+  HelpCircle, 
+  ExternalLink,
+  Loader2,
+  LogOut,
+  Settings as Wrench,
+  ChevronRight,
+  Database,
+  ArrowRight,
+  ShieldAlert,
+  ChevronLeft
+} from 'lucide-react';
 import { 
   collection, 
-  addDoc, 
   getDocs, 
-  query, 
-  where, 
+  addDoc, 
   deleteDoc, 
   doc, 
+  updateDoc, 
+  query, 
+  where,
   orderBy,
-  limit,
-  updateDoc
 } from 'firebase/firestore';
-import { Grade, Subject, Chapter, Material, Flashcard } from '../types';
-import { 
-  Plus, Trash2, Book, Layers, FileText, HelpCircle, 
-  ChevronRight, AlertCircle, CheckCircle2, Loader2, X,
-  ExternalLink, LayoutGrid, Settings, ArrowRight, Upload, Youtube,
-  ArrowLeft, Search, Filter, Database, Edit, Save, Minus
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { db, auth } from '../lib/firebase';
+import { signOut } from 'firebase/auth';
+import { motion, AnimatePresence } from 'framer-motion';
+import { setMaintenanceMode, getMaintenanceMode } from '../services/maintenanceService';
+import { getAdmins, addAdmin, removeAdmin } from '../services/adminService';
+import { Grade } from '../types';
 
-interface Props {
+interface Subject {
+  id: string;
+  name: string;
+  grades?: Grade[];
+}
+
+interface Chapter {
+  id: string;
+  name: string;
+  subjectIds: string[];
+}
+
+interface Material {
+  id: string;
+  title: string;
+  type: 'Video' | 'PDF';
+  url: string;
+  chapterIds: string[];
+}
+
+interface Flashcard {
+  id: string;
+  question: string;
+  answer: string;
+  chapterIds: string[];
+}
+
+interface AdminDashboardProps {
+  user: any;
   onBack: () => void;
 }
 
-const GRADES = [
-  { id: 'primary_1', name: 'الأول الابتدائي' },
-  { id: 'primary_2', name: 'الثاني الابتدائي' },
-  { id: 'primary_3', name: 'الثالث الابتدائي' },
-  { id: 'primary_4', name: 'الرابع الابتدائي' },
-  { id: 'primary_5', name: 'الخامس الابتدائي' },
-  { id: 'primary_6', name: 'السادس الابتدائي' },
-  { id: 'middle_1', name: 'الأول المتوسط' },
-  { id: 'middle_2', name: 'الثاني المتوسط' },
-  { id: 'middle_3', name: 'الثالث المتوسط' },
-  { id: 'secondary_4_sci', name: 'الرابع العلمي' },
-  { id: 'secondary_4_lit', name: 'الرابع الأدبي' },
-  { id: 'secondary_5_sci', name: 'الخامس العلمي' },
-  { id: 'secondary_5_lit', name: 'الخامس الأدبي' },
-  { id: 'secondary_6_sci', name: 'السادس العلمي' },
-  { id: 'secondary_6_lit', name: 'السادس الأدبي' },
+const GRADES_DATA = [
+  { id: 'primary_1', label: 'الأول الابتدائي' },
+  { id: 'primary_2', label: 'الثاني الابتدائي' },
+  { id: 'primary_3', label: 'الثالث الابتدائي' },
+  { id: 'primary_4', label: 'الرابع الابتدائي' },
+  { id: 'primary_5', label: 'الخامس الابتدائي' },
+  { id: 'primary_6', label: 'السادس الابتدائي' },
+  { id: 'middle_1', label: 'الأول المتوسط' },
+  { id: 'middle_2', label: 'الثاني المتوسط' },
+  { id: 'middle_3', label: 'الثالث المتوسط' },
+  { id: 'secondary_4_sci', label: 'الرابع العلمي' },
+  { id: 'secondary_4_lit', label: 'الرابع الأدبي' },
+  { id: 'secondary_5_sci', label: 'الخامس العلمي' },
+  { id: 'secondary_5_lit', label: 'الخامس الأدبي' },
+  { id: 'secondary_6_sci', label: 'السادس العلمي' },
+  { id: 'secondary_6_lit', label: 'السادس الأدبي' },
 ];
 
-export default function AdminDashboard({ onBack }: Props) {
-  const [activeTab, setActiveTab] = useState<'subjects' | 'chapters' | 'materials' | 'flashcards' | 'database'>('subjects');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  // Lists
+export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
+  const [activeTab, setActiveTab] = useState<'subjects' | 'chapters' | 'materials' | 'flashcards' | 'database' | 'settings'>('subjects');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
   
-  // Database Explorer State
-  const [dbItems, setDbItems] = useState<any[]>([]);
-  const [dbSearch, setDbSearch] = useState('');
+  const ADMIN_EMAIL = 'jwjwjwjueue@gmail.com';
+  const isSuperAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-  // Selection state for forms
-  const [selectedGrade, setSelectedGrade] = useState<Grade | ''>('');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [selectedChapterId, setSelectedChapterId] = useState<string>('');
-
-  // Form State
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // Form states
   const [subjectName, setSubjectName] = useState('');
+  const [selectedGrades, setSelectedGrades] = useState<Grade[]>([]);
+  
   const [chapterName, setChapterName] = useState('');
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+  
   const [materialTitle, setMaterialTitle] = useState('');
-  const [materialType, setMaterialType] = useState<'PDF' | 'Video' | 'Ministerial'>('Video');
+  const [materialType, setMaterialType] = useState<'Video' | 'PDF'>('Video');
   const [materialUrl, setMaterialUrl] = useState('');
-  const [materialFile, setMaterialFile] = useState<File | null>(null);
-  const [isUrlMode, setIsUrlMode] = useState(true);
+  const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
+  
   const [flashcardQuestion, setFlashcardQuestion] = useState('');
   const [flashcardAnswer, setFlashcardAnswer] = useState('');
-
-  // Bulk / Builder State
+  
+  const [adminEmails, setAdminEmails] = useState<string[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [bulkInput, setBulkInput] = useState('');
-  const [builderRows, setBuilderRows] = useState<string[]>(['']); // Array of chapter names
-  const [materialRows, setMaterialRows] = useState<{ title: string; type: 'Video' | 'PDF' | 'Ministerial'; url: string }[]>([
-    { title: '', type: 'Video', url: '' }
-  ]);
-  const [flashcardRows, setFlashcardRows] = useState<{ question: string; answer: string }[]>([
-    { question: '', answer: '' }
-  ]);
-  const [multiSelectedSubjectIds, setMultiSelectedSubjectIds] = useState<string[]>([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Filtering states for forms
+  const [formGradeFilter, setFormGradeFilter] = useState<Grade | ''>('');
+  const [formSubjectFilter, setFormSubjectFilter] = useState<string | ''>('');
 
   useEffect(() => {
     fetchSubjects();
-    resetForm();
-  }, [selectedGrade, activeTab]);
-
-  useEffect(() => {
-    if (selectedSubjectId) fetchChapters();
-    else setChapters([]);
-    resetForm();
-  }, [selectedSubjectId, activeTab]);
-
-  useEffect(() => {
-    if (selectedChapterId) {
-      fetchMaterials();
-      fetchFlashcards();
-    } else {
-      setMaterials([]);
-      setFlashcards([]);
+    fetchChapters();
+    fetchMaterials();
+    fetchFlashcards();
+    fetchMaintenanceStatus();
+    if (isSuperAdmin) {
+      fetchAdmins();
     }
-    resetForm();
-  }, [selectedChapterId, activeTab]);
+  }, [isSuperAdmin]);
 
-  const resetForm = () => {
-    setBulkInput('');
-    setBuilderRows(['']);
-    setMaterialRows([{ title: '', type: 'Video', url: '' }]);
-    setFlashcardRows([{ question: '', answer: '' }]);
-    setMultiSelectedSubjectIds([]);
-    setEditingId(null);
-    setSubjectName('');
-    setChapterName('');
-    setMaterialTitle('');
-    setMaterialUrl('');
-    setMaterialFile(null);
-    setFlashcardQuestion('');
-    setFlashcardAnswer('');
+  const fetchAdmins = async () => {
+    if (!isSuperAdmin) return;
+    const list = await getAdmins();
+    setAdminEmails(list);
   };
 
-  useEffect(() => {
-    if (activeTab === 'database') fetchDatabaseItems();
-  }, [activeTab]);
-
-  const fetchSubjects = async () => {
-    if (!selectedGrade) {
-      setSubjects([]);
-      return;
-    }
+  const handleAddAdmin = async () => {
+    if (!newAdminEmail) return;
     setLoading(true);
     try {
-      const q = query(collection(db, 'subjects'), where('grade', '==', selectedGrade));
-      const snap = await getDocs(q);
-      setSubjects(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject)));
+      await addAdmin(newAdminEmail);
+      setNewAdminEmail('');
+      await fetchAdmins();
+      showToast('success', 'تمت إضافة المسؤول بنجاح');
     } catch (err) {
-      console.error(err);
+      showToast('error', 'فشل إجراء إضافة المسؤول');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRemoveAdmin = async (email: string) => {
+    if (!window.confirm(`هل أنت متأكد من سحب الصلاحيات من ${email}؟`)) return;
+    setLoading(true);
+    try {
+      await removeAdmin(email);
+      await fetchAdmins();
+      showToast('success', 'تم سحب الصلاحيات بنجاح');
+    } catch (err) {
+      showToast('error', 'فشل في سحب الصلاحيات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMaintenanceStatus = async () => {
+    try {
+      const status = await getMaintenanceMode();
+      setIsMaintenanceActive(status);
+    } catch (err) {
+      console.error('Error fetching maintenance status:', err);
+    }
+  };
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    if (type === 'success') setSuccess(message);
+    else setError(message);
+    setTimeout(() => {
+      setSuccess(null);
+      setError(null);
+    }, 3000);
+  };
+
+  const fetchSubjects = async () => {
+    const q = query(collection(db, 'subjects'), orderBy('name'));
+    const snapshot = await getDocs(q);
+    setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject)));
   };
 
   const fetchChapters = async () => {
-    setLoading(true);
-    try {
-      const q = query(collection(db, 'chapters'), where('subjectId', '==', selectedSubjectId));
-      const snap = await getDocs(q);
-      setChapters(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chapter)).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const snapshot = await getDocs(collection(db, 'chapters'));
+    setChapters(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chapter)));
   };
 
   const fetchMaterials = async () => {
-    setLoading(true);
-    try {
-      const q = query(collection(db, 'materials'), where('chapterId', '==', selectedChapterId), orderBy('title'));
-      const snap = await getDocs(q);
-      setMaterials(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Material)));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const snapshot = await getDocs(collection(db, 'materials'));
+    setMaterials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Material)));
   };
 
   const fetchFlashcards = async () => {
-    setLoading(true);
-    try {
-      const q = query(collection(db, 'flashcards'), where('chapterId', '==', selectedChapterId));
-      const snap = await getDocs(q);
-      setFlashcards(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Flashcard)));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDatabaseItems = async () => {
-    setLoading(true);
-    try {
-      // Fetching sample from all major collections for database explorer
-      const collections = ['subjects', 'chapters', 'materials', 'flashcards'];
-      let allItems: any[] = [];
-      
-      for (const colName of collections) {
-        const snap = await getDocs(query(collection(db, colName), limit(20)));
-        allItems = [...allItems, ...snap.docs.map(doc => ({ 
-          id: doc.id, 
-          _collection: colName, 
-          ...doc.data() 
-        }))];
-      }
-      setDbItems(allItems);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const showToast = (type: 'success' | 'error', msg: string) => {
-    if (type === 'success') {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(null), 3000);
-    } else {
-      setError(msg);
-      setTimeout(() => setError(null), 3000);
-    }
+    const snapshot = await getDocs(collection(db, 'flashcards'));
+    setFlashcards(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Flashcard)));
   };
 
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedGrade) return;
-
     setLoading(true);
     try {
-      if (editingId) {
-        await updateDoc(doc(db, 'subjects', editingId), {
-          name: subjectName.trim(),
-          grade: selectedGrade
-        });
-        showToast('success', 'تم التعديل بنجاح');
-      } else if (isBulkMode) {
-        const names = bulkInput.split('\n').filter(n => n.trim());
-        for (const name of names) {
-          await addDoc(collection(db, 'subjects'), {
-            name: name.trim(),
-            grade: selectedGrade,
-            icon: 'Book'
+      if (isBulkMode) {
+        const lines = bulkInput.split('\n').filter(l => l.trim().length > 0);
+        for (const line of lines) {
+          await addDoc(collection(db, 'subjects'), { 
+            name: line.trim(),
+            grades: selectedGrades 
           });
         }
-        showToast('success', 'تم إضافة المواد بنجاح');
+        showToast('success', `تمت إضافة ${lines.length} مواد بنجاح`);
+        setBulkInput('');
       } else {
-        if (!subjectName) return;
-        await addDoc(collection(db, 'subjects'), {
-          name: subjectName,
-          grade: selectedGrade,
-          icon: 'Book'
-        });
-        showToast('success', 'تم إضافة المادة بنجاح');
+        if (editingId) {
+          await updateDoc(doc(db, 'subjects', editingId), { 
+            name: subjectName,
+            grades: selectedGrades 
+          });
+          showToast('success', 'تم تعديل المادة بنجاح');
+        } else {
+          await addDoc(collection(db, 'subjects'), { 
+            name: subjectName,
+            grades: selectedGrades 
+          });
+          showToast('success', 'تمت إضافة المادة بنجاح');
+        }
       }
-      resetForm();
+      setSubjectName('');
+      setSelectedGrades([]);
+      setEditingId(null);
       fetchSubjects();
     } catch (err) {
-      showToast('error', 'فشل العملية');
+      showToast('error', 'فشل الإجراء');
     } finally {
       setLoading(false);
     }
@@ -261,147 +257,89 @@ export default function AdminDashboard({ onBack }: Props) {
 
   const handleAddChapter = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (selectedSubjectIds.length === 0) return;
     setLoading(true);
     try {
-      if (editingId) {
-        await updateDoc(doc(db, 'chapters', editingId), {
-          name: chapterName.trim(),
-          subjectId: selectedSubjectId
-        });
-        showToast('success', 'تم التعديل بنجاح');
-      } else if (isBulkMode) {
-        // Visual Builder logic
-        const validChapters = builderRows.filter(r => r.trim());
-        const targetSubjectIds = multiSelectedSubjectIds.length > 0 ? multiSelectedSubjectIds : [selectedSubjectId];
-
-        if (validChapters.length === 0 || targetSubjectIds.some(id => !id)) {
-          showToast('error', 'يرجى اختيار مادة واحدة على الأقل وكتابة الفصول');
-          setLoading(false);
-          return;
+      if (isBulkMode) {
+        const lines = bulkInput.split('\n').filter(l => l.trim().length > 0);
+        for (const line of lines) {
+          await addDoc(collection(db, 'chapters'), { 
+            name: line.trim(),
+            subjectIds: selectedSubjectIds 
+          });
         }
-
-        for (const subjId of targetSubjectIds) {
-          for (const chapName of validChapters) {
-            await addDoc(collection(db, 'chapters'), {
-              subjectId: subjId,
-              name: chapName.trim(),
-              orderIndex: 0
-            });
-          }
-        }
-        showToast('success', 'تم إضافة الفصول بنجاح');
+        showToast('success', `تمت إضافة ${lines.length} فصول بنجاح`);
+        setBulkInput('');
       } else {
-        if (!chapterName || !selectedSubjectId) return;
-        await addDoc(collection(db, 'chapters'), {
-          subjectId: selectedSubjectId,
-          name: chapterName,
-          orderIndex: chapters.length + 1
-        });
-        showToast('success', 'تم إضافة الفصل بنجاح');
+        if (editingId) {
+          await updateDoc(doc(db, 'chapters', editingId), { 
+            name: chapterName,
+            subjectIds: selectedSubjectIds 
+          });
+          showToast('success', 'تم تعديل الفصل بنجاح');
+        } else {
+          await addDoc(collection(db, 'chapters'), { 
+            name: chapterName,
+            subjectIds: selectedSubjectIds 
+          });
+          showToast('success', 'تمت إضافة الفصل بنجاح');
+        }
       }
-      resetForm();
-      if (selectedSubjectId) fetchChapters();
+      setChapterName('');
+      setEditingId(null);
+      fetchChapters();
     } catch (err) {
-      showToast('error', 'فشل العملية');
+      showToast('error', 'فشل الإجراء');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type !== 'application/pdf') {
-        showToast('error', 'يرجى اختيار ملف PDF فقط');
-        return;
-      }
-      if (file.size > 800 * 1024) { 
-        showToast('error', 'حجم الملف كبير جداً (يجب أن يكون أقل من 800KB لضمان الحفظ)');
-        return;
-      }
-      setMaterialFile(file);
-      setIsUrlMode(false);
-      setMaterialTitle(file.name.replace('.pdf', ''));
-    }
-  };
-
   const handleAddMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedChapterId) return;
-
+    if (selectedChapterIds.length === 0) return;
     setLoading(true);
     try {
-      if (editingId) {
-        let finalUrl = materialUrl;
-        if (!isUrlMode && materialFile) {
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(materialFile);
-          });
-          finalUrl = await base64Promise;
+      if (isBulkMode) {
+        const lines = bulkInput.split('\n').filter(l => l.trim().includes('|'));
+        for (const line of lines) {
+          const [title, url, type] = line.split('|').map(s => s.trim());
+          if (title && url) {
+            await addDoc(collection(db, 'materials'), { 
+              title,
+              url,
+              type: type || 'Video',
+              chapterIds: selectedChapterIds 
+            });
+          }
         }
-
-        await updateDoc(doc(db, 'materials', editingId), {
-          chapterId: selectedChapterId,
-          subjectId: selectedSubjectId,
-          title: materialTitle,
-          type: materialType,
-          url: finalUrl,
-          isUploaded: !isUrlMode
-        });
-        showToast('success', 'تم التعديل بنجاح');
-      } else if (isBulkMode) {
-        const validMaterials = materialRows.filter(m => m.title.trim() && m.url.trim());
-        if (validMaterials.length === 0) {
-          showToast('error', 'يرجى إضافة محاضرة واحدة على الأقل');
-          setLoading(false);
-          return;
-        }
-
-        for (const mat of validMaterials) {
-          await addDoc(collection(db, 'materials'), {
-            chapterId: selectedChapterId,
-            subjectId: selectedSubjectId,
-            title: mat.title.trim(),
-            type: mat.type,
-            url: mat.url.trim()
-          });
-        }
+        showToast('success', `تمت إضافة ${lines.length} محاضرات بنجاح`);
+        setBulkInput('');
       } else {
-        let finalUrl = materialUrl;
-
-        if (!isUrlMode && materialFile) {
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(materialFile);
+        if (editingId) {
+          await updateDoc(doc(db, 'materials', editingId), { 
+            title: materialTitle,
+            type: materialType,
+            url: materialUrl,
+            chapterIds: selectedChapterIds 
           });
-          finalUrl = await base64Promise;
+          showToast('success', 'تم تعديل المحتوى بنجاح');
+        } else {
+          await addDoc(collection(db, 'materials'), { 
+            title: materialTitle,
+            type: materialType,
+            url: materialUrl,
+            chapterIds: selectedChapterIds 
+          });
+          showToast('success', 'تمت إضافة المحتوى بنجاح');
         }
-
-        if (!materialTitle || !finalUrl) {
-          showToast('error', 'يرجى ملء كافة الحقول');
-          setLoading(false);
-          return;
-        }
-
-        await addDoc(collection(db, 'materials'), {
-          chapterId: selectedChapterId,
-          subjectId: selectedSubjectId,
-          title: materialTitle,
-          type: materialType,
-          url: finalUrl,
-          isUploaded: !isUrlMode
-        });
       }
-      resetForm();
+      setMaterialTitle('');
+      setMaterialUrl('');
+      setEditingId(null);
       fetchMaterials();
-      showToast('success', 'تم العملية بنجاح');
     } catch (err) {
-      console.error(err);
-      showToast('error', 'فشل العملية');
+      showToast('error', 'فشل الإجراء');
     } finally {
       setLoading(false);
     }
@@ -409,937 +347,898 @@ export default function AdminDashboard({ onBack }: Props) {
 
   const handleAddFlashcard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedChapterId) return;
-
+    if (selectedChapterIds.length === 0) return;
     setLoading(true);
     try {
-      if (editingId) {
-        await updateDoc(doc(db, 'flashcards', editingId), {
-          chapterId: selectedChapterId,
-          question: flashcardQuestion,
-          answer: flashcardAnswer
-        });
-        showToast('success', 'تم التعديل بنجاح');
-      } else if (isBulkMode) {
-        const validCards = flashcardRows.filter(f => f.question.trim() && f.answer.trim());
-        if (validCards.length === 0) {
-          showToast('error', 'يرجى إضافة بطاقة واحدة على الأقل');
-          setLoading(false);
-          return;
+      if (isBulkMode) {
+        const lines = bulkInput.split('\n').filter(l => l.trim().includes('|'));
+        for (const line of lines) {
+          const [q, a] = line.split('|').map(s => s.trim());
+          if (q && a) {
+            await addDoc(collection(db, 'flashcards'), {
+              question: q,
+              answer: a,
+              chapterIds: selectedChapterIds
+            });
+          }
         }
-
-        for (const card of validCards) {
-          await addDoc(collection(db, 'flashcards'), {
-            chapterId: selectedChapterId,
-            question: card.question.trim(),
-            answer: card.answer.trim()
-          });
-        }
+        showToast('success', `تمت إضافة ${lines.length} بطاقات بنجاح`);
+        setBulkInput('');
       } else {
-        if (!flashcardQuestion || !flashcardAnswer) return;
-        await addDoc(collection(db, 'flashcards'), {
-          chapterId: selectedChapterId,
-          question: flashcardQuestion,
-          answer: flashcardAnswer
-        });
+        if (editingId) {
+          await updateDoc(doc(db, 'flashcards', editingId), { 
+            question: flashcardQuestion,
+            answer: flashcardAnswer,
+            chapterIds: selectedChapterIds 
+          });
+          showToast('success', 'تم تعديل البطاقة بنجاح');
+        } else {
+          await addDoc(collection(db, 'flashcards'), { 
+            question: flashcardQuestion,
+            answer: flashcardAnswer,
+            chapterIds: selectedChapterIds 
+          });
+          showToast('success', 'تمت إضافة البطاقة بنجاح');
+        }
+        setFlashcardQuestion('');
+        setFlashcardAnswer('');
       }
-      resetForm();
+      setEditingId(null);
       fetchFlashcards();
-      showToast('success', 'تم العملية بنجاح');
     } catch (err) {
-      showToast('error', 'فشل العملية');
+      showToast('error', 'فشل الإجراء');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (col: string, id: string, callback: () => void) => {
-    if (!confirm('هل أنت متأكد من الحذف؟')) return;
+  const handleDelete = async (coll: string, id: string, refresh: () => void) => {
+    if (!window.confirm('هل أنت متأكد من الحذف؟ لا يمكن التراجع عن هذا الإجراء.')) return;
     try {
-      await deleteDoc(doc(db, col, id));
-      callback();
+      await deleteDoc(doc(db, coll, id));
       showToast('success', 'تم الحذف بنجاح');
+      refresh();
     } catch (err) {
       showToast('error', 'فشل الحذف');
     }
   };
 
+  const handleToggleMaintenance = async () => {
+    if (!isSuperAdmin) return;
+    setLoading(true);
+    try {
+      await setMaintenanceMode(!isMaintenanceActive);
+      setIsMaintenanceActive(!isMaintenanceActive);
+      showToast('success', `تم ${!isMaintenanceActive ? 'تفعيل' : 'إيقاف'} وضع الصيانة بنجاح`);
+    } catch (err) {
+      showToast('error', 'فشل تغيير وضع الصيانة');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white" dir="rtl">
-      {/* Navbar Admi */}
-      <nav className="bg-white border-b border-slate-100 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-2 md:gap-4 shrink-0">
-          <button 
-            onClick={onBack}
-            className="p-1.5 md:p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-500"
-          >
-            <ArrowRight size={24} />
-          </button>
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="p-1.5 md:p-2 bg-amber-100 text-amber-600 rounded-lg">
-              <Settings size={24} />
+    <div className="min-h-screen bg-[#FDFDFD] font-['Inter'] selection:bg-blue-100 selection:text-blue-900" dir="rtl">
+      {/* Mobile Header */}
+      <header className="lg:hidden bg-white border-b border-slate-100 p-4 sticky top-0 z-30 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
+            <Database size={16} />
+          </div>
+          <h2 className="font-black text-slate-900 text-sm">لوحة الإدارة</h2>
+        </div>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+        >
+          {isMobileMenuOpen ? <Plus className="rotate-45" size={24} /> : <div className="space-y-1.5"><div className="w-6 h-0.5 bg-current rounded-full" /><div className="w-4 h-0.5 bg-current rounded-full" /><div className="w-6 h-0.5 bg-current rounded-full" /></div>}
+        </button>
+      </header>
+
+      {/* Sidebar Navigation */}
+      <div className="flex flex-col lg:flex-row min-h-screen">
+        <aside className={`
+          ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+          lg:w-72 bg-white border-l border-slate-100 p-6 flex flex-col gap-8 fixed lg:sticky top-[65px] lg:top-0 right-0 h-[calc(100vh-65px)] lg:h-screen w-full lg:z-20 z-40 transition-transform duration-300 ease-in-out overflow-y-auto
+        `}>
+          <div className="hidden lg:flex items-center gap-3 px-2">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-100">
+               <Database size={20} />
             </div>
-            <h1 className="text-sm md:text-xl font-black text-slate-900 leading-tight">إدارة المحتوى</h1>
+            <div>
+              <h2 className="font-black text-slate-900 text-lg leading-tight">لوحة الإدارة</h2>
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Master Panel v2</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-           <span className="hidden sm:inline-block text-[10px] md:text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase tracking-widest">Administrator Mode</span>
-           <span className="sm:hidden text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">ADMIN</span>
-        </div>
-      </nav>
 
-      <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-73px)]">
-        {/* Sidebar / Mobile Dropdown */}
-        <aside className="w-full md:w-64 bg-slate-50 border-l border-slate-100 p-4 md:p-6 space-y-4 flex flex-col shrink-0">
-          <div className="block md:hidden space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Category / التصنيف</label>
-            <select 
-              value={activeTab}
-              onChange={(e) => {
-                setActiveTab(e.target.value as any);
-                setIsBulkMode(false);
-                setBulkInput('');
+          <nav className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                onBack();
+                setIsMobileMenuOpen(false);
               }}
-              className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex items-center gap-3 px-4 py-4 rounded-2xl text-blue-600 hover:bg-blue-50 transition-all duration-300 font-black text-sm mb-2"
             >
-              <option value="subjects">المواد الدراسية</option>
-              <option value="chapters">الفصول والوحدات</option>
-              <option value="materials">المحاضرات والملفات</option>
-              <option value="flashcards">البطاقات الذكية</option>
-              <option value="database">قاعدة البيانات</option>
-            </select>
-          </div>
-
-          <div className="hidden md:flex flex-col space-y-2">
+              <ArrowRight size={20} />
+              العودة للمنصة الرئيسية
+            </button>
             {[
-              { id: 'subjects', icon: Book, label: 'المواد الدراسية' },
-              { id: 'chapters', icon: Layers, label: 'الفصول والوحدات' },
-              { id: 'materials', icon: FileText, label: 'المحاضرات والملفات' },
-              { id: 'flashcards', icon: HelpCircle, label: 'البطاقات الذكية' },
-              { id: 'database', icon: Database, label: 'قاعدة البيانات' },
-            ].map(tab => (
+              { id: 'subjects', icon: Book, label: 'إدارة المواد' },
+              { id: 'chapters', icon: Layers, label: 'إدارة الفصول' },
+              { id: 'materials', icon: Youtube, label: 'المحاضرات وملفات' },
+              { id: 'flashcards', icon: HelpCircle, label: 'البطاقات التعليمية' },
+              { id: 'database', icon: Database, label: 'النسخ الاحتياطي' },
+              { id: 'settings', icon: Wrench, label: 'إعدادات النظام' },
+            ].map(item => (
               <button
-                key={tab.id}
+                key={item.id}
                 onClick={() => {
-                  setActiveTab(tab.id as any);
-                  setIsBulkMode(false);
-                  setBulkInput('');
+                  setActiveTab(item.id as any);
+                  setEditingId(null);
+                  setIsMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${
-                  activeTab === tab.id 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
-                  : 'text-slate-600 hover:bg-white hover:shadow-sm'
+                className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-300 font-black text-sm group ${
+                  activeTab === item.id 
+                    ? 'bg-blue-600 text-white shadow-xl shadow-blue-100 translate-x-1' 
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <tab.icon size={20} />
-                {tab.label}
+                <div className="flex items-center gap-3">
+                  <item.icon size={20} className={activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-slate-900'} />
+                  {item.label}
+                </div>
+                {activeTab === item.id && <ChevronLeft size={16} />}
               </button>
             ))}
-          </div>
-          <div className="hidden md:block mt-auto pt-4 border-t border-slate-200">
-            <p className="text-[10px] text-slate-400 text-center font-bold uppercase tracking-wider">نظام عراقي أكاديمي v2.5</p>
+          </nav>
+
+          <div className="mt-auto pt-6 border-t border-slate-100">
+            <div className="flex items-center gap-3 px-3 mb-6">
+              <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 font-black text-xs">
+                {user?.email?.[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-slate-900 truncate">{user?.email}</p>
+                <p className="text-[10px] text-slate-400 font-bold">المسؤول</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => signOut(auth)}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-sm hover:bg-red-100 transition-colors"
+            >
+              <LogOut size={18} />
+              تسجيل الخروج
+            </button>
           </div>
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-10">
+        <main className="flex-1 p-4 lg:p-10">
           <div className="max-w-5xl mx-auto space-y-8 md:space-y-10">
-            
-            {/* Header Block */}
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b pb-6 border-slate-100 gap-4">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
-                <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-1 md:mb-2">
+                <div className="flex items-center gap-2 text-blue-600 mb-2">
+                   <div className="w-6 h-1 bg-blue-600 rounded-full" />
+                   <span className="text-[10px] font-black uppercase tracking-tighter">System Overview</span>
+                </div>
+                <h1 className="text-4xl font-black text-slate-900 tracking-tight">
                   {activeTab === 'subjects' && 'إدارة المواد'}
                   {activeTab === 'chapters' && 'إدارة الفصول'}
                   {activeTab === 'materials' && 'إدارة المحاضرات'}
                   {activeTab === 'flashcards' && 'إدارة البطاقات'}
-                  {activeTab === 'database' && 'مستكشف قاعدة البيانات'}
-                </h2>
-                <p className="text-slate-500 font-medium italic">
-                  {activeTab === 'database' ? 'عرض وتعديل كافة البيانات المخزنة في هاردوير السيرفر' : 'إضافة وتحكم بالمحتوى الدراسي حسب المرحلة'}
-                </p>
+                  {activeTab === 'database' && 'النسخ الاحتياطي'}
+                  {activeTab === 'settings' && 'إعدادات النظام'}
+                </h1>
               </div>
-              
-              {activeTab !== 'database' && (
-                <button
-                  onClick={() => setIsBulkMode(!isBulkMode)}
-                  className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-2xl transition-all ${
-                    isBulkMode 
-                    ? 'bg-amber-600 text-white shadow-lg shadow-amber-100' 
-                    : 'bg-slate-900 text-white shadow-lg shadow-slate-200'
-                  }`}
-                >
-                  <LayoutGrid size={18} />
-                  {isBulkMode ? 'وضع الإضافة المفردة' : 'الإضافة المتعددة (Bulk)'}
-                </button>
-              )}
-            </div>
 
-            {/* Context Selectors Filter */}
-            {activeTab !== 'database' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase mr-2">المرحلة الدراسية</label>
-                  <select 
-                    value={selectedGrade}
-                    onChange={(e) => {
-                      setSelectedGrade(e.target.value as Grade);
-                      setSelectedSubjectId('');
-                      setSelectedChapterId('');
-                    }}
-                    className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold"
-                  >
-                    <option value="">-- اختر الصف --</option>
-                    {GRADES.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-                </div>
-
-                {(activeTab === 'chapters' || activeTab === 'materials' || activeTab === 'flashcards') && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase mr-2">المادة المستهدفة</label>
-                    <select 
-                      value={selectedSubjectId}
-                      onChange={(e) => {
-                        setSelectedSubjectId(e.target.value);
-                        setSelectedChapterId('');
-                      }}
-                      className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold disabled:opacity-40"
-                      disabled={!selectedGrade}
-                    >
-                      <option value="">-- اختر المادة --</option>
-                      {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </div>
-                )}
-
-                {(activeTab === 'materials' || activeTab === 'flashcards') && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase mr-2">الفصل / الوحدة</label>
-                    <select 
-                      value={selectedChapterId}
-                      onChange={(e) => setSelectedChapterId(e.target.value)}
-                      className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold disabled:opacity-40"
-                      disabled={!selectedSubjectId}
-                    >
-                      <option value="">-- اختر الفصل --</option>
-                      {chapters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                )}
+              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl">
+                 <div className="px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-100">
+                    <p className="text-[10px] text-slate-400 font-black">حالة النظام</p>
+                    <div className="flex items-center gap-2">
+                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                       <span className="text-xs font-black text-slate-700">متصل الآن</span>
+                    </div>
+                 </div>
               </div>
-            )}
+            </header>
 
-            {/* Main Action Content Area */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              
-              {/* Form Side */}
-              <div className={`${activeTab === 'database' ? 'lg:col-span-12' : 'lg:col-span-7'} space-y-6`}>
-                
+              <div className={(activeTab === 'database' || activeTab === 'settings') ? 'lg:col-span-12' : 'lg:col-span-7'}>
                 {activeTab === 'database' ? (
-                   <div className="space-y-6">
-                      <div className="flex gap-4">
-                        <div className="flex-1 relative">
-                          <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                          <input 
-                            type="text"
-                            placeholder="ابحث في معرف الوثيقة أو المحتوى..."
-                            value={dbSearch}
-                            onChange={(e) => setDbSearch(e.target.value)}
-                            className="w-full pr-12 pl-4 py-4 bg-white border-2 border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                          />
-                        </div>
-                        <button onClick={fetchDatabaseItems} className="p-4 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 transition-colors">
-                           <Loader2 className={loading ? "animate-spin" : ""} size={24} />
-                        </button>
-                      </div>
-
-                      <div className="overflow-x-auto bg-white rounded-3xl border border-slate-100 shadow-sm">
-                        <table className="w-full text-right border-collapse">
-                          <thead className="bg-slate-50/80">
-                            <tr>
-                              <th className="p-4 text-xs font-black text-slate-400 uppercase">المجموعة</th>
-                              <th className="p-4 text-xs font-black text-slate-400 uppercase">المعرف (ID)</th>
-                              <th className="p-4 text-xs font-black text-slate-400 uppercase">العنوان / الاسم</th>
-                              <th className="p-4 text-xs font-black text-slate-400 uppercase">إجراءات</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-50">
-                            {dbItems.filter(item => 
-                              JSON.stringify(item).toLowerCase().includes(dbSearch.toLowerCase())
-                            ).map((item) => (
-                              <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-4">
-                                  <span className="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-lg uppercase">
-                                    {item._collection}
-                                  </span>
-                                </td>
-                                <td className="p-4 font-mono text-[10px] text-slate-400">{item.id}</td>
-                                <td className="p-4 font-bold text-slate-700">{item.name || item.title || item.question || 'N/A'}</td>
-                                <td className="p-4">
-                                  <button 
-                                    onClick={() => handleDelete(item._collection, item.id, fetchDatabaseItems)}
-                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        {dbItems.length === 0 && (
-                          <div className="p-12 text-center text-slate-400 italic">
-                            لا توجد بيانات متاحة للعرض حالياً
+                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50">
+                    <div className="space-y-6">
+                       <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100 flex items-center gap-4">
+                          <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
+                             <Database size={28} />
                           </div>
-                        )}
+                          <div>
+                             <h3 className="font-black text-blue-900 text-lg">النسخ الاحتياطي السحابي</h3>
+                             <p className="text-blue-700/70 text-sm font-medium leading-relaxed">تتم مزامنة جميع البيانات تلقائياً مع خوادم Firebase بشكل لحظي.</p>
+                          </div>
+                       </div>
+                       
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 text-center">
+                             <h4 className="text-[10px] text-slate-400 font-black mb-1 uppercase">إجمالي المواد</h4>
+                             <p className="text-3xl font-black text-slate-900">{subjects.length}</p>
+                          </div>
+                          <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 text-center">
+                             <h4 className="text-[10px] text-slate-400 font-black mb-1 uppercase">إجمالي المحاضرات</h4>
+                             <p className="text-3xl font-black text-slate-900">{materials.length}</p>
+                          </div>
+                       </div>
+
+                       <div className="p-6 rounded-3xl bg-slate-900 text-white space-y-4">
+                          <div className="flex items-center gap-3">
+                             <ShieldAlert className="text-amber-400" />
+                             <h4 className="font-black">منطقة حساسة</h4>
+                          </div>
+                          <p className="text-slate-400 text-sm leading-relaxed">هذا القسم مخصص لمراقبة سلامة البيانات ونزاهتها. لا تقم بتغيير الإعدادات إلا إذا كنت تعرف ما تفعله.</p>
+                          <button 
+                            disabled 
+                            className="w-full py-4 bg-slate-800 rounded-2xl font-black text-sm opacity-50 cursor-not-allowed"
+                          >
+                            بدء تصدير البيانات (JSON)
+                          </button>
+                       </div>
+                    </div>
+                  </div>
+                ) : activeTab === 'settings' ? (
+                  <div className="space-y-8">
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 overflow-hidden relative">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-slate-900 mb-1">
+                            <Wrench className="text-amber-600" size={24} />
+                            <h3 className="text-xl font-black">وضع صيانة المنصة</h3>
+                          </div>
+                          <p className="text-slate-500 font-medium leading-relaxed max-w-lg">
+                            عند تفعيل هذا الوضع، ستتوقف المنصة عن العمل لجميع المستخدمين والزوار، ولن يتمكن من الدخول سوى المدير الرئيسي.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                           <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-tighter ${
+                             isMaintenanceActive ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'
+                           }`}>
+                             {isMaintenanceActive ? 'نشط الآن' : 'متوقف'}
+                           </span>
+                           <button
+                             onClick={handleToggleMaintenance}
+                             disabled={loading || !isSuperAdmin}
+                             className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                               isMaintenanceActive ? 'bg-blue-600' : 'bg-slate-200'
+                             } ${!isSuperAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                           >
+                             <span
+                               className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                                 isMaintenanceActive ? '-translate-x-8' : '-translate-x-1'
+                               }`}
+                             />
+                           </button>
+                        </div>
                       </div>
-                   </div>
+                      {!isSuperAdmin && (
+                        <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600">
+                          <ShieldAlert size={20} />
+                          <p className="text-sm font-bold">هذه الإعدادات متاحة فقط للمطور الرئيسي.</p>
+                        </div>
+                      )}
+                      <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-slate-50 rounded-full blur-3xl opacity-50" />
+                    </div>
+
+                    <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 flex items-center gap-4">
+                      <div className="p-3 bg-white rounded-2xl text-blue-600 shadow-sm">
+                        <LayoutGrid size={24} />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-blue-900">إشعار النظام</h4>
+                        <p className="text-blue-700 text-sm font-medium leading-relaxed">
+                          يرجى الحذر عند استخدام هذه الميزات. تأكد من إيقاف وضع الصيانة بعد انتهاء أعمالك.
+                        </p>
+                      </div>
+                    </div>
+
+                    {isSuperAdmin && (
+                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 space-y-6">
+                        <div className="flex items-center gap-3 border-r-4 border-purple-500 pr-3">
+                           <ShieldAlert className="text-purple-600" size={24} />
+                           <h3 className="text-xl font-black text-slate-900">إدارة فريق العمل</h3>
+                        </div>
+                        
+                        <div className="flex gap-3">
+                           <input 
+                             value={newAdminEmail}
+                             onChange={(e) => setNewAdminEmail(e.target.value)}
+                             className="flex-1 p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-purple-100 font-bold"
+                             placeholder="إيميل المسؤول الجديد..."
+                           />
+                           <button 
+                             onClick={handleAddAdmin}
+                             disabled={loading || !newAdminEmail}
+                             className="px-8 bg-purple-600 text-white rounded-3xl font-black hover:bg-purple-700 transition-all disabled:opacity-50"
+                           >
+                             {loading ? <Loader2 className="animate-spin" /> : 'إضافة'}
+                           </button>
+                        </div>
+
+                        <div className="space-y-2">
+                           <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">المدراء الحاليون</h4>
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {adminEmails.map(email => (
+                                <div key={email} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                   <div className="flex items-center gap-3 min-w-0">
+                                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-purple-600 font-black text-xs">
+                                         {email[0].toUpperCase()}
+                                      </div>
+                                      <span className="text-sm font-bold text-slate-700 truncate">{email}</span>
+                                   </div>
+                                   {email !== ADMIN_EMAIL && (
+                                     <button 
+                                       onClick={() => handleRemoveAdmin(email)}
+                                       className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                     >
+                                        <Trash2 size={16} />
+                                     </button>
+                                   )}
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <>
                     <motion.div 
-                      key={activeTab + (isBulkMode ? '-bulk' : '-single')}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      key={activeTab}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
                       className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50"
                     >
-                      {isBulkMode ? (
-                        <form 
-                          onSubmit={(e) => {
-                            if (activeTab === 'subjects') handleAddSubject(e);
-                            if (activeTab === 'chapters') handleAddChapter(e);
-                            if (activeTab === 'materials') handleAddMaterial(e);
-                            if (activeTab === 'flashcards') handleAddFlashcard(e);
-                          }} 
-                          className="space-y-6"
-                        >
-                          {activeTab === 'chapters' && (
-                            <div className="space-y-6">
-                              <div className="flex items-center justify-between">
-                                <h3 className="font-black text-slate-900">منشئ الفصول المتعدد (Visual Builder)</h3>
-                                <div className="flex gap-2">
-                                  <button 
-                                    type="button"
-                                    onClick={() => setBuilderRows([...builderRows, ''])}
-                                    className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"
-                                    title="إضافة حقل فصل"
-                                  >
-                                    <Plus size={18} />
-                                  </button>
-                                </div>
-                              </div>
+                       <div className="flex items-center justify-between mb-8">
+                          <h3 className="text-xl font-black text-slate-900 border-r-4 border-blue-500 pr-3">
+                            {editingId ? 'تعديل البيانات' : 'إضافة بيانات جديدة'}
+                          </h3>
+                          <button
+                            onClick={() => setIsBulkMode(!isBulkMode)}
+                            className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl font-black text-xs hover:bg-slate-100 transition-colors"
+                          >
+                            {isBulkMode ? 'الوضع العادي' : 'وضع الإضافة الجماعية'}
+                          </button>
+                       </div>
 
-                              <div className="space-y-4">
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                                  <label className="block text-xs font-black text-slate-400 mb-3 mr-2 uppercase">1. اختر المواد المستهدفة</label>
-                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {subjects.map(s => (
+                       {activeTab === 'subjects' && (
+                         <form onSubmit={handleAddSubject} className="space-y-6">
+                           <div>
+                             <label className="block text-sm font-black text-slate-700 mb-2">
+                               {isBulkMode ? 'أسماء المواد (كل مادة في سطر)' : 'اسم المادة'}
+                             </label>
+                             {isBulkMode ? (
+                               <textarea 
+                                 value={bulkInput}
+                                 onChange={(e) => setBulkInput(e.target.value)}
+                                 className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[150px]"
+                                 placeholder="اللغة العربية\nاللغة الإنجليزية"
+                               />
+                             ) : (
+                               <input 
+                                 value={subjectName}
+                                 onChange={(e) => setSubjectName(e.target.value)}
+                                 required={!isBulkMode}
+                                 className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl focus:ring-4 focus:ring-blue-100 outline-none transition-all font-bold"
+                                 placeholder="مثال: اللغة العربية"
+                               />
+                             )}
+                           </div>
+                           
+                           <div>
+                             <label className="block text-sm font-black text-slate-700 mb-4">اختر المراحل الدراسية (تعدد اختيار)</label>
+                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                               {[
+                                 { id: 'primary_1', label: 'الأول الابتدائي' },
+                                 { id: 'primary_2', label: 'الثاني الابتدائي' },
+                                 { id: 'primary_3', label: 'الثالث الابتدائي' },
+                                 { id: 'primary_4', label: 'الرابع الابتدائي' },
+                                 { id: 'primary_5', label: 'الخامس الابتدائي' },
+                                 { id: 'primary_6', label: 'السادس الابتدائي' },
+                                 { id: 'middle_1', label: 'الأول المتوسط' },
+                                 { id: 'middle_2', label: 'الثاني المتوسط' },
+                                 { id: 'middle_3', label: 'الثالث المتوسط' },
+                                 { id: 'secondary_4_sci', label: 'الرابع العلمي' },
+                                 { id: 'secondary_4_lit', label: 'الرابع الأدبي' },
+                                 { id: 'secondary_5_sci', label: 'الخامس العلمي' },
+                                 { id: 'secondary_5_lit', label: 'الخامس الأدبي' },
+                                 { id: 'secondary_6_sci', label: 'السادس العلمي' },
+                                 { id: 'secondary_6_lit', label: 'السادس الأدبي' },
+                               ].map((g) => (
+                                 <button
+                                   key={g.id}
+                                   type="button"
+                                   onClick={() => {
+                                     setSelectedGrades(prev => 
+                                       prev.includes(g.id as Grade) 
+                                         ? prev.filter(x => x !== g.id)
+                                         : [...prev, g.id as Grade]
+                                     );
+                                   }}
+                                   className={`p-3 rounded-2xl text-[10px] font-black border transition-all ${
+                                     selectedGrades.includes(g.id as Grade)
+                                       ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
+                                       : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'
+                                   }`}
+                                 >
+                                   {g.label}
+                                 </button>
+                               ))}
+                             </div>
+                           </div>
+
+                           <button 
+                             disabled={loading}
+                             className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                           >
+                             {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                             {editingId ? 'حفظ التعديلات' : isBulkMode ? 'إضافة الكل' : 'إضافة المادة للقائمة'}
+                           </button>
+                         </form>
+                       )}
+
+                       {activeTab === 'chapters' && (
+                         <form onSubmit={handleAddChapter} className="space-y-6">
+                           <div className="space-y-4">
+                             <label className="block text-sm font-black text-slate-700 mb-2">1. تصفية حسب المرحلة الدراسية</label>
+                              <div className="flex flex-wrap gap-2">
+                                {GRADES_DATA.map(g => (
+                                  <button
+                                    key={g.id}
+                                    type="button"
+                                    onClick={() => setFormGradeFilter(g.id as Grade)}
+                                    className={`py-2 px-3 rounded-xl text-[9px] font-bold border transition-all ${
+                                      formGradeFilter === g.id
+                                        ? 'bg-slate-900 border-slate-900 text-white shadow-lg'
+                                        : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                                    }`}
+                                  >
+                                    {g.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700 mb-4 font-black">2. اربط الفصل بالمادة (تعدد اختيار)</label>
+                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                               {subjects.filter(sub => !formGradeFilter || sub.grades?.includes(formGradeFilter as Grade)).map((sub) => (
+                                 <button
+                                   key={sub.id}
+                                   type="button"
+                                   onClick={() => {
+                                     setSelectedSubjectIds(prev => 
+                                       prev.includes(sub.id) 
+                                         ? prev.filter(id => id !== sub.id)
+                                         : [...prev, sub.id]
+                                     );
+                                   }}
+                                   className={`p-3 rounded-2xl text-[10px] font-black border transition-all ${
+                                     selectedSubjectIds.includes(sub.id)
+                                       ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
+                                       : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'
+                                   }`}
+                                 >
+                                   {sub.name}
+                                 </button>
+                               ))}
+                             </div>
+                           </div>
+
+                           <div>
+                             <label className="block text-sm font-black text-slate-700 mb-2">
+                               {isBulkMode ? 'عناوين الفصول (كل فصل في سطر)' : 'عنوان الفصل'}
+                             </label>
+                             {isBulkMode ? (
+                               <textarea 
+                                 value={bulkInput}
+                                 onChange={(e) => setBulkInput(e.target.value)}
+                                 className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[150px]"
+                                 placeholder="الفصل الأول\nالفصل الثاني"
+                               />
+                             ) : (
+                               <input 
+                                 value={chapterName}
+                                 onChange={(e) => setChapterName(e.target.value)}
+                                 required={!isBulkMode}
+                                 className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                 placeholder="مثال: الفصل الأول"
+                               />
+                             )}
+                           </div>
+
+                           <button 
+                             disabled={loading || selectedSubjectIds.length === 0}
+                             className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                           >
+                             {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                             {editingId ? 'حفظ التعديلات' : isBulkMode ? 'إضافة الكل' : 'تثبيت الفصل الجديد'}
+                           </button>
+                         </form>
+                       )}
+
+                       {activeTab === 'materials' && (
+                         <form onSubmit={handleAddMaterial} className="space-y-6">
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                               <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700 bg-slate-100/50 p-2 rounded-lg inline-block">1. تصفية حسب المرحلة</label>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {GRADES_DATA.map(g => (
                                       <button
-                                        key={s.id}
+                                        key={g.id}
                                         type="button"
                                         onClick={() => {
-                                          if (multiSelectedSubjectIds.includes(s.id)) {
-                                            setMultiSelectedSubjectIds(multiSelectedSubjectIds.filter(id => id !== s.id));
-                                          } else {
-                                            setMultiSelectedSubjectIds([...multiSelectedSubjectIds, s.id]);
-                                          }
+                                          setFormGradeFilter(g.id as Grade);
+                                          setFormSubjectFilter('');
                                         }}
-                                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border-2 ${
-                                          multiSelectedSubjectIds.includes(s.id)
-                                          ? 'bg-blue-600 border-blue-600 text-white'
-                                          : 'bg-white border-slate-100 text-slate-600 hover:border-blue-200'
+                                        className={`py-2 px-1 rounded-xl text-[8px] font-black border transition-all ${
+                                          formGradeFilter === g.id
+                                            ? 'bg-slate-900 border-slate-900 text-white shadow-lg'
+                                            : 'bg-white border-slate-200 text-slate-400'
                                         }`}
                                       >
-                                        {s.name}
+                                        {g.label.replace('الابتدائي', 'ب').replace('المتوسط', 'م')}
                                       </button>
                                     ))}
                                   </div>
-                                </div>
+                               </div>
 
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                                  <label className="block text-xs font-black text-slate-400 mb-1 mr-2 uppercase">2. أسماء الفصول</label>
-                                  {builderRows.map((row, idx) => (
-                                    <div key={idx} className="flex gap-2">
-                                      <input 
-                                        type="text"
-                                        placeholder={`اسم الفصل رقم ${idx + 1}`}
-                                        value={row}
-                                        onChange={(e) => {
-                                          const newRows = [...builderRows];
-                                          newRows[idx] = e.target.value;
-                                          setBuilderRows(newRows);
-                                        }}
-                                        className="flex-1 p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold"
-                                      />
-                                      {builderRows.length > 1 && (
-                                        <button 
+                               <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700 bg-blue-100/50 p-2 rounded-lg inline-block">2. تصفية حسب المادة</label>
+                                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1 border border-slate-50 rounded-2xl">
+                                    {subjects
+                                      .filter(sub => !formGradeFilter || sub.grades?.includes(formGradeFilter as Grade))
+                                      .map(sub => (
+                                        <button
+                                          key={sub.id}
                                           type="button"
-                                          onClick={() => setBuilderRows(builderRows.filter((_, i) => i !== idx))}
-                                          className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100"
+                                          onClick={() => setFormSubjectFilter(sub.id)}
+                                          className={`py-3 px-2 rounded-xl text-[10px] font-black border transition-all ${
+                                            formSubjectFilter === sub.id
+                                              ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                              : 'bg-white border-slate-100 text-slate-500'
+                                          }`}
                                         >
-                                          <Minus size={18} />
+                                          {sub.name}
                                         </button>
-                                      )}
-                                    </div>
-                                  ))}
-                                  <button 
-                                    type="button"
-                                    onClick={() => setBuilderRows([...builderRows, ''])}
-                                    className="w-full py-2 border-2 border-dashed border-slate-300 text-slate-400 rounded-xl hover:border-blue-400 hover:text-blue-500 transition-all font-bold text-xs"
-                                  >
-                                    + إضافة فصل آخر
-                                  </button>
-                                </div>
-                              </div>
-
-                              <button 
-                                type="submit"
-                                disabled={loading || multiSelectedSubjectIds.length === 0}
-                                className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-3 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100 transition-all"
-                              >
-                                {loading ? <Loader2 className="animate-spin" size={24} /> : <Save size={24} />}
-                                تنفيذ الإضافة لـ ({multiSelectedSubjectIds.length}) مواد
-                              </button>
-                            </div>
-                          )}
-
-                          {activeTab !== 'chapters' && activeTab !== 'materials' && activeTab !== 'flashcards' && (
-                            <div className="space-y-6">
-                              <div className="flex items-center justify-between">
-                                <h3 className="font-black text-slate-900">نظام الرفع الجماعي الذكي</h3>
-                                <div className="flex gap-2">
-                                   <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-black rounded-full border border-amber-100">AI ASSISTED</span>
-                                </div>
-                              </div>
-
-                              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                 <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">تنسيق الإدخال:</p>
-                                 <p className="text-xs font-bold text-slate-600">
-                                    {activeTab === 'subjects' && 'أدخل اسم المادة في كل سطر'}
-                                 </p>
-                              </div>
-
-                              <textarea
-                                rows={10}
-                                value={bulkInput}
-                                onChange={(e) => setBulkInput(e.target.value)}
-                                placeholder={
-                                  activeTab === 'subjects' ? "الفيزياء\nالكيمياء\nالرياضيات" :
-                                  ""
-                                }
-                                className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-mono text-sm leading-relaxed transition-all"
-                              />
-
-                              <button 
-                                type="submit"
-                                disabled={loading || !bulkInput.trim()}
-                                className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-3 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100 active:scale-[0.98] transition-all"
-                              >
-                                {loading ? <Loader2 className="animate-spin" size={24} /> : <Database size={24} />}
-                                معالجة وإضافة البيانات فوراً
-                              </button>
-                            </div>
-                          )}
-
-                          {activeTab === 'materials' && (
-                             <div className="space-y-6">
-                               <div className="flex items-center justify-between">
-                                 <h3 className="font-black text-slate-900">منشئ المحاضرات الجماعي</h3>
-                                 <button 
-                                   type="button"
-                                   onClick={() => setMaterialRows([...materialRows, { title: '', type: 'Video', url: '' }])}
-                                   className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"
-                                 >
-                                   <Plus size={18} />
-                                 </button>
-                               </div>
-                               
-                               <div className="space-y-4">
-                                 {materialRows.map((row, idx) => (
-                                   <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 relative group">
-                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                       <input 
-                                         type="text"
-                                         placeholder="عنوان المحاضرة"
-                                         value={row.title}
-                                         onChange={(e) => {
-                                           const newRows = [...materialRows];
-                                           newRows[idx].title = e.target.value;
-                                           setMaterialRows(newRows);
-                                         }}
-                                         className="p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm"
-                                       />
-                                       <select 
-                                         value={row.type}
-                                         onChange={(e) => {
-                                           const newRows = [...materialRows];
-                                           newRows[idx].type = e.target.value as any;
-                                           setMaterialRows(newRows);
-                                         }}
-                                         className="p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm"
-                                       >
-                                         <option value="Video">فيديو</option>
-                                         <option value="PDF">ملزمة</option>
-                                         <option value="Ministerial">وزاريات</option>
-                                       </select>
-                                     </div>
-                                     <input 
-                                       type="text"
-                                       placeholder="رابط المحتوى (YouTube/Drive)"
-                                       value={row.url}
-                                       onChange={(e) => {
-                                         const newRows = [...materialRows];
-                                         newRows[idx].url = e.target.value;
-                                         setMaterialRows(newRows);
-                                       }}
-                                       className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm"
-                                     />
-                                     {materialRows.length > 1 && (
-                                       <button 
-                                         type="button"
-                                         onClick={() => setMaterialRows(materialRows.filter((_, i) => i !== idx))}
-                                         className="absolute -left-2 -top-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
-                                       >
-                                         <X size={12} />
-                                       </button>
-                                     )}
-                                   </div>
-                                 ))}
-                                 <button 
-                                   type="button"
-                                   onClick={() => setMaterialRows([...materialRows, { title: '', type: 'Video', url: '' }])}
-                                   className="w-full py-3 border-2 border-dashed border-slate-300 text-slate-400 rounded-xl hover:border-blue-400 hover:text-blue-500 transition-all font-bold text-xs"
-                                 >
-                                   + إضافة محاضرة أخرى
-                                 </button>
-                               </div>
-
-                               <button 
-                                 type="submit"
-                                 disabled={loading || !selectedChapterId}
-                                 className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-3 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100 transition-all"
-                               >
-                                 {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
-                                 حفظ جميع المحاضرات ({materialRows.length})
-                               </button>
-                             </div>
-                          )}
-
-                          {activeTab === 'flashcards' && (
-                             <div className="space-y-6">
-                               <div className="flex items-center justify-between">
-                                 <h3 className="font-black text-slate-900">منشئ البطاقات الجماعي</h3>
-                                 <button 
-                                   type="button"
-                                   onClick={() => setFlashcardRows([...flashcardRows, { question: '', answer: '' }])}
-                                   className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200"
-                                 >
-                                   <Plus size={18} />
-                                 </button>
-                               </div>
-                               
-                               <div className="space-y-4">
-                                 {flashcardRows.map((row, idx) => (
-                                   <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 relative group">
-                                     <textarea 
-                                       placeholder="السؤال"
-                                       value={row.question}
-                                       rows={2}
-                                       onChange={(e) => {
-                                         const newRows = [...flashcardRows];
-                                         newRows[idx].question = e.target.value;
-                                         setFlashcardRows(newRows);
-                                       }}
-                                       className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm resize-none"
-                                     />
-                                     <textarea 
-                                       placeholder="الجواب"
-                                       value={row.answer}
-                                       rows={2}
-                                       onChange={(e) => {
-                                         const newRows = [...flashcardRows];
-                                         newRows[idx].answer = e.target.value;
-                                         setFlashcardRows(newRows);
-                                       }}
-                                       className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-sm resize-none"
-                                     />
-                                     {flashcardRows.length > 1 && (
-                                       <button 
-                                         type="button"
-                                         onClick={() => setFlashcardRows(flashcardRows.filter((_, i) => i !== idx))}
-                                         className="absolute -left-2 -top-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
-                                       >
-                                         <X size={12} />
-                                       </button>
-                                     )}
-                                   </div>
-                                 ))}
-                                 <button 
-                                   type="button"
-                                   onClick={() => setFlashcardRows([...flashcardRows, { question: '', answer: '' }])}
-                                   className="w-full py-3 border-2 border-dashed border-slate-300 text-slate-400 rounded-xl hover:border-purple-400 hover:text-purple-500 transition-all font-bold text-xs"
-                                 >
-                                   + إضافة بطاقة أخرى
-                                 </button>
-                               </div>
-
-                               <button 
-                                 type="submit"
-                                 disabled={loading || !selectedChapterId}
-                                 className="w-full py-5 bg-purple-600 text-white rounded-3xl font-black flex items-center justify-center gap-3 hover:bg-purple-700 disabled:opacity-50 shadow-xl shadow-purple-100 transition-all"
-                               >
-                                 {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
-                                 حفظ جميع البطاقات ({flashcardRows.length})
-                               </button>
-                             </div>
-                          )}
-                        </form>
-                      ) : (
-                        <>
-                          {activeTab === 'subjects' && (
-                            <form onSubmit={handleAddSubject} className="space-y-6">
-                              <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-black text-slate-800">
-                                  {editingId ? 'تعديل بيانات المادة' : 'إضافة مادة تعليمية جديدة'}
-                                </h3>
-                                {editingId && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => resetForm()}
-                                    className="text-xs font-bold text-red-500 hover:underline"
-                                  >
-                                    إلغاء التعديل
-                                  </button>
-                                )}
-                              </div>
-                              <div className="space-y-4">
-                                <div>
-                                  <label className="block text-xs font-black text-slate-400 mb-2 mr-2">اسم المادة</label>
-                                  <input 
-                                    type="text"
-                                    placeholder="مثلاً: الكيمياء"
-                                    value={subjectName}
-                                    onChange={(e) => setSubjectName(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold"
-                                  />
-                                </div>
-                                <button 
-                                  disabled={loading || !selectedGrade}
-                                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-100"
-                                >
-                                  {loading ? <Loader2 className="animate-spin" size={20} /> : editingId ? <Save size={20} /> : <Plus size={20} />}
-                                  {editingId ? 'حفظ التعديلات' : 'إضافة للمنهاج'}
-                                </button>
-                              </div>
-                            </form>
-                          )}
-
-                          {activeTab === 'chapters' && (
-                            <form onSubmit={handleAddChapter} className="space-y-6">
-                              <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-black text-slate-800">
-                                  {editingId ? 'تعديل الفصل' : 'إضافة فصل دراسي'}
-                                </h3>
-                                {editingId && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => resetForm()}
-                                    className="text-xs font-bold text-red-500 hover:underline"
-                                  >
-                                    إلغاء التعديل
-                                  </button>
-                                )}
-                              </div>
-                              <div className="space-y-4">
-                                <div>
-                                  <label className="block text-xs font-black text-slate-400 mb-2 mr-2">اسم الفصل أو الوحدة</label>
-                                  <input 
-                                    type="text"
-                                    placeholder="مثلاً: الفصل الأول"
-                                    value={chapterName}
-                                    onChange={(e) => setChapterName(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold"
-                                  />
-                                </div>
-                                <button 
-                                  disabled={loading || !selectedSubjectId}
-                                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-100"
-                                >
-                                  {loading ? <Loader2 className="animate-spin" size={20} /> : editingId ? <Save size={20} /> : <Plus size={20} />}
-                                  {editingId ? 'حفظ التعديلات' : 'إضافة الفصل'}
-                                </button>
-                              </div>
-                            </form>
-                          )}
-
-                          {activeTab === 'materials' && (
-                            <form onSubmit={handleAddMaterial} className="space-y-6">
-                              <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-black text-slate-800">
-                                  {editingId ? 'تعديل المحاضرة' : 'تفاصيل المحاضرة / الملف'}
-                                </h3>
-                                {editingId && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => resetForm()}
-                                    className="text-xs font-bold text-red-500 hover:underline"
-                                  >
-                                    إلغاء التعديل
-                                  </button>
-                                )}
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-xs font-black text-slate-400 mb-2 mr-2">عنوان المحاضرة</label>
-                                  <input 
-                                    type="text"
-                                    placeholder="مثلاً: المحاضرة 1"
-                                    value={materialTitle}
-                                    onChange={(e) => setMaterialTitle(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-black text-slate-400 mb-2 mr-2">نوع المحتوى</label>
-                                  <select 
-                                    value={materialType}
-                                    onChange={(e) => setMaterialType(e.target.value as any)}
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold"
-                                  >
-                                    <option value="Video">فيديو تعليمي</option>
-                                    <option value="PDF">ملزمة / تلخيص</option>
-                                    <option value="Ministerial">أسئلة وزارية</option>
-                                  </select>
-                                </div>
-                              </div>
-
-                              <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100">
-                                <div className="flex items-center gap-4 mb-4">
-                                  <button 
-                                    type="button"
-                                    onClick={() => setIsUrlMode(true)}
-                                    className={`flex-1 py-3 rounded-xl font-bold transition-all ${isUrlMode ? 'bg-blue-600 text-white shadow-md' : 'text-blue-600 hover:bg-blue-100'}`}
-                                  >
-                                    إضافة رابط
-                                  </button>
-                                  <button 
-                                    type="button"
-                                    onClick={() => setIsUrlMode(false)}
-                                    className={`flex-1 py-3 rounded-xl font-bold transition-all ${!isUrlMode ? 'bg-blue-600 text-white shadow-md' : 'text-blue-600 hover:bg-blue-100'}`}
-                                  >
-                                    رفع ملف PDF
-                                  </button>
-                                </div>
-
-                                {isUrlMode ? (
-                                  <div className="relative">
-                                    <input 
-                                      type="url"
-                                      placeholder="أدخل رابط YouTube أو Google Drive هنا..."
-                                      value={materialUrl}
-                                      onChange={(e) => setMaterialUrl(e.target.value)}
-                                      className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold"
-                                    />
-                                    {materialUrl.includes('youtube.com') && <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={20} />}
+                                      ))}
                                   </div>
-                                ) : (
-                                  <div className="relative">
-                                    <label className="flex flex-col items-center justify-center w-full h-32 bg-white border-2 border-dashed border-blue-200 rounded-2xl cursor-pointer hover:bg-blue-50 transition-colors">
-                                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <Upload className="text-blue-500 mb-2" size={32} />
-                                        <p className="text-sm font-bold text-slate-500">{materialFile ? materialFile.name : 'اضغط لاختيار ملف PDF'}</p>
-                                        <p className="text-[10px] text-slate-400 mt-1">حجم أقصى 800KB</p>
-                                      </div>
-                                      <input type="file" className="hidden" accept=".pdf" onChange={handleFileChange} />
-                                    </label>
+                               </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700 mb-4 font-black bg-emerald-100/50 p-2 rounded-lg inline-block">3. حدد الفصول المستهدفة (تعدد اختيار)</label>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-3xl bg-slate-50 custom-scrollbar text-right">
+                               {chapters.filter(c => !formSubjectFilter || c.subjectIds?.includes(formSubjectFilter)).map((c) => (
+                                 <button
+                                   key={c.id}
+                                   type="button"
+                                   onClick={() => {
+                                     setSelectedChapterIds(prev => 
+                                       prev.includes(c.id) 
+                                         ? prev.filter(id => id !== c.id)
+                                         : [...prev, c.id]
+                                     );
+                                   }}
+                                   className={`p-3 rounded-2xl text-[10px] font-black border transition-all text-right ${
+                                     selectedChapterIds.includes(c.id)
+                                       ? 'bg-blue-600 border-blue-600 text-white'
+                                       : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-100'
+                                   }`}
+                                 >
+                                   {c.name} ({subjects.filter(s => c.subjectIds?.includes(s.id)).map(s => s.name).join(', ')})
+                                 </button>
+                               ))}
+                             </div>
+                           </div>
+
+                           {isBulkMode ? (
+                             <div className="space-y-4">
+                               <label className="block text-sm font-black text-slate-700">الإضافة الجماعية للمحاضرات (العنوان | الرابط | النوع)</label>
+                               <textarea 
+                                 value={bulkInput}
+                                 onChange={(e) => setBulkInput(e.target.value)}
+                                 className="w-full p-6 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
+                                 placeholder={"المحاضرة 1 | https://url | Video\nملف الشرح | https://url | PDF"}
+                               />
+                             </div>
+                           ) : (
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                               <div>
+                                 <label className="block text-sm font-black text-slate-700 mb-2">عنوان المحتوى</label>
+                                 <input 
+                                   value={materialTitle}
+                                   onChange={(e) => setMaterialTitle(e.target.value)}
+                                   required={!isBulkMode}
+                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                   placeholder="اسم المحاضرة أو الملف"
+                                 />
+                               </div>
+                               <div>
+                                 <label className="block text-sm font-black text-slate-700 mb-2">نوع الملف</label>
+                                 <select 
+                                   value={materialType}
+                                   onChange={(e) => setMaterialType(e.target.value as any)}
+                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                 >
+                                   <option value="Video">يوتيوب (Video)</option>
+                                   <option value="PDF">ملف (PDF)</option>
+                                 </select>
+                               </div>
+                               <div className="md:col-span-2">
+                                 <label className="block text-sm font-black text-slate-700 mb-2">رابط المحتوى (URL)</label>
+                                 <input 
+                                   value={materialUrl}
+                                   onChange={(e) => setMaterialUrl(e.target.value)}
+                                   required={!isBulkMode}
+                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                   placeholder="https://..."
+                                 />
+                               </div>
+                             </div>
+                           )}
+
+                           <button 
+                             disabled={loading || selectedChapterIds.length === 0}
+                             className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                           >
+                             {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                             {editingId ? 'حفظ التعديلات' : isBulkMode ? 'إضافة الكل' : 'إرسال وحفظ المحتوى'}
+                           </button>
+                         </form>
+                       )}
+
+                       {activeTab === 'flashcards' && (
+                         <form onSubmit={handleAddFlashcard} className="space-y-6">
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                               <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700 bg-slate-100/50 p-2 rounded-lg inline-block">1. تصفية حسب المرحلة</label>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {GRADES_DATA.map(g => (
+                                      <button
+                                        key={g.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setFormGradeFilter(g.id as Grade);
+                                          setFormSubjectFilter('');
+                                        }}
+                                        className={`py-2 px-1 rounded-xl text-[8px] font-black border transition-all ${
+                                          formGradeFilter === g.id
+                                            ? 'bg-slate-900 border-slate-900 text-white shadow-lg'
+                                            : 'bg-white border-slate-200 text-slate-400'
+                                        }`}
+                                      >
+                                        {g.label.replace('الابتدائي', 'ب').replace('المتوسط', 'م')}
+                                      </button>
+                                    ))}
                                   </div>
-                                )}
-                              </div>
+                               </div>
 
-                              <button 
-                                disabled={loading || !selectedChapterId}
-                                className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
-                              >
-                                {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
-                                {editingId ? 'حفظ التعديلات' : 'إرسال وحفظ المحتوى'}
-                              </button>
-                            </form>
-                          )}
+                               <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700 bg-purple-100/50 p-2 rounded-lg inline-block">2. تصفية حسب المادة</label>
+                                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1 border border-slate-50 rounded-2xl">
+                                    {subjects
+                                      .filter(sub => !formGradeFilter || sub.grades?.includes(formGradeFilter as Grade))
+                                      .map(sub => (
+                                        <button
+                                          key={sub.id}
+                                          type="button"
+                                          onClick={() => setFormSubjectFilter(sub.id)}
+                                          className={`py-3 px-2 rounded-xl text-[10px] font-black border transition-all ${
+                                            formSubjectFilter === sub.id
+                                              ? 'bg-purple-600 border-purple-600 text-white shadow-md'
+                                              : 'bg-white border-slate-100 text-slate-500'
+                                          }`}
+                                        >
+                                          {sub.name}
+                                        </button>
+                                      ))}
+                                  </div>
+                               </div>
+                            </div>
 
-                          {activeTab === 'flashcards' && (
-                            <form onSubmit={handleAddFlashcard} className="space-y-6">
-                              <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-black text-slate-800">
-                                   {editingId ? 'تعديل البطاقة' : 'البطاقات التعليمية (سؤال وجواب)'}
-                                </h3>
-                                {editingId && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => resetForm()}
-                                    className="text-xs font-bold text-red-500 hover:underline"
-                                  >
-                                    إلغاء التعديل
-                                  </button>
-                                )}
-                              </div>
-                              <div className="space-y-4">
-                                <div>
-                                  <label className="block text-xs font-black text-slate-400 mb-2 mr-2">نص السؤال</label>
-                                  <textarea
-                                    rows={3}
-                                    placeholder="أدخل السؤال هنا..."
-                                    value={flashcardQuestion}
-                                    onChange={(e) => setFlashcardQuestion(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold resize-none"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-black text-slate-400 mb-2 mr-2">الجواب النموذجي</label>
-                                  <textarea
-                                    rows={3}
-                                    placeholder="أدخل الجواب هنا..."
-                                    value={flashcardAnswer}
-                                    onChange={(e) => setFlashcardAnswer(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold resize-none"
-                                  />
-                                </div>
-                                <button 
-                                  disabled={loading || !selectedChapterId}
-                                  className="w-full py-5 bg-purple-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 disabled:opacity-50 shadow-xl shadow-purple-100"
-                                >
-                                  {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
-                                  {editingId ? 'حفظ التعديلات' : 'إضافة البطاقة'}
-                                </button>
-                              </div>
-                            </form>
-                          )}
-                        </>
-                      )}
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700 mb-4 font-black bg-amber-100/50 p-2 rounded-lg inline-block">3. اربط البطاقة بالفصول (تعدد اختيار)</label>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-3xl bg-slate-50 custom-scrollbar text-right">
+                               {chapters.filter(c => !formSubjectFilter || c.subjectIds?.includes(formSubjectFilter)).map((c) => (
+                                 <button
+                                   key={c.id}
+                                   type="button"
+                                   onClick={() => {
+                                     setSelectedChapterIds(prev => 
+                                       prev.includes(c.id) 
+                                         ? prev.filter(id => id !== c.id)
+                                         : [...prev, c.id]
+                                     );
+                                   }}
+                                   className={`p-3 rounded-2xl text-[10px] font-black border transition-all text-right ${
+                                     selectedChapterIds.includes(c.id)
+                                       ? 'bg-purple-600 border-purple-600 text-white'
+                                       : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-100'
+                                   }`}
+                                 >
+                                   {c.name}
+                                 </button>
+                               ))}
+                             </div>
+                           </div>
+                           
+                           {isBulkMode ? (
+                             <div className="space-y-4">
+                               <label className="block text-sm font-black text-slate-700">الإضافة الجماعية للمسودات (سؤال | جواب)</label>
+                               <textarea 
+                                 value={bulkInput}
+                                 onChange={(e) => setBulkInput(e.target.value)}
+                                 className="w-full p-6 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
+                                 placeholder={"السؤال الأول | الجواب الأول\nالسؤال الثاني | الجواب الثاني"}
+                               />
+                             </div>
+                           ) : (
+                             <div className="space-y-6">
+                               <div>
+                                 <label className="block text-sm font-black text-slate-700 mb-2">السؤال (الوجه الأول)</label>
+                                 <input 
+                                   value={flashcardQuestion}
+                                   onChange={(e) => setFlashcardQuestion(e.target.value)}
+                                   required={!isBulkMode}
+                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                 />
+                               </div>
+                               <div>
+                                 <label className="block text-sm font-black text-slate-700 mb-2">الإجابة (الوجه الثاني)</label>
+                                 <textarea 
+                                   value={flashcardAnswer}
+                                   onChange={(e) => setFlashcardAnswer(e.target.value)}
+                                   required={!isBulkMode}
+                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
+                                 />
+                               </div>
+                             </div>
+                           )}
+                           
+                           <div className="flex gap-4">
+                             {editingId && !isBulkMode && (
+                               <button 
+                                 type="button"
+                                 onClick={() => {
+                                   setEditingId(null);
+                                   setFlashcardQuestion('');
+                                   setFlashcardAnswer('');
+                                 }}
+                                 className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black flex items-center justify-center gap-2"
+                               >
+                                 إلغاء
+                               </button>
+                             )}
+                             <button 
+                               disabled={loading || selectedChapterIds.length === 0}
+                               className="flex-[2] py-5 bg-purple-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 disabled:opacity-50 shadow-xl shadow-purple-100"
+                             >
+                               {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                               {editingId ? 'حفظ التعديلات' : isBulkMode ? 'إضافة الكل' : 'إضافة البطاقة'}
+                             </button>
+                           </div>
+                         </form>
+                       )}
                     </motion.div>
                   </>
                 )}
               </div>
 
               {/* List / Preview Side */}
-              {activeTab !== 'database' && (
+              {activeTab !== 'database' && activeTab !== 'settings' && (
                 <div className="lg:col-span-5 space-y-6">
                    <div className="sticky top-[110px]">
                       <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                            <h4 className="font-black text-slate-900 border-r-4 border-blue-500 pr-3">الموجودات الحالية</h4>
                            <span className="text-[10px] bg-slate-100 px-2 py-1 rounded-lg font-black text-slate-400 uppercase">
-                              Count: {activeTab === 'subjects' ? subjects.length : activeTab === 'chapters' ? chapters.length : activeTab === 'materials' ? materials.length : flashcards.length}
+                              {activeTab === 'subjects' ? 'أقسام المناهج' : activeTab === 'chapters' ? 'قائمة الفصول' : activeTab === 'materials' ? 'قائمة المحاضرات' : 'البطاقات المنشورة'}: {activeTab === 'subjects' ? subjects.length : activeTab === 'chapters' ? chapters.length : activeTab === 'materials' ? materials.length : flashcards.length}
                            </span>
                         </div>
 
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                            {activeTab === 'subjects' && subjects.map(s => (
-                             <div key={s.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-slate-100">
+                             <button 
+                               key={s.id} 
+                               onClick={() => {
+                                 setEditingId(s.id);
+                                 setSubjectName(s.name);
+                                 setSelectedGrades(s.grades || []);
+                                 setIsBulkMode(false);
+                               }}
+                               className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
+                             >
                                <div className="flex items-center gap-3">
-                                 <Book size={18} className="text-blue-500" />
-                                 <span className="font-bold text-slate-700">{s.name}</span>
+                                 <Book size={18} className="group-hover:text-white text-blue-500" />
+                                 <span className="font-bold">{s.name}</span>
                                </div>
-                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                 <button 
-                                   onClick={() => {
-                                     setEditingId(s.id);
-                                     setSubjectName(s.name);
-                                     setIsBulkMode(false);
-                                   }} 
-                                   className="text-blue-400 hover:text-blue-600 p-1"
-                                 >
-                                   <Edit size={18} />
-                                 </button>
-                                 <button onClick={() => handleDelete('subjects', s.id, fetchSubjects)} className="text-red-400 hover:text-red-600 p-1">
-                                   <Trash2 size={18} />
-                                 </button>
+                               <div onClick={(e) => { e.stopPropagation(); handleDelete('subjects', s.id, fetchSubjects); }} className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                                 <Trash2 size={16} />
                                </div>
-                             </div>
+                             </button>
                            ))}
 
                            {activeTab === 'chapters' && chapters.map(c => (
-                             <div key={c.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-slate-100">
+                             <button 
+                               key={c.id} 
+                               onClick={() => {
+                                 setEditingId(c.id);
+                                 setChapterName(c.name);
+                                 setSelectedSubjectIds(c.subjectIds || []);
+                                 setIsBulkMode(false);
+                               }}
+                               className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
+                             >
                                <div className="flex items-center gap-3">
-                                 <Layers size={18} className="text-blue-500" />
-                                 <span className="font-bold text-slate-700">{c.name}</span>
+                                 <Layers size={18} className="group-hover:text-white text-blue-500" />
+                                 <span className="font-bold">{c.name}</span>
                                </div>
-                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                 <button 
-                                   onClick={() => {
-                                     setEditingId(c.id);
-                                     setChapterName(c.name);
-                                     setIsBulkMode(false);
-                                   }} 
-                                   className="text-blue-400 hover:text-blue-600 p-1"
-                                 >
-                                   <Edit size={18} />
-                                 </button>
-                                 <button onClick={() => handleDelete('chapters', c.id, fetchChapters)} className="text-red-400 hover:text-red-600 p-1">
-                                   <Trash2 size={18} />
-                                 </button>
+                               <div onClick={(e) => { e.stopPropagation(); handleDelete('chapters', c.id, fetchChapters); }} className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                                 <Trash2 size={16} />
                                </div>
-                             </div>
+                             </button>
                            ))}
 
                            {activeTab === 'materials' && materials.map(m => (
-                             <div key={m.id} className="flex flex-col p-4 bg-slate-50 rounded-2xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-slate-100">
-                               <div className="flex items-center justify-between">
+                             <button 
+                               key={m.id} 
+                               onClick={() => {
+                                 setEditingId(m.id);
+                                 setMaterialTitle(m.title);
+                                 setMaterialType(m.type);
+                                 setMaterialUrl(m.url);
+                                 setSelectedChapterIds(m.chapterIds || []);
+                                 setIsBulkMode(false);
+                               }}
+                               className="w-full flex flex-col p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
+                             >
+                               <div className="flex items-center justify-between w-full">
                                  <div className="flex items-center gap-3">
-                                   {m.type === 'Video' ? <Youtube size={18} className="text-red-500" /> : <FileText size={18} className="text-blue-500" />}
-                                   <span className="font-bold text-slate-700">{m.title}</span>
+                                   {m.type === 'Video' ? <Youtube size={18} className="group-hover:text-white text-red-500" /> : <FileText size={18} className="group-hover:text-white text-blue-500" />}
+                                   <span className="font-bold">{m.title}</span>
                                  </div>
-                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                   <button 
-                                     onClick={() => {
-                                       setEditingId(m.id);
-                                       setMaterialTitle(m.title);
-                                       setMaterialType(m.type);
-                                       setMaterialUrl(m.url);
-                                       setIsBulkMode(false);
-                                     }} 
-                                     className="text-blue-400 hover:text-blue-600 p-1"
-                                   >
-                                     <Edit size={18} />
-                                   </button>
-                                   <button onClick={() => handleDelete('materials', m.id, fetchMaterials)} className="text-red-400 hover:text-red-600 p-1">
-                                     <Trash2 size={18} />
-                                   </button>
+                                 <div onClick={(e) => { e.stopPropagation(); handleDelete('materials', m.id, fetchMaterials); }} className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                                   <Trash2 size={16} />
                                  </div>
                                </div>
-                               <div className="mt-2 flex items-center gap-2">
-                                  <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100 uppercase">{m.type}</span>
-                                  <a href={m.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline flex items-center gap-1">
-                                     <ExternalLink size={10} /> معاينة الرابط
-                                  </a>
+                               <div className="mt-2 flex items-center gap-4 text-[10px] font-black uppercase">
+                                  <span className="bg-white group-hover:bg-blue-700 group-hover:text-white text-slate-500 px-2 py-0.5 rounded border border-slate-100 group-hover:border-blue-500 transition-colors">{m.type}</span>
+                                  <span className="opacity-60 group-hover:opacity-100 italic">انقر لإجراء تعديل</span>
                                </div>
-                             </div>
+                             </button>
                            ))}
 
                            {activeTab === 'flashcards' && flashcards.map(f => (
-                              <div key={f.id} className="flex flex-col p-4 bg-slate-50 rounded-2xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-slate-100">
-                                <div className="flex items-center justify-between">
+                              <button 
+                                key={f.id} 
+                                onClick={() => {
+                                  setEditingId(f.id);
+                                  setFlashcardQuestion(f.question);
+                                  setFlashcardAnswer(f.answer);
+                                  setSelectedChapterIds(f.chapterIds || []);
+                                  setIsBulkMode(false);
+                                }}
+                                className="w-full flex flex-col p-4 bg-slate-50 rounded-2xl group hover:bg-purple-600 hover:text-white transition-all border border-transparent text-right"
+                              >
+                                <div className="flex items-center justify-between w-full">
                                   <div className="flex items-center gap-3">
-                                    <HelpCircle size={18} className="text-purple-500" />
-                                    <span className="font-bold text-slate-700 truncate max-w-[200px]">{f.question}</span>
+                                    <HelpCircle size={18} className="group-hover:text-white text-purple-500" />
+                                    <span className="font-bold truncate max-w-[200px]">{f.question}</span>
                                   </div>
-                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                    <button 
-                                      onClick={() => {
-                                        setEditingId(f.id);
-                                        setFlashcardQuestion(f.question);
-                                        setFlashcardAnswer(f.answer);
-                                        setIsBulkMode(false);
-                                      }} 
-                                      className="text-blue-400 hover:text-blue-600 p-1"
-                                    >
-                                      <Edit size={18} />
-                                    </button>
-                                    <button onClick={() => handleDelete('flashcards', f.id, fetchFlashcards)} className="text-red-400 hover:text-red-600 p-1">
-                                      <Trash2 size={18} />
-                                    </button>
+                                  <div onClick={(e) => { e.stopPropagation(); handleDelete('flashcards', f.id, fetchFlashcards); }} className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                                    <Trash2 size={16} />
                                   </div>
                                 </div>
-                                <p className="mt-2 text-[10px] text-slate-400 italic truncate">{f.answer}</p>
-                              </div>
+                                <p className="mt-2 text-[10px] opacity-60 italic truncate w-full">{f.answer}</p>
+                              </button>
                             ))}
 
                            {((activeTab === 'subjects' && subjects.length === 0) || (activeTab === 'chapters' && chapters.length === 0) || (activeTab === 'materials' && materials.length === 0) || (activeTab === 'flashcards' && flashcards.length === 0)) && (

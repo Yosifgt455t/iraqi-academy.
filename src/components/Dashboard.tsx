@@ -37,6 +37,7 @@ import AdminDashboard from './AdminDashboard';
 interface Props {
   user: any;
   grade: Grade;
+  isAdmin?: boolean;
   onChangeGrade: () => void;
   onLogout: () => void;
 }
@@ -62,7 +63,7 @@ const getGradeName = (grade: Grade) => {
   return names[grade] || grade;
 };
 
-export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Props) {
+export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeGrade, onLogout }: Props) {
   const [view, setView] = useState<'home' | 'ai_chat' | 'todo' | 'admin'>('home');
   const [initialAIPrompt, setInitialAIPrompt] = useState<string | null>(null);
   const [showExemptionCalculator, setShowExemptionCalculator] = useState(false);
@@ -78,7 +79,7 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
     return localStorage.getItem(`schedule_${user.id}`);
   });
 
-  const isAdmin = user?.email === 'jwjwjwjueue@gmail.com';
+  const currentIsAdmin = isAdminProp || user?.email === 'jwjwjwjueue@gmail.com';
 
   const handlePinSchedule = (schedule: string) => {
     setPinnedSchedule(schedule);
@@ -131,7 +132,7 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
 
   if (view === 'admin') {
     return (
-      <AdminDashboard onBack={() => setView('home')} />
+      <AdminDashboard user={user} onBack={() => setView('home')} />
     );
   }
 
@@ -192,7 +193,7 @@ export default function Dashboard({ user, grade, onChangeGrade, onLogout }: Prop
                 className="w-full h-full object-cover"
               />
             </button>
-            {isAdmin && (
+            {currentIsAdmin && (
               <button
                 onClick={() => setView('admin')}
                 className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all flex items-center gap-2"

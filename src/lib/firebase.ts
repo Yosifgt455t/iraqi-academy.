@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc, setDoc, updateDoc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, setDoc, updateDoc, getDocFromServer, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 console.log("Firebase initializing with Project ID:", firebaseConfig.projectId);
@@ -47,6 +47,31 @@ export const updateUserProfile = async (uid: string, data: any) => {
     ...data,
     updatedAt: new Date().toISOString()
   });
+};
+
+// Maintenance Mode Helpers
+export const subscribeToMaintenanceMode = (callback: (isActive: boolean) => void) => {
+  return onSnapshot(doc(db, 'settings', 'maintenance'), (doc) => {
+    if (doc.exists()) {
+      callback(doc.data().active === true);
+    } else {
+      callback(false);
+    }
+  }, (error) => {
+    console.error("Error listening to maintenance mode:", error);
+    callback(false);
+  });
+};
+
+export const setMaintenanceMode = async (active: boolean) => {
+  const docRef = doc(db, 'settings', 'maintenance');
+  const docSnap = await getDoc(docRef);
+  
+  if (docSnap.exists()) {
+    await updateDoc(docRef, { active, updatedAt: new Date().toISOString() });
+  } else {
+    await setDoc(docRef, { active, updatedAt: new Date().toISOString() });
+  }
 };
 
 // Utility for Logout

@@ -29,8 +29,12 @@ service cloud.firestore {
       return resource.data;
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email.lower() == "jwjwjwjueue@gmail.com".lower();
+    }
+
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == "jwjwjwjueue@gmail.com";
+      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())));
     }
 
     // --- Users Collection ---
@@ -43,6 +47,15 @@ service cloud.firestore {
 
       allow update: if isOwner(userId) &&
         incoming().uid == existing().uid;
+    }
+
+    // --- Admins Collection ---
+    match /admins/{email} {
+      // Allow any user to check if they are an admin via getDoc (id must be their email)
+      allow get: if isSignedIn() && request.auth.token.email.lower() == email.lower();
+      // Only the Super Admin can list all admins or modify the list
+      allow list: if isSuperAdmin();
+      allow write: if isSuperAdmin();
     }
 
     // --- Exams Collection ---
@@ -75,6 +88,14 @@ service cloud.firestore {
 
     match /flashcards/{id} {
       allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // --- Settings Collection (Maintenance Mode) ---
+    match /settings/{id} {
+      // Allow everyone to read the status to see if site is in maintenance
+      allow read: if true; 
+      // Only the Super Admin can change settings
       allow write: if isAdmin();
     }
 

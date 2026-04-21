@@ -16,20 +16,23 @@ export interface Profile {
 export interface Subject {
   id: string;
   name: string;
-  grade: Grade;
+  grade?: Grade; // Legacy
+  grades?: Grade[]; // Support multiple grades
   icon?: string;
 }
 
 export interface Chapter {
   id: string;
-  subjectId: string;
+  subjectId?: string; // Legacy
+  subjectIds?: string[]; // Support multiple subjects
   name: string;
-  orderIndex: number;
+  orderIndex?: number;
 }
 
 export interface Material {
   id: string;
-  chapterId: string;
+  chapterId?: string; // Legacy
+  chapterIds?: string[]; // Support multiple chapters
   subjectId?: string;
   title: string;
   type: 'PDF' | 'Video' | 'Ministerial';
@@ -39,7 +42,8 @@ export interface Material {
 
 export interface Flashcard {
   id: string;
-  chapter_id: string;
+  chapter_id?: string; // Legacy
+  chapterIds?: string[]; // Support multiple chapters
   question: string;
   answer: string;
 }
