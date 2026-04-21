@@ -47,3 +47,11 @@ export interface Flashcard {
   question: string;
   answer: string;
 }
+
+export interface MinisterialQuestion {
+  id: string;
+  chapterIds?: string[];
+  question: string;
+  answer: string;
+  year: string;
+}

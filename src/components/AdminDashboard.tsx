@@ -54,9 +54,17 @@ interface Chapter {
 interface Material {
   id: string;
   title: string;
-  type: 'Video' | 'PDF';
+  type: 'Video' | 'PDF' | 'Ministerial';
   url: string;
   chapterIds: string[];
+}
+
+export interface MinisterialQuestion {
+  id: string;
+  chapterIds?: string[];
+  question: string;
+  answer: string;
+  year: string;
 }
 
 interface Flashcard {
@@ -90,11 +98,12 @@ const GRADES_DATA = [
 ];
 
 export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'subjects' | 'chapters' | 'materials' | 'flashcards' | 'database' | 'settings'>('subjects');
+  const [activeTab, setActiveTab] = useState<'subjects' | 'chapters' | 'materials' | 'flashcards' | 'ministerial' | 'database' | 'settings'>('subjects');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [ministerialQuestions, setMinisterialQuestions] = useState<any[]>([]);
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
   
   const ADMIN_EMAIL = 'jwjwjwjueue@gmail.com';
@@ -108,12 +117,16 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   
   const [materialTitle, setMaterialTitle] = useState('');
-  const [materialType, setMaterialType] = useState<'Video' | 'PDF'>('Video');
+  const [materialType, setMaterialType] = useState<'Video' | 'PDF' | 'Ministerial'>('Video');
   const [materialUrl, setMaterialUrl] = useState('');
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
   
   const [flashcardQuestion, setFlashcardQuestion] = useState('');
   const [flashcardAnswer, setFlashcardAnswer] = useState('');
+
+  const [minQuestText, setMinQuestText] = useState('');
+  const [minQuestAnswer, setMinQuestAnswer] = useState('');
+  const [minQuestYear, setMinQuestYear] = useState('');
   
   const [adminEmails, setAdminEmails] = useState<string[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -135,11 +148,21 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     fetchChapters();
     fetchMaterials();
     fetchFlashcards();
+    fetchMinisterialQuestions();
     fetchMaintenanceStatus();
     if (isSuperAdmin) {
       fetchAdmins();
     }
   }, [isSuperAdmin]);
+
+  const fetchMinisterialQuestions = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'ministerial_questions'));
+      setMinisterialQuestions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (err) {
+      console.error('Error fetching ministerial questions:', err);
+    }
+  };
 
   const fetchAdmins = async () => {
     if (!isSuperAdmin) return;
@@ -392,6 +415,58 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     }
   };
 
+  const handleAddMinisterialQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedChapterIds.length === 0) return;
+    setLoading(true);
+    try {
+      if (isBulkMode) {
+        const lines = bulkInput.split('\n').filter(l => l.trim().includes('|'));
+        for (const line of lines) {
+          const parts = line.split('|').map(s => s.trim());
+          if (parts.length >= 3) {
+            const [q, a, y] = parts;
+            await addDoc(collection(db, 'ministerial_questions'), {
+              question: q,
+              answer: a,
+              year: y,
+              chapterIds: selectedChapterIds
+            });
+          }
+        }
+        showToast('success', `تمت إضافة ${lines.length} أسئلة بنجاح`);
+        setBulkInput('');
+      } else {
+        if (editingId) {
+          await updateDoc(doc(db, 'ministerial_questions', editingId), { 
+            question: minQuestText,
+            answer: minQuestAnswer,
+            year: minQuestYear,
+            chapterIds: selectedChapterIds 
+          });
+          showToast('success', 'تم تعديل السؤال بنجاح');
+        } else {
+          await addDoc(collection(db, 'ministerial_questions'), { 
+            question: minQuestText,
+            answer: minQuestAnswer,
+            year: minQuestYear,
+            chapterIds: selectedChapterIds 
+          });
+          showToast('success', 'تمت إضافة السؤال بنجاح');
+        }
+        setMinQuestText('');
+        setMinQuestAnswer('');
+        setMinQuestYear('');
+      }
+      setEditingId(null);
+      fetchMinisterialQuestions();
+    } catch (err) {
+      showToast('error', 'فشل الإجراء');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async (coll: string, id: string, refresh: () => void) => {
     if (!window.confirm('هل أنت متأكد من الحذف؟ لا يمكن التراجع عن هذا الإجراء.')) return;
     try {
@@ -467,6 +542,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
               { id: 'chapters', icon: Layers, label: 'إدارة الفصول' },
               { id: 'materials', icon: Youtube, label: 'المحاضرات وملفات' },
               { id: 'flashcards', icon: HelpCircle, label: 'البطاقات التعليمية' },
+              { id: 'ministerial', icon: ShieldAlert, label: 'الأسئلة الوزارية' },
               { id: 'database', icon: Database, label: 'النسخ الاحتياطي' },
               { id: 'settings', icon: Wrench, label: 'إعدادات النظام' },
             ].map(item => (
@@ -526,6 +602,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                   {activeTab === 'chapters' && 'إدارة الفصول'}
                   {activeTab === 'materials' && 'إدارة المحاضرات'}
                   {activeTab === 'flashcards' && 'إدارة البطاقات'}
+                  {activeTab === 'ministerial' && 'إدارة الأسئلة الوزارية'}
                   {activeTab === 'database' && 'النسخ الاحتياطي'}
                   {activeTab === 'settings' && 'إعدادات النظام'}
                 </h1>
@@ -995,6 +1072,153 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                          </form>
                        )}
 
+                        {activeTab === 'ministerial' && (
+                          <form onSubmit={handleAddMinisterialQuestion} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                   <label className="block text-sm font-black text-slate-700 bg-slate-100/50 p-2 rounded-lg inline-block">1. تصفية حسب المرحلة</label>
+                                   <div className="grid grid-cols-3 gap-2">
+                                     {GRADES_DATA.map(g => (
+                                       <button
+                                         key={g.id}
+                                         type="button"
+                                         onClick={() => {
+                                           setFormGradeFilter(g.id as Grade);
+                                           setFormSubjectFilter('');
+                                         }}
+                                         className={`py-2 px-1 rounded-xl text-[8px] font-black border transition-all ${
+                                           formGradeFilter === g.id
+                                             ? 'bg-slate-900 border-slate-900 text-white shadow-lg'
+                                             : 'bg-white border-slate-200 text-slate-400'
+                                         }`}
+                                       >
+                                         {g.label.replace('الابتدائي', 'ب').replace('المتوسط', 'م')}
+                                       </button>
+                                     ))}
+                                   </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                   <label className="block text-sm font-black text-slate-700 bg-blue-100/50 p-2 rounded-lg inline-block">2. تصفية حسب المادة</label>
+                                   <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1 border border-slate-50 rounded-2xl">
+                                     {subjects
+                                       .filter(sub => !formGradeFilter || sub.grades?.includes(formGradeFilter as Grade))
+                                       .map(sub => (
+                                         <button
+                                           key={sub.id}
+                                           type="button"
+                                           onClick={() => setFormSubjectFilter(sub.id)}
+                                           className={`py-3 px-2 rounded-xl text-[10px] font-black border transition-all ${
+                                             formSubjectFilter === sub.id
+                                               ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                               : 'bg-white border-slate-100 text-slate-500'
+                                           }`}
+                                         >
+                                           {sub.name}
+                                         </button>
+                                       ))}
+                                   </div>
+                                </div>
+                             </div>
+
+                             <div className="space-y-4">
+                               <label className="block text-sm font-black text-slate-700 mb-4 font-black bg-amber-100/50 p-2 rounded-lg inline-block">3. اربط السؤال بالفصول (تعدد اختيار)</label>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-3xl bg-slate-50 custom-scrollbar text-right">
+                                {chapters.filter(c => !formSubjectFilter || c.subjectIds?.includes(formSubjectFilter)).map((c) => (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedChapterIds(prev => 
+                                        prev.includes(c.id) 
+                                          ? prev.filter(id => id !== c.id)
+                                          : [...prev, c.id]
+                                      );
+                                    }}
+                                    className={`p-3 rounded-2xl text-[10px] font-black border transition-all text-right ${
+                                      selectedChapterIds.includes(c.id)
+                                        ? 'bg-blue-600 border-blue-600 text-white'
+                                        : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {c.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            {isBulkMode ? (
+                              <div className="space-y-4">
+                                <label className="block text-sm font-black text-slate-700">الإضافة الجماعية (سؤال | جواب | السنة)</label>
+                                <textarea 
+                                  value={bulkInput}
+                                  onChange={(e) => setBulkInput(e.target.value)}
+                                  className="w-full p-6 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
+                                  placeholder={"السؤال الأول | الجواب الأول | 2023 الدور الأول\nالسؤال الثاني | الجواب الثاني | 2022 الدور الثاني"}
+                                />
+                              </div>
+                            ) : (
+                              <div className="space-y-6">
+                                <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700">نص السؤال الوزاري</label>
+                                  <textarea 
+                                    required={!isBulkMode}
+                                    value={minQuestText}
+                                    onChange={(e) => setMinQuestText(e.target.value)}
+                                    placeholder="اكتب السؤال هنا..."
+                                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[100px]"
+                                  />
+                                </div>
+                                <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700">السنة والدور</label>
+                                  <input 
+                                    type="text"
+                                    required={!isBulkMode}
+                                    value={minQuestYear}
+                                    onChange={(e) => setMinQuestYear(e.target.value)}
+                                    placeholder="مثال: 2023 الدور الأول"
+                                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  />
+                                </div>
+                                <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700">الجواب النموذجي</label>
+                                  <textarea 
+                                    required={!isBulkMode}
+                                    value={minQuestAnswer}
+                                    onChange={(e) => setMinQuestAnswer(e.target.value)}
+                                    placeholder="اكتب الجواب هنا..."
+                                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="flex gap-4">
+                              {editingId && !isBulkMode && (
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingId(null);
+                                    setMinQuestText('');
+                                    setMinQuestAnswer('');
+                                    setMinQuestYear('');
+                                  }}
+                                  className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black flex items-center justify-center gap-2"
+                                >
+                                  إلغاء
+                                </button>
+                              )}
+                              <button 
+                                disabled={loading || selectedChapterIds.length === 0}
+                                className="flex-[2] py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                              >
+                                {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                                {editingId ? 'حفظ التعديلات' : isBulkMode ? 'إضافة الكل' : 'إضافة السؤال'}
+                              </button>
+                            </div>
+                          </form>
+                        )}
+
                        {activeTab === 'flashcards' && (
                          <form onSubmit={handleAddFlashcard} className="space-y-6">
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1145,7 +1369,35 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                         </div>
 
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                           {activeTab === 'subjects' && subjects.map(s => (
+                           {activeTab === 'ministerial' && ministerialQuestions.map(m => (
+  <button 
+    key={m.id} 
+    onClick={() => {
+      setEditingId(m.id);
+      setMinQuestText(m.question);
+      setMinQuestAnswer(m.answer);
+      setMinQuestYear(m.year);
+      setSelectedChapterIds(m.chapterIds || []);
+      setIsBulkMode(false);
+    }}
+    className="w-full flex flex-col p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
+  >
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center gap-3">
+        <ShieldAlert size={18} className="group-hover:text-white text-amber-500" />
+        <span className="font-bold truncate max-w-[200px]">{m.question}</span>
+      </div>
+      <div onClick={(e) => { e.stopPropagation(); handleDelete('ministerial_questions', m.id, fetchMinisterialQuestions); }} className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+        <Trash2 size={16} />
+      </div>
+    </div>
+    <div className="mt-2 flex items-center gap-4 text-[10px] font-black uppercase">
+       <span className="bg-white group-hover:bg-blue-700 group-hover:text-white text-slate-500 px-2 py-0.5 rounded border border-slate-100 group-hover:border-blue-500 transition-colors">{m.year}</span>
+    </div>
+  </button>
+))}
+
+{activeTab === 'subjects' && subjects.map(s => (
                              <button 
                                key={s.id} 
                                onClick={() => {
@@ -1241,7 +1493,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               </button>
                             ))}
 
-                           {((activeTab === 'subjects' && subjects.length === 0) || (activeTab === 'chapters' && chapters.length === 0) || (activeTab === 'materials' && materials.length === 0) || (activeTab === 'flashcards' && flashcards.length === 0)) && (
+                           {((activeTab === 'subjects' && subjects.length === 0) || (activeTab === 'chapters' && chapters.length === 0) || (activeTab === 'materials' && materials.length === 0) || (activeTab === 'flashcards' && flashcards.length === 0) || (activeTab === 'ministerial' && ministerialQuestions.length === 0)) && (
                                <div className="py-10 text-center text-slate-300 italic font-medium">لا توجد بيانات مضافة هنا بعد</div>
                            )}
                         </div>

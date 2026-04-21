@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
-import { Material, Flashcard, Chapter, Grade } from '../types';
+import { Material, Flashcard, Chapter, Grade, MinisterialQuestion } from '../types';
 import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
@@ -18,6 +18,7 @@ interface Props {
 export default function ContentView({ chapter, userId, grade, onAskAI }: Props) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [ministerialQuestions, setMinisterialQuestions] = useState<MinisterialQuestion[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -29,9 +30,14 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isModalPlaying, setIsModalPlaying] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [revealedAnswers, setRevealedAnswers] = useState<Record<string, boolean>>({});
+  const [testResults, setTestResults] = useState<Record<string, 'correct' | 'wrong' | null>>({});
   const playRequestTimeRef = useRef<number>(0);
 
   const openVideoModal = (m: Material) => {
+    setIsPlayerReady(false);
+    setIsModalPlaying(false);
     setSelectedVideo(m);
     setIsModalOpen(true);
   };
@@ -42,35 +48,31 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
   });
 
   const closeVideoModal = () => {
-    const now = Date.now();
-    const timeSincePlay = now - playRequestTimeRef.current;
-    if (timeSincePlay > 1000) {
-      setIsModalPlaying(false);
-    }
+    setIsModalPlaying(false);
     setIsModalOpen(false);
     setTimeout(() => {
       setSelectedVideo(null);
+      setIsPlayerReady(false);
     }, 300);
   };
 
   useEffect(() => {
     if (selectedVideo) {
+      // Small delay to ensure the modal animation finishes before we attempt to play
       const timer = setTimeout(() => {
         setIsModalPlaying(true);
-        playRequestTimeRef.current = Date.now();
-      }, 600);
+      }, 800);
       return () => {
         clearTimeout(timer);
         setIsModalPlaying(false);
-        playRequestTimeRef.current = 0;
       };
     } else {
       setIsModalPlaying(false);
-      playRequestTimeRef.current = 0;
     }
   }, [selectedVideo]);
 
-  const getPdfSource = (url: string) => {
+  const getPdfSource = (url: string | null | undefined) => {
+    if (!url) return null;
     if (url.startsWith('data:')) return url;
     return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
   };
@@ -106,11 +108,71 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
     }
   };
 
-  const getYoutubeUrl = (url: string) => {
+  const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return '';
-    if (url.includes('youtube.com') || url.includes('youtu.be')) return url;
-    if (url.length === 11) return `https://www.youtube.com/watch?v=${url}`;
+    let videoId = '';
+    
+    if (url.includes('youtube.com/watch?v=')) {
+      videoId = url.split('v=')[1]?.split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+      videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    } else if (url.includes('youtube.com/embed/')) {
+      videoId = url.split('embed/')[1]?.split('?')[0];
+    } else if (url.length === 11) {
+      videoId = url;
+    }
+    
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+    }
     return url;
+  };
+
+  const VideoPlayer = ({ material, isPlaying, onReady }: { material: Material, isPlaying: boolean, onReady?: () => void }) => {
+    const url = material.url || (material as any).content;
+    const isYoutube = url.includes('youtube.com') || url.includes('youtu.be') || url.length === 11;
+
+    // Trigger onReady for Youtube since it's a raw iframe
+    useEffect(() => {
+      if (isYoutube && onReady) {
+        onReady();
+      }
+    }, [isYoutube, onReady]);
+
+    // Use a timer to mark as completed since we can't easily track progress in a raw iframe without postMessage
+    useEffect(() => {
+      if (isPlaying && isYoutube && !completedIds.includes(material.id)) {
+        const timer = setTimeout(() => {
+          markAsCompleted(material.id);
+        }, 120000); // Mark as completed after 2 minutes of "watching"
+        return () => clearTimeout(timer);
+      }
+    }, [isPlaying, isYoutube, material.id]);
+
+    if (isYoutube) {
+      return (
+        <iframe
+          src={isPlaying ? getYoutubeEmbedUrl(url) : null}
+          className="w-full h-full border-none"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          title={material.title}
+        ></iframe>
+      );
+    }
+
+    return (
+      <Player
+        url={url}
+        width="100%"
+        height="100%"
+        controls
+        playing={isPlaying}
+        onReady={onReady}
+        onProgress={(progress: any) => handleVideoProgress(material.id, progress.played)}
+        style={{ position: 'absolute', top: 0, left: 0 }}
+      />
+    );
   };
 
   const isMinisterialGrade = ['primary_6', 'middle_3', 'secondary_6_sci', 'secondary_6_lit'].includes(grade);
@@ -131,15 +193,38 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
       setLoading(true);
       try {
         setDbError(null);
-        // Fetch materials for this chapter
-        const materialsQuery = query(collection(db, 'materials'), where('chapterId', '==', chapter.id));
-        const materialsSnap = await getDocs(materialsQuery);
-        setMaterials(materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Material)));
+        // Fetch all materials and filter locally
+        const materialsSnap = await getDocs(collection(db, 'materials'));
+        const allMaterials = materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Material));
+        const filteredMaterials = allMaterials.filter((m: any) => {
+          if (m.chapterIds && Array.isArray(m.chapterIds)) {
+            return m.chapterIds.includes(chapter.id);
+          }
+          return m.chapterId === chapter.id;
+        });
+        setMaterials(filteredMaterials);
         
-        // Fetch flashcards for this chapter
-        const flashcardsQuery = query(collection(db, 'flashcards'), where('chapterId', '==', chapter.id));
-        const flashcardsSnap = await getDocs(flashcardsQuery);
-        setFlashcards(flashcardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Flashcard)));
+        // Fetch all flashcards and filter locally
+        const flashcardsSnap = await getDocs(collection(db, 'flashcards'));
+        const allFlashcards = flashcardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Flashcard));
+        const filteredFlashcards = allFlashcards.filter((f: any) => {
+          if (f.chapterIds && Array.isArray(f.chapterIds)) {
+            return f.chapterIds.includes(chapter.id);
+          }
+          return f.chapterId === chapter.id;
+        });
+        setFlashcards(filteredFlashcards);
+
+        // Fetch all ministerial questions and filter locally
+        const ministerialSnap = await getDocs(collection(db, 'ministerial_questions'));
+        const allMinQuests = ministerialSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MinisterialQuestion));
+        const filteredMinQuests = allMinQuests.filter((m: any) => {
+          if (m.chapterIds && Array.isArray(m.chapterIds)) {
+            return m.chapterIds.includes(chapter.id);
+          }
+          return m.chapterId === chapter.id;
+        });
+        setMinisterialQuestions(filteredMinQuests);
 
         // Fetch user progress
         const userDoc = await getDoc(doc(db, 'users', userId));
@@ -384,14 +469,9 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                                 ></iframe>
                               ) : (
                                 <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-sm relative">
-                                  <Player
-                                    url={getYoutubeUrl(m.url || (m as any).content)}
-                                    width="100%"
-                                    height="100%"
-                                    controls
-                                    playing={false}
-                                    onProgress={(progress: any) => handleVideoProgress(m.id, progress.played)}
-                                    style={{ position: 'absolute', top: 0, left: 0 }}
+                                  <VideoPlayer
+                                    material={m}
+                                    isPlaying={false}
                                   />
                                 </div>
                               )}
@@ -425,64 +505,169 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
+            className="space-y-6"
           >
-            {materials.filter(m => m.type === 'Ministerial').length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {materials.filter(m => m.type === 'Ministerial').map((m) => {
-                  const isCompleted = completedIds.includes(m.id);
-                  return (
-                    <div key={m.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col relative group overflow-hidden">
-                      <div className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4 relative z-10 bg-white">
-                        <div className="p-3 sm:p-4 rounded-xl bg-purple-50 text-purple-600 flex-shrink-0 mt-1 sm:mt-0">
-                          <Award size={24} />
-                        </div>
-                        <div className="flex-1 min-w-0 pr-1">
-                          <h4 className="font-bold text-slate-900 text-sm sm:text-base leading-relaxed break-words">
-                            {m.title}
-                          </h4>
-                          <p className="text-xs text-slate-500 mt-2">أسئلة وزارية مع الحلول</p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => setExpandedMaterialId(expandedMaterialId === m.id ? null : m.id)}
-                            className={`p-2 rounded-lg transition-all ${expandedMaterialId === m.id ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
-                            title="عرض سريع"
-                          >
-                            <Eye size={20} />
-                          </button>
-                          <button
-                            onClick={() => setSelectedPdf(m.url)}
-                            className="p-2 bg-slate-50 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-                            title="عرض بشاشة كاملة"
-                          >
-                            <ExternalLink size={20} />
-                          </button>
+            {ministerialQuestions.length > 0 ? (
+              <>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
+                  <div className="text-right">
+                    <h3 className="text-xl font-bold text-indigo-900">الأسئلة الوزارية ({ministerialQuestions.length})</h3>
+                    <p className="text-indigo-600 text-sm">تدرب على الأسئلة التي وردت في الامتحانات الوزارية لسنوات سابقة</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setIsTestMode(true);
+                      setRevealedAnswers({});
+                      setCardIndex(0);
+                    }}
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all hover:scale-105"
+                  >
+                    <BrainCircuit size={20} />
+                    <span>امتحني بالأسئلة</span>
+                  </button>
+                </div>
+
+                {!isTestMode ? (
+                  <div className="space-y-4">
+                    {ministerialQuestions.map((q, idx) => (
+                      <div key={q.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                        <div className="p-5 flex flex-col gap-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center flex-shrink-0 font-black">
+                                {idx + 1}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg inline-block	">
+                                  {q.year}
+                                </p>
+                                <h4 className="font-bold text-slate-800 leading-relaxed text-lg">
+                                  {q.question}
+                                </h4>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-50 flex flex-col gap-3">
+                            {!revealedAnswers[q.id] ? (
+                              <button 
+                                onClick={() => setRevealedAnswers(prev => ({ ...prev, [q.id]: true }))}
+                                className="flex items-center gap-2 text-blue-600 font-bold hover:gap-3 transition-all text-sm w-fit mr-auto sm:mr-0 ml-auto"
+                              >
+                                <span>عرض الجواب النموذجي</span>
+                                <ChevronLeft size={16} />
+                              </button>
+                            ) : (
+                              <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-2"
+                              >
+                                <div className="flex items-center gap-2 text-emerald-700 font-black text-sm">
+                                  <CheckCircle2 size={16} />
+                                  <span>الجواب النموذجي:</span>
+                                </div>
+                                <p className="text-slate-700 leading-relaxed font-medium">
+                                  {q.answer}
+                                </p>
+                                <button 
+                                  onClick={() => setRevealedAnswers(prev => ({ ...prev, [q.id]: false }))}
+                                  className="text-emerald-700 text-xs font-bold underline mt-2"
+                                >
+                                  إخفاء الجواب
+                                </button>
+                              </motion.div>
+                            )}
+                          </div>
                         </div>
                       </div>
-
-                      <AnimatePresence>
-                        {expandedMaterialId === m.id && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="bg-slate-50 border-t border-slate-100"
-                          >
-                            <div className="p-4">
-                                <iframe
-                                  src={getPdfSource(m.url)}
-                                  className="w-full h-80 sm:h-96 rounded-xl border border-slate-200"
-                                  title="PDF Quick View"
-                                ></iframe>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="max-w-2xl mx-auto space-y-8">
+                    <div className="flex items-center justify-between">
+                       <button 
+                        onClick={() => setIsTestMode(false)}
+                        className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-900 transition-colors"
+                       >
+                         <ChevronRight size={20} />
+                         <span>إنهاء الاختبار</span>
+                       </button>
+                       <div className="text-sm font-black text-slate-400">
+                         السؤال {cardIndex + 1} من {ministerialQuestions.length}
+                       </div>
                     </div>
-                  );
-                })}
-              </div>
+
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl space-y-8 min-h-[400px] flex flex-col">
+                       <div className="space-y-4 flex-1">
+                          <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-xs font-black">وزاري - {ministerialQuestions[cardIndex].year}</span>
+                          <h3 className="text-2xl font-black text-slate-900 leading-tight">
+                            {ministerialQuestions[cardIndex].question}
+                          </h3>
+                       </div>
+
+                       <div className="space-y-6">
+                          {revealedAnswers[ministerialQuestions[cardIndex].id] ? (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="bg-emerald-50 p-6 rounded-3xl border-2 border-emerald-100 space-y-3"
+                            >
+                               <div className="flex items-center gap-2 text-emerald-700 font-black">
+                                 <CheckCircle2 size={20} />
+                                 <span>الجواب النموذجي</span>
+                               </div>
+                               <p className="text-slate-800 text-lg leading-relaxed font-bold">
+                                 {ministerialQuestions[cardIndex].answer}
+                               </p>
+                            </motion.div>
+                          ) : (
+                            <button 
+                              onClick={() => setRevealedAnswers(prev => ({ ...prev, [ministerialQuestions[cardIndex].id]: true }))}
+                              className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-3"
+                            >
+                               <Eye size={24} />
+                               <span>أظهر الجواب</span>
+                            </button>
+                          )}
+
+                          <div className="flex items-center justify-between gap-4 pt-4">
+                             <button
+                               disabled={cardIndex === 0}
+                               onClick={() => {
+                                 setCardIndex(idx => idx - 1);
+                               }}
+                               className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold disabled:opacity-30 transition-all flex items-center justify-center gap-2"
+                             >
+                                <ChevronRight size={20} />
+                                <span>السابق</span>
+                             </button>
+                             
+                             {cardIndex < ministerialQuestions.length - 1 ? (
+                               <button
+                                 onClick={() => {
+                                   setCardIndex(idx => idx + 1);
+                                 }}
+                                 className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
+                               >
+                                  <span>التالي</span>
+                                  <ChevronLeft size={20} />
+                               </button>
+                             ) : (
+                               <button
+                                 onClick={() => setIsTestMode(false)}
+                                 className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
+                               >
+                                  <span>إنهاء</span>
+                                  <CheckCircle size={20} />
+                               </button>
+                             )}
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -659,15 +844,10 @@ export default function ContentView({ chapter, userId, grade, onAskAI }: Props) 
                 </button>
               </div>
               <div className="flex-1 w-full h-full relative bg-black">
-                <Player
-                  url={getYoutubeUrl(selectedVideo.url || (selectedVideo as any).content)}
-                  width="100%"
-                  height="100%"
-                  controls
-                  playing={isModalPlaying}
+                <VideoPlayer
+                  material={selectedVideo}
+                  isPlaying={isModalPlaying && isPlayerReady}
                   onReady={() => setIsPlayerReady(true)}
-                  onProgress={(progress: any) => handleVideoProgress(selectedVideo.id, progress.played)}
-                  style={{ position: 'absolute', top: 0, left: 0 }}
                 />
               </div>
             </motion.div>

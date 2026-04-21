@@ -78,10 +78,23 @@
       "type": "object",
       "properties": {
         "chapterId": { "type": "string" },
+        "chapterIds": { "type": "array", "items": { "type": "string" } },
         "question": { "type": "string" },
         "answer": { "type": "string" }
       },
-      "required": ["chapterId", "question", "answer"]
+      "required": ["question", "answer"]
+    },
+    "MinisterialQuestion": {
+      "title": "Ministerial Question",
+      "description": "Structured historical exam question with answer and year.",
+      "type": "object",
+      "properties": {
+        "chapterIds": { "type": "array", "items": { "type": "string" } },
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "year": { "type": "string" }
+      },
+      "required": ["question", "answer", "year"]
     },
     "Chat": {
       "title": "Chat",
@@ -132,6 +145,10 @@
     "/flashcards/{flashcardId}": {
       "schema": "Flashcard",
       "description": "Smart study cards."
+    },
+    "/ministerial_questions/{questionId}": {
+      "schema": "MinisterialQuestion",
+      "description": "Structured ministerial exam questions."
     },
     "/ai_chats/{chatId}": {
       "schema": "Chat",

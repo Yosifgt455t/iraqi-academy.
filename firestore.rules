@@ -91,6 +91,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /ministerial_questions/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // --- Settings Collection (Maintenance Mode) ---
     match /settings/{id} {
       // Allow everyone to read the status to see if site is in maintenance

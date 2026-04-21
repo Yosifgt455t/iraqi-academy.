@@ -21,14 +21,21 @@ export default function ChapterSelector({ subject, userId, onSelect }: Props) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch chapters for this subject
-        const chaptersQuery = query(
-          collection(db, 'chapters'), 
-          where('subjectId', '==', subject.id),
-          orderBy('orderIndex', 'asc')
-        );
-        const chaptersSnap = await getDocs(chaptersQuery);
-        setChapters(chaptersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chapter)));
+        // Fetch all chapters and filter locally to support both single subject (legacy) and multiple subjects (new)
+        const chaptersSnap = await getDocs(collection(db, 'chapters'));
+        const allChapters = chaptersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chapter));
+        
+        const filteredChapters = allChapters
+          .filter(chap => {
+            const chapterData = chap as any;
+            if (chapterData.subjectIds && Array.isArray(chapterData.subjectIds)) {
+              return chapterData.subjectIds.includes(subject.id);
+            }
+            return chapterData.subjectId === subject.id;
+          })
+          .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+
+        setChapters(filteredChapters);
 
         // Fetch all materials to calculate chapter progress
         const materialsSnap = await getDocs(collection(db, 'materials'));

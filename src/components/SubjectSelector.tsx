@@ -29,11 +29,18 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch Subjects for this grade
-        const subjectsQuery = query(collection(db, 'subjects'), where('grade', '==', grade));
-        const subjectsSnap = await getDocs(subjectsQuery);
-        const subjectsData = subjectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject));
-        setSubjects(subjectsData);
+        // Fetch All Subjects and filter locally to support both single grade (legacy) and multiple grades (new)
+        const subjectsSnap = await getDocs(collection(db, 'subjects'));
+        const allSubjects = subjectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject));
+        
+        const filteredSubjects = allSubjects.filter(sub => {
+          if (sub.grades && Array.isArray(sub.grades)) {
+            return sub.grades.includes(grade);
+          }
+          return sub.grade === grade;
+        });
+        
+        setSubjects(filteredSubjects);
 
         // Fetch Materials (for progress calculation)
         const materialsSnap = await getDocs(collection(db, 'materials'));
