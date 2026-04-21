@@ -7,6 +7,7 @@ import ProfileSetup from './components/ProfileSetup';
 import GradeSelector from './components/GradeSelector';
 import Dashboard from './components/Dashboard';
 import { Loader2, Wrench } from 'lucide-react';
+import { motion } from 'motion/react';
 
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -36,7 +37,12 @@ export default function App() {
         setIsGuest(false);
         localStorage.removeItem('isGuest');
         
-        // Dynamic Admin Check
+        // Dynamic Admin Check (Quick check for Super Admin to avoid flash)
+        const isSuperAdmin = firebaseUser.email?.toLowerCase() === 'jwjwjwjueue@gmail.com'.toLowerCase();
+        if (isSuperAdmin) {
+          setIsAdmin(true);
+        }
+
         import('./services/adminService').then(({ checkIsAdmin }) => {
           checkIsAdmin(firebaseUser.email).then(setIsAdmin);
         });
@@ -121,22 +127,34 @@ export default function App() {
     );
   }
 
+  // Not logged in and not guest
+  if (!user && !isGuest) {
+    return <Auth onGuest={handleGuestMode} />;
+  }
+
+  // Maintenance Mode (Blocks non-admins after they've had a chance to log in)
   if (isMaintenanceActive && !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center" dir="rtl">
-        <div className="max-w-md space-y-6">
-          <div className="w-24 h-24 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-8">
+        <div className="max-w-md space-y-8">
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="w-24 h-24 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-amber-100/50"
+          >
             <Wrench size={48} />
+          </motion.div>
+          <div className="space-y-4">
+            <h1 className="text-4xl font-black text-slate-900 leading-tight">المنصة في وضع الصيانة</h1>
+            <p className="text-lg text-slate-500 font-medium leading-relaxed">
+              نحن نقوم الآن ببعض التحديثات والتحسينات لنقدم لكم تجربة أفضل. 
+              سنعود للعمل قريباً جداً، شكراً لصبركم!
+            </p>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 leading-tight">المنصة في وضع الصيانة</h1>
-          <p className="text-slate-600 font-medium leading-relaxed">
-            نحن نقوم الآن ببعض التحديثات والتحسينات لنقدم لكم تجربة أفضل. 
-            سنعود للعمل قريباً جداً، شكراً لصبركم!
-          </p>
           <div className="pt-8">
             <button 
               onClick={() => window.location.reload()}
-              className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+              className="w-full sm:w-auto px-12 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-2xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
             >
               تحديث الصفحة
             </button>
@@ -144,11 +162,6 @@ export default function App() {
         </div>
       </div>
     );
-  }
-
-  // Not logged in and not guest
-  if (!user && !isGuest) {
-    return <Auth onGuest={handleGuestMode} />;
   }
 
   // Logged in but No Profile in DB (or missing displayName)
