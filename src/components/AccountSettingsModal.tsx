@@ -25,16 +25,40 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
       alert('الرجاء اختيار ملف صورة صالح');
       return;
     }
-    
-    // Check size < 1MB to avoid Firestore limits
-    if (file.size > 1024 * 1024) {
-      alert('حجم الصورة كبير جداً، الرجاء اختيار صورة أقل من 1MB');
-      return;
-    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setAvatarUrl(event.target?.result as string);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Max dimensions 200x200
+        const MAX_SIZE = 200;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress carefully, max 0.8 quality
+          const resizedBase64 = canvas.toDataURL('image/webp', 0.8);
+          setAvatarUrl(resizedBase64);
+        }
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
@@ -148,11 +172,13 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
 
                 <button
                   type="submit"
-                  disabled={loading || name.trim() === user.user_metadata?.full_name}
+                  disabled={loading || (name.trim() === user.user_metadata?.full_name && (!avatarUrl || avatarUrl === user.user_metadata?.avatar_url))}
                   className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-30"
                 >
                   {loading ? (
                     <Loader2 className="animate-spin" />
+                  ) : success ? (
+                    <>تم الحفظ بنجاح!</>
                   ) : (
                     <>
                       <Save size={18} />
