@@ -9,8 +9,7 @@ import {
   ChevronDown,
   FileDown,
   FileEdit,
-  Type,
-  Languages
+  Type
 } from 'lucide-react';
 
 interface Props {
@@ -20,7 +19,6 @@ interface Props {
   onOpenTodo: () => void;
   onOpenImageToPdf: () => void;
   onOpenTextToPdf: () => void;
-  onOpenFileTranslator: () => void;
   onOpenExamBuilder: () => void;
 }
 
@@ -31,7 +29,6 @@ export default function ToolsModal({
   onOpenTodo, 
   onOpenImageToPdf, 
   onOpenTextToPdf,
-  onOpenFileTranslator,
   onOpenExamBuilder
 }: Props) {
   return (
@@ -97,22 +94,6 @@ export default function ToolsModal({
                 </div>
                 <ChevronLeft size={18} className="text-slate-300 group-hover:text-blue-600 group-hover:-translate-x-1 transition-all" />
               </button>
-
-              <div
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 opacity-60 cursor-not-allowed"
-              >
-                <div className="w-12 h-12 bg-slate-400 text-white rounded-xl flex items-center justify-center shadow-lg shadow-slate-200">
-                  <Languages size={24} />
-                </div>
-                <div className="flex-1 text-right">
-                  <div className="flex items-center gap-2 justify-end">
-                    <span className="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">قريباً</span>
-                    <h3 className="font-bold text-slate-400">مترجم الملفات الذكي</h3>
-                  </div>
-                  <p className="text-xs text-slate-400">ترجمة الملازم والصور للعربية بدقة</p>
-                </div>
-                <ChevronLeft size={18} className="text-slate-300" />
-              </div>
 
               <button
                 onClick={() => { onOpenImageToPdf(); onClose(); }}

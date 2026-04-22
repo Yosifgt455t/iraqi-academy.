@@ -57,6 +57,7 @@ interface Material {
   type: 'Video' | 'PDF' | 'Ministerial';
   url: string;
   chapterIds: string[];
+  order_index?: number;
 }
 
 export interface MinisterialQuestion {
@@ -65,6 +66,7 @@ export interface MinisterialQuestion {
   question: string;
   answer: string;
   year: string;
+  order_index?: number;
 }
 
 interface Flashcard {
@@ -121,6 +123,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [materialUrl, setMaterialUrl] = useState('');
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
   
+  const [materialOrderIndex, setMaterialOrderIndex] = useState<number>(0);
+
   const [flashcardQuestion, setFlashcardQuestion] = useState('');
   const [flashcardAnswer, setFlashcardAnswer] = useState('');
 
@@ -128,6 +132,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [minQuestAnswer, setMinQuestAnswer] = useState('');
   const [minQuestYear, setMinQuestYear] = useState('');
   
+  const [minQuestOrderIndex, setMinQuestOrderIndex] = useState<number>(0);
+
   const [adminEmails, setAdminEmails] = useState<string[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState('');
   
@@ -325,14 +331,16 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     try {
       if (isBulkMode) {
         const lines = bulkInput.split('\n').filter(l => l.trim().includes('|'));
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
           const [title, url, type] = line.split('|').map(s => s.trim());
           if (title && url) {
             await addDoc(collection(db, 'materials'), { 
               title,
               url,
               type: type || 'Video',
-              chapterIds: selectedChapterIds 
+              chapterIds: selectedChapterIds,
+              order_index: materialOrderIndex + i
             });
           }
         }
@@ -344,7 +352,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             title: materialTitle,
             type: materialType,
             url: materialUrl,
-            chapterIds: selectedChapterIds 
+            chapterIds: selectedChapterIds,
+            order_index: materialOrderIndex
           });
           showToast('success', 'تم تعديل المحتوى بنجاح');
         } else {
@@ -352,13 +361,15 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             title: materialTitle,
             type: materialType,
             url: materialUrl,
-            chapterIds: selectedChapterIds 
+            chapterIds: selectedChapterIds,
+            order_index: materialOrderIndex
           });
           showToast('success', 'تمت إضافة المحتوى بنجاح');
         }
       }
       setMaterialTitle('');
       setMaterialUrl('');
+      setMaterialOrderIndex(0);
       setEditingId(null);
       fetchMaterials();
     } catch (err) {
@@ -422,7 +433,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     try {
       if (isBulkMode) {
         const lines = bulkInput.split('\n').filter(l => l.trim().includes('|'));
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
           const parts = line.split('|').map(s => s.trim());
           if (parts.length >= 3) {
             const [q, a, y] = parts;
@@ -430,7 +442,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
               question: q,
               answer: a,
               year: y,
-              chapterIds: selectedChapterIds
+              chapterIds: selectedChapterIds,
+              order_index: minQuestOrderIndex + i
             });
           }
         }
@@ -442,7 +455,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             question: minQuestText,
             answer: minQuestAnswer,
             year: minQuestYear,
-            chapterIds: selectedChapterIds 
+            chapterIds: selectedChapterIds,
+            order_index: minQuestOrderIndex
           });
           showToast('success', 'تم تعديل السؤال بنجاح');
         } else {
@@ -450,7 +464,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             question: minQuestText,
             answer: minQuestAnswer,
             year: minQuestYear,
-            chapterIds: selectedChapterIds 
+            chapterIds: selectedChapterIds,
+            order_index: minQuestOrderIndex
           });
           showToast('success', 'تمت إضافة السؤال بنجاح');
         }
@@ -458,6 +473,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
         setMinQuestAnswer('');
         setMinQuestYear('');
       }
+      setMinQuestOrderIndex(0);
       setEditingId(null);
       fetchMinisterialQuestions();
     } catch (err) {
@@ -1049,7 +1065,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                    <option value="PDF">ملف (PDF)</option>
                                  </select>
                                </div>
-                               <div className="md:col-span-2">
+                               <div className="md:col-span-1">
                                  <label className="block text-sm font-black text-slate-700 mb-2">رابط المحتوى (URL)</label>
                                  <input 
                                    value={materialUrl}
@@ -1057,6 +1073,17 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                    required={!isBulkMode}
                                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                    placeholder="https://..."
+                                 />
+                               </div>
+                               <div className="md:col-span-1">
+                                 <label className="block text-sm font-black text-slate-700 mb-2">ترتيب ظهور المحاضرة (اختياري)</label>
+                                 <input 
+                                   type="number"
+                                   value={materialOrderIndex}
+                                   onChange={(e) => setMaterialOrderIndex(Number(e.target.value))}
+                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                   placeholder="مثال: 1, 2, 3..."
+                                   min="0"
                                  />
                                </div>
                              </div>
@@ -1156,9 +1183,31 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   className="w-full p-6 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
                                   placeholder={"السؤال الأول | الجواب الأول | 2023 الدور الأول\nالسؤال الثاني | الجواب الثاني | 2022 الدور الثاني"}
                                 />
+                                <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700">ترتيب الظهور المبدئي (سيتم تصاعده مع كل سؤال)</label>
+                                  <input 
+                                    type="number"
+                                    value={minQuestOrderIndex}
+                                    onChange={(e) => setMinQuestOrderIndex(Number(e.target.value))}
+                                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                    placeholder="مثال: 1, 2, 3..."
+                                    min="0"
+                                  />
+                                </div>
                               </div>
                             ) : (
                               <div className="space-y-6">
+                                <div className="space-y-4">
+                                  <label className="block text-sm font-black text-slate-700">ترتيب ظهور السؤال (اختياري)</label>
+                                  <input 
+                                    type="number"
+                                    value={minQuestOrderIndex}
+                                    onChange={(e) => setMinQuestOrderIndex(Number(e.target.value))}
+                                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                    placeholder="مثال: 1, 2, 3..."
+                                    min="0"
+                                  />
+                                </div>
                                 <div className="space-y-4">
                                   <label className="block text-sm font-black text-slate-700">نص السؤال الوزاري</label>
                                   <textarea 
@@ -1202,6 +1251,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setMinQuestText('');
                                     setMinQuestAnswer('');
                                     setMinQuestYear('');
+                                    setMinQuestOrderIndex(0);
                                   }}
                                   className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black flex items-center justify-center gap-2"
                                 >
@@ -1369,7 +1419,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                         </div>
 
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                           {activeTab === 'ministerial' && ministerialQuestions.map(m => (
+                           {activeTab === 'ministerial' && [...ministerialQuestions].sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER)).map(m => (
   <button 
     key={m.id} 
     onClick={() => {
@@ -1377,22 +1427,28 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
       setMinQuestText(m.question);
       setMinQuestAnswer(m.answer);
       setMinQuestYear(m.year);
+      setMinQuestOrderIndex(m.order_index || 0);
       setSelectedChapterIds(m.chapterIds || []);
       setIsBulkMode(false);
     }}
     className="w-full flex flex-col p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
   >
     <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-3">
-        <ShieldAlert size={18} className="group-hover:text-white text-amber-500" />
-        <span className="font-bold truncate max-w-[200px]">{m.question}</span>
+      <div className="flex items-center gap-3 w-full">
+        <ShieldAlert size={18} className="group-hover:text-white text-amber-500 shrink-0" />
+        <span className="font-bold truncate">{m.question}</span>
       </div>
-      <div onClick={(e) => { e.stopPropagation(); handleDelete('ministerial_questions', m.id, fetchMinisterialQuestions); }} className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+      <div onClick={(e) => { e.stopPropagation(); handleDelete('ministerial_questions', m.id, fetchMinisterialQuestions); }} className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all shrink-0">
         <Trash2 size={16} />
       </div>
     </div>
     <div className="mt-2 flex items-center gap-4 text-[10px] font-black uppercase">
        <span className="bg-white group-hover:bg-blue-700 group-hover:text-white text-slate-500 px-2 py-0.5 rounded border border-slate-100 group-hover:border-blue-500 transition-colors">{m.year}</span>
+       {m.order_index !== undefined && (
+         <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
+           ترتيب: {m.order_index}
+         </span>
+       )}
     </div>
   </button>
 ))}
@@ -1439,7 +1495,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                              </button>
                            ))}
 
-                           {activeTab === 'materials' && materials.map(m => (
+                           {activeTab === 'materials' && [...materials].sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER)).map(m => (
                              <button 
                                key={m.id} 
                                onClick={() => {
@@ -1447,6 +1503,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                  setMaterialTitle(m.title);
                                  setMaterialType(m.type);
                                  setMaterialUrl(m.url);
+                                 setMaterialOrderIndex(m.order_index || 0);
                                  setSelectedChapterIds(m.chapterIds || []);
                                  setIsBulkMode(false);
                                }}
@@ -1463,6 +1520,11 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                </div>
                                <div className="mt-2 flex items-center gap-4 text-[10px] font-black uppercase">
                                   <span className="bg-white group-hover:bg-blue-700 group-hover:text-white text-slate-500 px-2 py-0.5 rounded border border-slate-100 group-hover:border-blue-500 transition-colors">{m.type}</span>
+                                  {m.order_index !== undefined && (
+                                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
+                                      ترتيب: {m.order_index}
+                                    </span>
+                                  )}
                                   <span className="opacity-60 group-hover:opacity-100 italic">انقر لإجراء تعديل</span>
                                </div>
                              </button>

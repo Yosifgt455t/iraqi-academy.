@@ -206,7 +206,7 @@ export default function ContentView({ chapter, userId, grade }: Props) {
             return m.chapterIds.includes(chapter.id);
           }
           return m.chapterId === chapter.id;
-        });
+        }).sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER));
         setMaterials(filteredMaterials);
         
         // Fetch all flashcards and filter locally
@@ -228,7 +228,7 @@ export default function ContentView({ chapter, userId, grade }: Props) {
             return m.chapterIds.includes(chapter.id);
           }
           return m.chapterId === chapter.id;
-        });
+        }).sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER));
         setMinisterialQuestions(filteredMinQuests);
 
         // Fetch user progress

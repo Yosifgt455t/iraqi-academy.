@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { updateUserProfile } from '../lib/firebase';
+import { useState, useEffect } from 'react';
+import { updateUserProfile, db } from '../lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import { Grade } from '../types';
 import { 
   GraduationCap, 
@@ -55,6 +56,33 @@ export default function GradeSelector({ userId, onComplete }: Props) {
   const [loading, setLoading] = useState(false);
   const [activeStage, setActiveStage] = useState<Stage>('secondary');
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
+  const [availableGrades, setAvailableGrades] = useState<Set<Grade>>(new Set());
+  const [fetchingGrades, setFetchingGrades] = useState(true);
+
+  useEffect(() => {
+    const fetchAvailableGrades = async () => {
+      try {
+        const subjectsSnap = await getDocs(collection(db, 'subjects'));
+        const gradesSet = new Set<Grade>();
+        subjectsSnap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.grades && Array.isArray(data.grades)) {
+            data.grades.forEach((g: Grade) => gradesSet.add(g));
+          }
+          if (data.grade) {
+            gradesSet.add(data.grade as Grade);
+          }
+        });
+        setAvailableGrades(gradesSet);
+      } catch (err) {
+        console.error('Error fetching available grades:', err);
+      } finally {
+        setFetchingGrades(false);
+      }
+    };
+    
+    fetchAvailableGrades();
+  }, []);
 
   const handleSelect = async () => {
     if (!selectedGrade) return;
@@ -160,54 +188,71 @@ export default function GradeSelector({ userId, onComplete }: Props) {
               transition={{ duration: 0.3 }}
               className="contents" // Grid wrapper bypass
             >
-              {GRADES_BY_STAGE[activeStage].map((grade, index) => (
-                <motion.button
-                  key={grade.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  onClick={() => setSelectedGrade(grade.id)}
-                  className={`relative p-8 rounded-[2.5rem] border-2 transition-all text-right group overflow-hidden ${
-                    selectedGrade === grade.id
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-2xl shadow-slate-200'
-                      : 'bg-white border-slate-100 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-50/50'
-                  }`}
-                >
-                  {/* Icon & Label */}
-                  <div className="flex flex-col h-full justify-between gap-8 h-[160px]">
-                    <div className="flex justify-between items-start">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
-                        selectedGrade === grade.id ? 'bg-white/10' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600'
-                      }`}>
-                        {grade.description ? <Star size={24} /> : <BookOpen size={24} />}
-                      </div>
-                      {selectedGrade === grade.id && (
-                        <CheckCircle2 className="text-blue-400" size={24} />
-                      )}
-                    </div>
-                    
-                    <div>
-                      <h3 className={`text-xl md:text-2xl font-black mb-1 ${
-                        selectedGrade === grade.id ? 'text-white' : 'text-slate-900'
-                      }`}>
-                        {grade.label}
-                      </h3>
-                      <p className={`text-sm font-bold ${
-                        selectedGrade === grade.id ? 'text-slate-400' : 'text-slate-400 group-hover:text-blue-400'
-                      }`}>
-                        {grade.description || 'اضغط للاختيار'}
-                      </p>
-                    </div>
-                  </div>
+              {GRADES_BY_STAGE[activeStage].map((grade, index) => {
+                const isAvailable = availableGrades.has(grade.id);
+                const isSelected = selectedGrade === grade.id;
 
-                  {/* Hover Accent */}
-                  <div className={`absolute top-0 left-0 w-2 h-full transition-all ${
-                    selectedGrade === grade.id 
-                      ? 'bg-blue-500' 
-                      : 'bg-transparent group-hover:bg-blue-500/20'
-                  }`} />
-                </motion.button>
-              ))}
+                return (
+                  <motion.button
+                    key={grade.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => {
+                      if (isAvailable) setSelectedGrade(grade.id);
+                    }}
+                    disabled={!isAvailable || fetchingGrades}
+                    className={`relative p-8 rounded-[2.5rem] border-2 transition-all text-right group overflow-hidden ${
+                      isSelected
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-2xl shadow-slate-200'
+                        : isAvailable
+                          ? 'bg-white border-slate-100 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-50/50 cursor-pointer'
+                          : 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed'
+                    }`}
+                  >
+                    {/* Icon & Label */}
+                    <div className="flex flex-col h-full justify-between gap-8 h-[160px]">
+                      <div className="flex justify-between items-start">
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
+                          isSelected ? 'bg-white/10' : (isAvailable ? 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600' : 'bg-slate-200 text-slate-400')
+                        }`}>
+                          {grade.description && isAvailable ? <Star size={24} /> : <BookOpen size={24} />}
+                        </div>
+                        {isSelected && (
+                          <CheckCircle2 className="text-blue-400" size={24} />
+                        )}
+                        {!isAvailable && !fetchingGrades && (
+                          <span className="text-[10px] font-bold bg-slate-200 text-slate-500 px-2 py-1 rounded-lg">
+                            قريباً
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <h3 className={`text-xl md:text-2xl font-black mb-1 ${
+                          isSelected ? 'text-white' : 'text-slate-900'
+                        }`}>
+                          {grade.label}
+                        </h3>
+                        <p className={`text-sm font-bold ${
+                          isSelected ? 'text-slate-400' : (isAvailable ? 'text-slate-400 group-hover:text-blue-400' : 'text-slate-400')
+                        }`}>
+                          {!isAvailable ? (fetchingGrades ? 'جاري التحميل...' : 'قريباً') : (grade.description || 'اضغط للاختيار')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Hover Accent */}
+                    {isAvailable && (
+                      <div className={`absolute top-0 left-0 w-2 h-full transition-all ${
+                        isSelected 
+                          ? 'bg-blue-500' 
+                          : 'bg-transparent group-hover:bg-blue-500/20'
+                      }`} />
+                    )}
+                  </motion.button>
+                );
+              })}
             </motion.div>
           </AnimatePresence>
         </div>

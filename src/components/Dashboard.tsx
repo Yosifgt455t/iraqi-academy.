@@ -27,7 +27,6 @@ import TodoPage from './TodoPage';
 import ToolsModal from './ToolsModal';
 import ImageToPdfModal from './ImageToPdfModal';
 import TextToPdfModal from './TextToPdfModal';
-import FileTranslatorModal from './FileTranslatorModal';
 import ExamBuilderModal from './ExamBuilderModal';
 
 import AccountSettingsModal from './AccountSettingsModal';
@@ -67,7 +66,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
   const [showExemptionCalculator, setShowExemptionCalculator] = useState(false);
   const [showImageToPdf, setShowImageToPdf] = useState(false);
   const [showTextToPdf, setShowTextToPdf] = useState(false);
-  const [showFileTranslator, setShowFileTranslator] = useState(false);
   const [showExamBuilder, setShowExamBuilder] = useState(false);
   const [showToolsModal, setShowToolsModal] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
@@ -294,7 +292,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
         onOpenTodo={() => setView('todo')}
         onOpenImageToPdf={() => setShowImageToPdf(true)}
         onOpenTextToPdf={() => setShowTextToPdf(true)}
-        onOpenFileTranslator={() => setShowFileTranslator(true)}
         onOpenExamBuilder={() => setShowExamBuilder(true)}
       />
 
@@ -306,11 +303,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
       {/* Text to PDF Modal */}
       {showTextToPdf && (
         <TextToPdfModal onClose={() => setShowTextToPdf(false)} />
-      )}
-
-      {/* File Translator Modal */}
-      {showFileTranslator && (
-        <FileTranslatorModal onClose={() => setShowFileTranslator(false)} />
       )}
 
       {/* Exam Builder Modal */}

@@ -38,6 +38,7 @@ export interface Material {
   type: 'PDF' | 'Video' | 'Ministerial';
   url: string;
   isUploaded?: boolean;
+  order_index?: number;
 }
 
 export interface Flashcard {
@@ -54,4 +55,5 @@ export interface MinisterialQuestion {
   question: string;
   answer: string;
   year: string;
+  order_index?: number;
 }
