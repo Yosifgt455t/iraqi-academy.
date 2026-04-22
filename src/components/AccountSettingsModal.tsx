@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { updateUserProfile } from '../lib/firebase';
 import { X, User, Mail, Save, Loader2, Camera, LogOut, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,8 +12,32 @@ interface Props {
 
 export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }: Props) {
   const [name, setName] = useState(user.user_metadata?.full_name || '');
+  const [avatarUrl, setAvatarUrl] = useState(user.user_metadata?.avatar_url || '');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('الرجاء اختيار ملف صورة صالح');
+      return;
+    }
+    
+    // Check size < 1MB to avoid Firestore limits
+    if (file.size > 1024 * 1024) {
+      alert('حجم الصورة كبير جداً، الرجاء اختيار صورة أقل من 1MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAvatarUrl(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,11 +47,15 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
     try {
       if (user.id !== 'guest_user') {
         await updateUserProfile(user.id, {
-          displayName: name.trim()
+          displayName: name.trim(),
+          ...(avatarUrl && { photoURL: avatarUrl })
         });
       }
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      setTimeout(() => {
+        setSuccess(false);
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       console.error('Error updating profile:', error);
     } finally {
@@ -61,18 +89,27 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
             <div className="p-6 space-y-8">
               {/* Profile Pic Section */}
               <div className="flex flex-col items-center gap-4">
-                <div className="relative group">
+                <div className="relative group cursor-pointer" onClick={() => user.id !== 'guest_user' && fileInputRef.current?.click()}>
                   <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl">
                     <img 
-                      src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=2563eb&color=fff`} 
+                      src={avatarUrl || user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=2563eb&color=fff`} 
                       alt="Profile"
                       className="w-full h-full object-cover"
                     />
                   </div>
                   {user.id !== 'guest_user' && (
-                    <button className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-lg hover:bg-blue-700 transition-all">
-                      <Camera size={14} />
-                    </button>
+                    <>
+                      <button type="button" className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-lg hover:bg-blue-700 transition-all pointer-events-none">
+                        <Camera size={14} />
+                      </button>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleImageChange} 
+                        accept="image/*" 
+                        className="hidden" 
+                      />
+                    </>
                   )}
                 </div>
                 <div className="text-center">

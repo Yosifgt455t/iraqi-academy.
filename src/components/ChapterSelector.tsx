@@ -61,7 +61,12 @@ export default function ChapterSelector({ subject, userId, onSelect }: Props) {
   }, [subject, userId]);
 
   const getChapterProgress = (chapterId: string) => {
-    const chapterMaterials = allMaterials.filter(m => m.chapterId === chapterId);
+    const chapterMaterials = allMaterials.filter((m: any) => {
+      if (m.chapterIds && Array.isArray(m.chapterIds)) {
+        return m.chapterIds.includes(chapterId);
+      }
+      return m.chapterId === chapterId;
+    });
     if (chapterMaterials.length === 0) return 0;
     const completedInChapter = chapterMaterials.filter(m => completedMaterials.includes(m.id)).length;
     return Math.round((completedInChapter / chapterMaterials.length) * 100);

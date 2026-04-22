@@ -24,6 +24,7 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
   const [loading, setLoading] = useState(true);
   const [completedMaterials, setCompletedMaterials] = useState<string[]>([]);
   const [allMaterials, setAllMaterials] = useState<any[]>([]);
+  const [allChapters, setAllChapters] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,6 +42,10 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
         });
         
         setSubjects(filteredSubjects);
+
+        // Fetch Chapters structure to map subjects properly
+        const chaptersSnap = await getDocs(collection(db, 'chapters'));
+        setAllChapters(chaptersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
         // Fetch Materials (for progress calculation)
         const materialsSnap = await getDocs(collection(db, 'materials'));
@@ -65,9 +70,25 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
   }, [grade, userId]);
 
   const getSubjectProgress = (subjectId: string) => {
-    // Note: In Firestore structure, materials would ideally contain subjectId as well for easier filtering
-    // or we fetch them per subject. For now keeping similar logic as before.
-    const subjectMaterials = allMaterials.filter(m => m.subjectId === subjectId);
+    // 1. Find all chapters belonging to this subject
+    const subjectChapterIds = allChapters.filter(c => {
+      if (c.subjectIds && Array.isArray(c.subjectIds)) {
+        return c.subjectIds.includes(subjectId);
+      }
+      return c.subjectId === subjectId;
+    }).map(c => c.id);
+
+    // 2. Find all materials that belong to either this subject directly, or to any of its chapters
+    const subjectMaterials = allMaterials.filter((m: any) => {
+      if (m.subjectIds && Array.isArray(m.subjectIds) && m.subjectIds.includes(subjectId)) return true;
+      if (m.subjectId === subjectId) return true;
+      
+      if (m.chapterIds && Array.isArray(m.chapterIds)) {
+        return m.chapterIds.some((cId: string) => subjectChapterIds.includes(cId));
+      }
+      return subjectChapterIds.includes(m.chapterId);
+    });
+
     if (subjectMaterials.length === 0) return 0;
     const completedInSubject = subjectMaterials.filter(m => completedMaterials.includes(m.id)).length;
     return Math.round((completedInSubject / subjectMaterials.length) * 100);
