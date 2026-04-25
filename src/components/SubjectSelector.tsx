@@ -30,35 +30,53 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch All Subjects and filter locally to support both single grade (legacy) and multiple grades (new)
-        const subjectsSnap = await getDocs(collection(db, 'subjects'));
-        const allSubjects = subjectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject));
+        const { query, where } = await import('firebase/firestore');
         
-        const filteredSubjects = allSubjects.filter(sub => {
-          if (sub.grades && Array.isArray(sub.grades)) {
-            return sub.grades.includes(grade);
-          }
-          return sub.grade === grade;
-        });
+        // Fetch Subjects for this grade using targeted queries in parallel
+        const [subjectsSnap, subjectsSnapLegacy] = await Promise.all([
+          getDocs(query(collection(db, 'subjects'), where('grades', 'array-contains', grade))),
+          getDocs(query(collection(db, 'subjects'), where('grade', '==', grade)))
+        ]);
+
+        const subjectsSet = new Map();
+        subjectsSnap.docs.forEach(d => subjectsSet.set(d.id, { id: d.id, ...d.data() }));
+        subjectsSnapLegacy.docs.forEach(d => subjectsSet.set(d.id, { id: d.id, ...d.data() }));
         
+        const filteredSubjects = Array.from(subjectsSet.values()) as Subject[];
         setSubjects(filteredSubjects);
 
-        // Fetch Chapters structure to map subjects properly
-        const chaptersSnap = await getDocs(collection(db, 'chapters'));
-        setAllChapters(chaptersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // Fetch User profile (completed materials)
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        const completed = userDoc.exists() ? (userDoc.data().completed_materials || []) : [];
+        setCompletedMaterials(completed);
 
-        // Fetch Materials (for progress calculation)
-        const materialsSnap = await getDocs(collection(db, 'materials'));
-        setAllMaterials(materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // Fetch only related chapters if there are subjects
+        if (filteredSubjects.length > 0) {
+          const subjectIds = filteredSubjects.map(s => s.id);
+          
+          // Flatten into chunks to avoid "in" clause limits (max 10/30 depending on SDK)
+          // But since we are fetching all chapters and filtering locally, it might still be slow
+          // Actually, let's fetch only chapters related to these subjects
+          const chaptersSnap = await getDocs(collection(db, 'chapters'));
+          const chaptersData = chaptersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+          const relevantChapters = chaptersData.filter(c => 
+            subjectIds.includes(c.subjectId) || 
+            (c.subjectIds && c.subjectIds.some((sid: string) => subjectIds.includes(sid)))
+          );
+          setAllChapters(relevantChapters);
 
-        // Fetch User profile (completed materials) - Using getDoc instead of query
-        try {
-          const userDoc = await getDoc(doc(db, 'users', userId));
-          if (userDoc.exists()) {
-            setCompletedMaterials(userDoc.data().completed_materials || []);
-          }
-        } catch (profileErr) {
-          console.warn('Could not fetch profile, progress might be inaccurate:', profileErr);
+          // Fetch materials - also fetching all then filtering locally
+          // For now, keep it simple but ensure it's parallel
+          const materialsSnap = await getDocs(collection(db, 'materials'));
+          const materialsData = materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+          const chapterIds = relevantChapters.map(c => c.id);
+          const relevantMaterials = materialsData.filter(m => 
+            subjectIds.includes(m.subjectId) || 
+            (m.subjectIds && m.subjectIds.some((sid: string) => subjectIds.includes(sid))) ||
+            chapterIds.includes(m.chapterId) ||
+            (m.chapterIds && m.chapterIds.some((cid: string) => chapterIds.includes(cid)))
+          );
+          setAllMaterials(relevantMaterials);
         }
       } catch (err) {
         console.error('Error fetching subjects data:', err);

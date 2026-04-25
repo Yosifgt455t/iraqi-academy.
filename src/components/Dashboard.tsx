@@ -267,15 +267,17 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
       )}
 
       {/* Tools Modal (Drawer) */}
-      <ToolsModal
-        isOpen={showToolsModal}
-        onClose={() => setShowToolsModal(false)}
-        onOpenCalculator={() => setShowExemptionCalculator(true)}
-        onOpenTodo={() => setView('todo')}
-        onOpenImageToPdf={() => setShowImageToPdf(true)}
-        onOpenTextToPdf={() => setShowTextToPdf(true)}
-        onOpenExamBuilder={() => setShowExamBuilder(true)}
-      />
+      {showToolsModal && (
+        <ToolsModal
+          isOpen={showToolsModal}
+          onClose={() => setShowToolsModal(false)}
+          onOpenCalculator={() => setShowExemptionCalculator(true)}
+          onOpenTodo={() => setView('todo')}
+          onOpenImageToPdf={() => setShowImageToPdf(true)}
+          onOpenTextToPdf={() => setShowTextToPdf(true)}
+          onOpenExamBuilder={() => setShowExamBuilder(true)}
+        />
+      )}
 
       {/* Image to PDF Modal */}
       {showImageToPdf && (
@@ -293,12 +295,14 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
       )}
 
       {/* Account Settings Modal */}
-      <AccountSettingsModal 
-        user={user}
-        isOpen={showAccountSettings}
-        onClose={() => setShowAccountSettings(false)}
-        onLogout={handleLogout}
-      />
+      {showAccountSettings && (
+        <AccountSettingsModal 
+          user={user}
+          isOpen={showAccountSettings}
+          onClose={() => setShowAccountSettings(false)}
+          onLogout={handleLogout}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Trash2,
@@ -154,17 +154,56 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [formGradeFilter, setFormGradeFilter] = useState<Grade | "">("");
   const [formSubjectFilter, setFormSubjectFilter] = useState<string | "">("");
 
+  const filteredSubjectsForForms = useMemo(() => {
+    return subjects.filter(
+      (sub) => !formGradeFilter || sub.grades?.includes(formGradeFilter as Grade),
+    );
+  }, [subjects, formGradeFilter]);
+
+  const filteredChaptersForForms = useMemo(() => {
+    return chapters.filter(
+      (chap) =>
+        selectedSubjectIds.length === 0 ||
+        (chap as any).subjectId === selectedSubjectIds[0] || // Simplified or just check first
+        (chap as any).subjectIds?.some((sid: any) => selectedSubjectIds.includes(sid)),
+    );
+  }, [chapters, selectedSubjectIds]);
+
+  const filteredMaterialsForForms = useMemo(() => {
+    return materials.filter(
+      (mat) =>
+        selectedSubjectIds.length === 0 ||
+        (mat as any).subjectId === selectedSubjectIds[0] ||
+        (mat as any).subjectIds?.some((sid: any) => selectedSubjectIds.includes(sid)),
+    );
+  }, [materials, selectedSubjectIds]);
+
   useEffect(() => {
-    fetchSubjects();
-    fetchChapters();
-    fetchMaterials();
-    fetchFlashcards();
-    fetchMinisterialQuestions();
     fetchMaintenanceStatus();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "subjects") fetchSubjects();
+    if (activeTab === "chapters") fetchChapters();
+    if (activeTab === "materials") fetchMaterials();
+    if (activeTab === "flashcards") fetchFlashcards();
+    if (activeTab === "ministerial") fetchMinisterialQuestions();
+    if (activeTab === "database") {
+      fetchSubjects();
+      fetchChapters();
+      fetchMaterials();
+      fetchFlashcards();
+      fetchMinisterialQuestions();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (isSuperAdmin) {
       fetchAdmins();
     }
   }, [isSuperAdmin]);
+
+  const [confirmDeleteEmail, setConfirmDeleteEmail] = useState<string | null>(null);
 
   const fetchMinisterialQuestions = async () => {
     try {
@@ -199,13 +238,20 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   };
 
   const handleRemoveAdmin = async (email: string) => {
-    if (!window.confirm(`هل أنت متأكد من سحب الصلاحيات من ${email}؟`)) return;
+    if (confirmDeleteEmail !== email) {
+      setConfirmDeleteEmail(email);
+      setTimeout(() => setConfirmDeleteEmail(null), 3000);
+      return;
+    }
+
     setLoading(true);
     try {
       await removeAdmin(email);
       await fetchAdmins();
+      setConfirmDeleteEmail(null);
       showToast("success", "تم سحب الصلاحيات بنجاح");
     } catch (err) {
+      console.error("Remove admin error:", err);
       showToast("error", "فشل في سحب الصلاحيات");
     } finally {
       setLoading(false);
@@ -899,10 +945,27 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 </div>
                                 {email !== ADMIN_EMAIL && (
                                   <button
-                                    onClick={() => handleRemoveAdmin(email)}
-                                    className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleRemoveAdmin(email);
+                                    }}
+                                    disabled={loading}
+                                    className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all active:scale-95 touch-manipulation ${
+                                      confirmDeleteEmail === email
+                                        ? "bg-red-600 text-white animate-pulse"
+                                        : "text-red-500 hover:bg-red-50 bg-red-50/50"
+                                    }`}
+                                    title={
+                                      confirmDeleteEmail === email
+                                        ? "انقر مرة أخرى للتأكيد"
+                                        : "سحب الصلاحيات"
+                                    }
                                   >
-                                    <Trash2 size={16} />
+                                    {confirmDeleteEmail === email ? (
+                                      <ShieldAlert size={20} />
+                                    ) : (
+                                      <Trash2 size={20} />
+                                    )}
                                   </button>
                                 )}
                               </div>
@@ -1280,34 +1343,26 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               2. اربط الفصل بالمادة (تعدد اختيار)
                             </label>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                              {subjects
-                                .filter(
-                                  (sub) =>
-                                    !formGradeFilter ||
-                                    sub.grades?.includes(
-                                      formGradeFilter as Grade,
-                                    ),
-                                )
-                                .map((sub) => (
-                                  <button
-                                    key={sub.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedSubjectIds((prev) =>
-                                        prev.includes(sub.id)
-                                          ? prev.filter((id) => id !== sub.id)
-                                          : [...prev, sub.id],
-                                      );
-                                    }}
-                                    className={`p-3 rounded-2xl text-[10px] font-black border transition-all ${
-                                      selectedSubjectIds.includes(sub.id)
-                                        ? "bg-blue-600 border-blue-600 text-white shadow-lg"
-                                        : "bg-white border-slate-100 text-slate-500 hover:bg-slate-50"
-                                    }`}
-                                  >
-                                    {sub.name}
-                                  </button>
-                                ))}
+                              {filteredSubjectsForForms.map((sub) => (
+                                <button
+                                  key={sub.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedSubjectIds((prev) =>
+                                      prev.includes(sub.id)
+                                        ? prev.filter((id) => id !== sub.id)
+                                        : [...prev, sub.id],
+                                    );
+                                  }}
+                                  className={`p-3 rounded-2xl text-[10px] font-black border transition-all ${
+                                    selectedSubjectIds.includes(sub.id)
+                                      ? "bg-blue-600 border-blue-600 text-white shadow-lg"
+                                      : "bg-white border-slate-100 text-slate-500 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {sub.name}
+                                </button>
+                              ))}
                             </div>
                           </div>
 
@@ -1393,30 +1448,22 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 2. تصفية حسب المادة
                               </label>
                               <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1 border border-slate-50 rounded-2xl">
-                                {subjects
-                                  .filter(
-                                    (sub) =>
-                                      !formGradeFilter ||
-                                      sub.grades?.includes(
-                                        formGradeFilter as Grade,
-                                      ),
-                                  )
-                                  .map((sub) => (
-                                    <button
-                                      key={sub.id}
-                                      type="button"
-                                      onClick={() =>
-                                        setFormSubjectFilter(sub.id)
-                                      }
-                                      className={`py-3 px-2 rounded-xl text-[10px] font-black border transition-all ${
-                                        formSubjectFilter === sub.id
-                                          ? "bg-blue-600 border-blue-600 text-white shadow-md"
-                                          : "bg-white border-slate-100 text-slate-500"
-                                      }`}
-                                    >
-                                      {sub.name}
-                                    </button>
-                                  ))}
+                                {filteredSubjectsForForms.map((sub) => (
+                                  <button
+                                    key={sub.id}
+                                    type="button"
+                                    onClick={() =>
+                                      setFormSubjectFilter(sub.id)
+                                    }
+                                    className={`py-3 px-2 rounded-xl text-[10px] font-black border transition-all ${
+                                      formSubjectFilter === sub.id
+                                        ? "bg-blue-600 border-blue-600 text-white shadow-md"
+                                        : "bg-white border-slate-100 text-slate-500"
+                                    }`}
+                                  >
+                                    {sub.name}
+                                  </button>
+                                ))}
                               </div>
                             </div>
                           </div>
@@ -1430,7 +1477,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 .filter(
                                   (c) =>
                                     !formSubjectFilter ||
-                                    c.subjectIds?.includes(formSubjectFilter),
+                                    (c as any).subjectIds?.includes(formSubjectFilter) ||
+                                    (c as any).subjectId === formSubjectFilter,
                                 )
                                 .map((c) => (
                                   <button
@@ -1449,14 +1497,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                         : "bg-white border-slate-100 text-slate-500 hover:bg-slate-100"
                                     }`}
                                   >
-                                    {c.name} (
-                                    {subjects
-                                      .filter((s) =>
-                                        c.subjectIds?.includes(s.id),
-                                      )
-                                      .map((s) => s.name)
-                                      .join(", ")}
-                                    )
+                                    {c.name}
                                   </button>
                                 ))}
                             </div>
