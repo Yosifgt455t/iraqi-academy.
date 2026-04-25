@@ -84,6 +84,28 @@
       },
       "required": ["question", "answer"]
     },
+    "Class": {
+      "title": "Class Stage",
+      "description": "Defines educational stages and their grades (e.g., Primary, Middle).",
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "iconName": { "type": "string" },
+        "color": { "type": "string" },
+        "orderIndex": { "type": "number" },
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
     "MinisterialQuestion": {
       "title": "Ministerial Question",
       "description": "Structured historical exam question with answer and year.",
@@ -125,6 +147,10 @@
     "/users/{userId}": {
       "schema": "User",
       "description": "User account documents."
+    },
+    "/classes/{stageId}": {
+      "schema": "Class",
+      "description": "Educational stages and grades hierarchy."
     },
     "/exams/{examId}": {
       "schema": "Exam",

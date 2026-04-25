@@ -11,8 +11,8 @@ interface Props {
 }
 
 export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }: Props) {
-  const [name, setName] = useState(user.user_metadata?.full_name || '');
-  const [avatarUrl, setAvatarUrl] = useState(user.user_metadata?.avatar_url || '');
+  const [name, setName] = useState(user.displayName || user.user_metadata?.full_name || '');
+  const [avatarUrl, setAvatarUrl] = useState(user.photoURL || user.user_metadata?.avatar_url || '');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -116,7 +116,7 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
                 <div className="relative group cursor-pointer" onClick={() => user.id !== 'guest_user' && fileInputRef.current?.click()}>
                   <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl">
                     <img 
-                      src={avatarUrl || user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=2563eb&color=fff`} 
+                      src={avatarUrl || user?.photoURL || user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || user.displayName || user.user_metadata?.full_name || 'User')}&background=2563eb&color=fff`} 
                       alt="Profile"
                       className="w-full h-full object-cover"
                     />
@@ -172,7 +172,7 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
 
                 <button
                   type="submit"
-                  disabled={loading || (name.trim() === user.user_metadata?.full_name && (!avatarUrl || avatarUrl === user.user_metadata?.avatar_url))}
+                  disabled={loading || (name.trim() === (user.displayName || user.user_metadata?.full_name) && (!avatarUrl || avatarUrl === (user.photoURL || user.user_metadata?.avatar_url)))}
                   className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-30"
                 >
                   {loading ? (

@@ -172,11 +172,19 @@ export default function App() {
   const displayUser = user ? {
     id: user.uid,
     email: user.email,
+    displayName: profile?.displayName || user.displayName || 'مستخدم',
+    photoURL: profile?.photoURL || user.photoURL,
     user_metadata: { 
       full_name: profile?.displayName || user.displayName || 'مستخدم',
       avatar_url: profile?.photoURL || user.photoURL 
     }
-  } : { id: 'guest_user', email: null, user_metadata: { full_name: 'زائر' } };
+  } : { 
+    id: 'guest_user', 
+    email: null, 
+    displayName: 'زائر',
+    photoURL: null,
+    user_metadata: { full_name: 'زائر', avatar_url: null } 
+  };
 
   // Logged in but No Grade set yet
   if (!grade && !isGuest) {

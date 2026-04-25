@@ -32,6 +32,8 @@ import ExamBuilderModal from './ExamBuilderModal';
 import AccountSettingsModal from './AccountSettingsModal';
 import AdminDashboard from './AdminDashboard';
 
+import { useClasses } from '../hooks/useClasses';
+
 interface Props {
   user: any;
   grade: Grade;
@@ -40,28 +42,8 @@ interface Props {
   onLogout: () => void;
 }
 
-const getGradeName = (grade: Grade) => {
-  const names: Record<string, string> = {
-    primary_1: 'الأول الابتدائي',
-    primary_2: 'الثاني الابتدائي',
-    primary_3: 'الثالث الابتدائي',
-    primary_4: 'الرابع الابتدائي',
-    primary_5: 'الخامس الابتدائي',
-    primary_6: 'السادس الابتدائي',
-    middle_1: 'الأول المتوسط',
-    middle_2: 'الثاني المتوسط',
-    middle_3: 'الثالث المتوسط',
-    secondary_4_sci: 'الرابع العلمي',
-    secondary_4_lit: 'الرابع الأدبي',
-    secondary_5_sci: 'الخامس العلمي',
-    secondary_5_lit: 'الخامس الأدبي',
-    secondary_6_sci: 'السادس العلمي',
-    secondary_6_lit: 'السادس الأدبي',
-  };
-  return names[grade] || grade;
-};
-
 export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeGrade, onLogout }: Props) {
+  const { getGradeName } = useClasses();
   const [view, setView] = useState<'home' | 'todo' | 'admin'>('home');
   const [showExemptionCalculator, setShowExemptionCalculator] = useState(false);
   const [showImageToPdf, setShowImageToPdf] = useState(false);
@@ -171,7 +153,7 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
               className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-transform"
             >
               <img 
-                src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata?.full_name)}&background=2563eb&color=fff`} 
+                src={user?.photoURL || user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.user_metadata?.full_name || 'User')}&background=2563eb&color=fff`} 
                 alt="Profile"
                 className="w-full h-full object-cover"
               />

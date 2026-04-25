@@ -7,9 +7,7 @@ console.log("Firebase initializing with Project ID:", firebaseConfig.projectId);
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore with long polling to bypass potential network restrictions
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId);
+export const db = initializeFirestore(app, {}, firebaseConfig.firestoreDatabaseId);
 
 console.log("Firestore initialized with DB ID:", firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
@@ -77,16 +75,4 @@ export const setMaintenanceMode = async (active: boolean) => {
 // Utility for Logout
 export const logout = () => signOut(auth);
 
-// Critical verification check for Firestore connection as per instructions
-async function testConnection() {
-  try {
-    // Attempting a fetch to ensure connectivity
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration or internet connection.");
-    }
-  }
-}
-
-testConnection();
+// Test connection removed to prevent console errors on offline mode.

@@ -14,50 +14,37 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useClasses } from '../hooks/useClasses';
 
 interface Props {
   userId: string;
   onComplete: (grade: Grade) => void;
 }
 
-type Stage = 'primary' | 'middle' | 'secondary';
-
-const STAGES = [
-  { id: 'secondary', label: 'المرحلة الإعدادية', icon: GraduationCap, color: 'blue' },
-  { id: 'middle', label: 'المرحلة المتوسطة', icon: Library, color: 'purple' },
-  { id: 'primary', label: 'المرحلة الابتدائية', icon: School, color: 'emerald' },
-] as const;
-
-const GRADES_BY_STAGE: Record<Stage, { id: Grade; label: string; description?: string }[]> = {
-  primary: [
-    { id: 'primary_1', label: 'الأول الابتدائي' },
-    { id: 'primary_2', label: 'الثاني الابتدائي' },
-    { id: 'primary_3', label: 'الثالث الابتدائي' },
-    { id: 'primary_4', label: 'الرابع الابتدائي' },
-    { id: 'primary_5', label: 'الخامس الابتدائي' },
-    { id: 'primary_6', label: 'السادس الابتدائي' },
-  ],
-  middle: [
-    { id: 'middle_1', label: 'الأول المتوسط' },
-    { id: 'middle_2', label: 'الثاني المتوسط' },
-    { id: 'middle_3', label: 'الثالث المتوسط', description: 'مرحلة وزارية' },
-  ],
-  secondary: [
-    { id: 'secondary_4_sci', label: 'الرابع العلمي' },
-    { id: 'secondary_4_lit', label: 'الرابع الأدبي' },
-    { id: 'secondary_5_sci', label: 'الخامس العلمي' },
-    { id: 'secondary_5_lit', label: 'الخامس الأدبي' },
-    { id: 'secondary_6_sci', label: 'السادس العلمي', description: 'الدفعة الذهبية' },
-    { id: 'secondary_6_lit', label: 'السادس الأدبي', description: 'الدفعة الذهبية' },
-  ],
+const getIcon = (name: string) => {
+  switch (name) {
+    case 'School': return School;
+    case 'Library': return Library;
+    case 'GraduationCap': return GraduationCap;
+    default: return BookOpen;
+  }
 };
 
 export default function GradeSelector({ userId, onComplete }: Props) {
+  const { stages, loading: classesLoading } = useClasses();
+  
   const [loading, setLoading] = useState(false);
-  const [activeStage, setActiveStage] = useState<Stage>('secondary');
+  const [activeStage, setActiveStage] = useState<string>('');
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
   const [availableGrades, setAvailableGrades] = useState<Set<Grade>>(new Set());
   const [fetchingGrades, setFetchingGrades] = useState(true);
+
+  // Auto-select first stage
+  useEffect(() => {
+    if (stages.length > 0 && !activeStage) {
+      setActiveStage(stages[0].id);
+    }
+  }, [stages, activeStage]);
 
   useEffect(() => {
     const fetchAvailableGrades = async () => {
@@ -104,6 +91,15 @@ export default function GradeSelector({ userId, onComplete }: Props) {
     }
   };
 
+  if (classesLoading) {
+    return <div className="min-h-screen flex items-center justify-center font-bold text-slate-500">جاري تحميل الصفوف...</div>;
+  }
+
+  // Filter out stages with no visible grades, and hidden stages
+  const visibleStages = stages.filter(stage => 
+    !stage.isHidden && stage.grades.some(grade => !grade.isHidden)
+  );
+
   return (
     <div className="min-h-screen bg-white relative overflow-hidden font-sans selection:bg-blue-100" dir="rtl">
       {/* Background Decor */}
@@ -146,9 +142,11 @@ export default function GradeSelector({ userId, onComplete }: Props) {
         </div>
 
         {/* Stage Tabs */}
-        <div className="flex justify-center mb-12">
-          <div className="inline-flex p-1.5 bg-slate-100 rounded-3xl gap-1">
-            {STAGES.map((stage) => (
+        <div className="flex justify-center mb-12 flex-wrap gap-2">
+          <div className="inline-flex p-1.5 bg-slate-100 rounded-3xl gap-1 flex-wrap justify-center">
+            {visibleStages.map((stage) => {
+              const Icon = getIcon(stage.iconName);
+              return (
               <button
                 key={stage.id}
                 onClick={() => {
@@ -170,10 +168,10 @@ export default function GradeSelector({ userId, onComplete }: Props) {
                     }`}
                   />
                 )}
-                <span className="relative z-10"><stage.icon size={18} /></span>
+                <span className="relative z-10"><Icon size={18} /></span>
                 <span className="relative z-10">{stage.label}</span>
               </button>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -188,7 +186,7 @@ export default function GradeSelector({ userId, onComplete }: Props) {
               transition={{ duration: 0.3 }}
               className="contents" // Grid wrapper bypass
             >
-              {GRADES_BY_STAGE[activeStage].map((grade, index) => {
+              {visibleStages.find(s => s.id === activeStage)?.grades.filter(g => !g.isHidden).map((grade, index) => {
                 const isAvailable = availableGrades.has(grade.id);
                 const isSelected = selectedGrade === grade.id;
 

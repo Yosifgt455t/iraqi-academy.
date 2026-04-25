@@ -17,13 +17,22 @@ import {
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
+import { EnglishExamData, EnglishExamPdf, EnglishExamEditor, defaultEnglishExam } from './EnglishExamUI';
+
 interface Props {
   onClose: () => void;
 }
 
 interface Question {
+  type: 'standard' | 'fill_in' | 'matching';
   text: string;
   branches: string[];
+  fillInWords?: string;
+  matchingList1?: string;
+  matchingList2?: string;
+  sectionTitle?: string;
+  marks?: string;
+  customLabel?: string;
 }
 
 export default function ExamBuilderModal({ onClose }: Props) {
@@ -35,12 +44,19 @@ export default function ExamBuilderModal({ onClose }: Props) {
     teacherName: '',
     examType: 'نصف السنة',
     examTime: 'ساعتان',
+    watermark: '',
+    language: 'ar' as 'ar' | 'en'
   });
 
-  const [questions, setQuestions] = useState<Question[]>([{ text: '', branches: [] }]);
+  const [questions, setQuestions] = useState<Question[]>([{ 
+    type: 'standard', text: '', branches: [], fillInWords: '', matchingList1: '', matchingList2: '' 
+  }]);
+  
+  const [engExam, setEngExam] = useState<EnglishExamData>(defaultEnglishExam);
+
   const printRef = useRef<HTMLDivElement>(null);
 
-  const addQuestion = () => setQuestions([...questions, { text: '', branches: [] }]);
+  const addQuestion = () => setQuestions([...questions, { type: 'standard', text: '', branches: [], fillInWords: '', matchingList1: '', matchingList2: '' }]);
   const removeQuestion = (index: number) => {
     if (questions.length > 1) {
       setQuestions(questions.filter((_, i) => i !== index));
@@ -50,6 +66,12 @@ export default function ExamBuilderModal({ onClose }: Props) {
   const updateQuestion = (index: number, val: string) => {
     const newQs = [...questions];
     newQs[index].text = val;
+    setQuestions(newQs);
+  };
+
+  const updateQuestionProp = (index: number, prop: keyof Question, val: string | 'standard' | 'fill_in' | 'matching') => {
+    const newQs = [...questions];
+    newQs[index] = { ...newQs[index], [prop]: val };
     setQuestions(newQs);
   };
 
@@ -82,30 +104,64 @@ export default function ExamBuilderModal({ onClose }: Props) {
   };
 
   const arabicLabels = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح', 'ط', 'ي', 'ك', 'ل', 'م', 'ن'];
+  const englishLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'];
+  const isEn = formData.language === 'en';
 
   const generatePdf = async () => {
     if (isGenerating || !printRef.current) return;
     setIsGenerating(true);
 
     try {
-      const canvas = await html2canvas(printRef.current, {
+      const element = printRef.current;
+      const originalContainerHeight = element.style.height;
+      const originalMinHeight = element.style.minHeight;
+      const contentHeight = element.scrollHeight;
+      
+      const a4Height = 1123;
+      const totalPages = Math.max(1, Math.ceil(contentHeight / a4Height));
+      const newTotalHeight = totalPages * a4Height;
+      
+      // Temporarily fix height to exact multiple of A4 so footer sticks to bottom of last page
+      element.style.minHeight = `${newTotalHeight}px`;
+      element.style.height = `${newTotalHeight}px`;
+
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff'
       });
       
+      // restore original heights
+      element.style.height = originalContainerHeight;
+      element.style.minHeight = originalMinHeight;
+      
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`اسئلة_${formData.subject || 'امتحان'}.pdf`);
+      // Calculate height of the image on the PDF based on the canvas
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft > 0) {
+        position = position - pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      pdf.save(isEn ? `Exam_${formData.subject || 'Questions'}.pdf` : `اسئلة_${formData.subject || 'امتحان'}.pdf`);
       onClose();
     } catch (error) {
       console.error('PDF error:', error);
-      alert('حدث خطأ أثناء إنشاء ملف الأسئلة.');
+      alert(isEn ? 'An error occurred while generating the PDF.' : 'حدث خطأ أثناء إنشاء ملف الأسئلة.');
     } finally {
       setIsGenerating(false);
     }
@@ -117,113 +173,174 @@ export default function ExamBuilderModal({ onClose }: Props) {
       <div className="fixed left-[-9999px] top-0 overflow-hidden" style={{ width: '794px' }}>
         <div 
           ref={printRef}
-          className="bg-white px-[40px] py-[30px] text-black text-right flex flex-col items-stretch"
+          id="print-container"
+          className={`bg-white px-[40px] py-[30px] text-black ${isEn ? 'text-left' : 'text-right'} flex flex-col items-stretch relative`}
           style={{ 
             width: '794px', 
             minHeight: '1123px',
-            direction: 'rtl',
-            fontFamily: "'Noto Sans Arabic', sans-serif"
+            direction: isEn ? 'ltr' : 'rtl',
+            fontFamily: isEn ? "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" : "'Noto Sans Arabic', sans-serif"
           }}
         >
           {/* PDF Header Section */}
-          <div className="border-b-2 border-black pb-2 mb-4 shrink-0">
+          <div className="border-b-2 border-black pb-2 mb-4 shrink-0" dir={isEn ? "ltr" : "rtl"}>
             <div className="flex justify-between items-start text-sm font-bold">
-              <div className="text-right space-y-1 pt-1">
-                <p>المادة: {formData.subject}</p>
-                <p>الوقت: {formData.examTime}</p>
+              <div className={isEn ? "text-left space-y-1 pt-1" : "text-right space-y-1 pt-1"}>
+                <p>{isEn ? 'Subject:' : 'المادة:'} {formData.subject}</p>
+                <p>{isEn ? 'Time:' : 'الوقت:'} {formData.examTime}</p>
               </div>
               <div className="text-center space-y-0.5 flex-1 px-4">
-                <p className="text-xl font-bold">جمهورية العراق</p>
-                <p className="text-lg font-bold">وزارة التربية</p>
+                <p className="text-xl font-bold">{isEn ? 'Republic of Iraq' : 'جمهورية العراق'}</p>
+                <p className="text-lg font-bold">{isEn ? 'Ministry of Education' : 'وزارة التربية'}</p>
                 <p className="text-base font-bold mt-1">{formData.schoolName}</p>
                 <p className="text-xs font-sans mt-0.5">{formData.academicYear}</p>
               </div>
-              <div className="text-left space-y-1 pt-1">
-                <p>الامتحان: {formData.examType}</p>
+              <div className={isEn ? "text-right space-y-1 pt-1" : "text-left space-y-1 pt-1"}>
+                <p>{isEn ? 'Exam:' : 'الامتحان:'} {formData.examType}</p>
               </div>
             </div>
           </div>
 
           {/* PDF Body Section */}
-          <div 
-            className="flex flex-col flex-1"
-            style={{ 
-              minHeight: '700px',
-              fontFamily: "'Cairo', 'Milligram Arabic Trial', 'Noto Sans Arabic', sans-serif",
-              fontWeight: 400,
-              justifyContent: questions.length <= 4 ? 'space-around' : 'space-between'
-            }}
-          >
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold underline inline-block px-4">الأسئلة الامتحانية</h1>
-            </div>
+          {isEn ? (
+            <EnglishExamPdf exam={engExam} />
+          ) : (
+            <div 
+              className="flex flex-col flex-1"
+              dir="rtl"
+              style={{ 
+                minHeight: '700px',
+                fontFamily: "'Cairo', 'Milligram Arabic Trial', 'Noto Sans Arabic', sans-serif",
+                fontWeight: 400,
+                textAlign: 'right',
+                justifyContent: 'flex-start'
+              }}
+            >
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold underline inline-block px-4">
+                  الأسئلة الامتحانية
+                </h1>
+              </div>
 
-            <div className="space-y-0">
-              {questions.map((q, idx) => (
-                <React.Fragment key={idx}>
-                  <div className="py-6 space-y-4">
-                    {/* Case 1: Main text exists - Display main text first */}
-                    {q.text && (
-                      <div className="flex items-start gap-4">
-                        <span className="text-xl font-bold shrink-0">س{idx + 1}/</span>
-                        <p className="text-lg leading-[1.6] flex-1">
-                          {q.text}
-                        </p>
-                      </div>
-                    )}
+              <div className="space-y-0 text-[19px]">
+                {questions.map((q, idx) => (
+                  <React.Fragment key={idx}>
+                    <div className="py-2 space-y-3">
+                      {/* Section Title */}
+                      {q.sectionTitle && (
+                        <div className="font-bold text-[20px] italic mt-4 mb-2">
+                          {q.sectionTitle}
+                        </div>
+                      )}
 
-                    {/* Branches logic */}
-                    {q.branches.length > 0 ? (
-                      <div className={q.text ? "mr-12 space-y-4" : "space-y-4"}>
-                        {q.branches.map((branch, bIdx) => (
-                          <div key={bIdx} className="flex items-start gap-4">
-                            {/* If no main text, align S1/ with Branch A */}
-                            {!q.text && bIdx === 0 && (
-                              <span className="text-xl font-bold shrink-0">س{idx + 1}/</span>
-                            )}
-                            <span className={!q.text && bIdx === 0 ? "text-lg font-bold shrink-0 mr-2" : "text-lg font-bold shrink-0"}>
-                              {arabicLabels[bIdx] || 'أ'}/
+                      {/* Main text exists - Display main text first */}
+                      {q.text && (
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4">
+                            <span className="text-xl font-bold shrink-0">
+                              {q.customLabel ? q.customLabel : `س${idx + 1}/`}
                             </span>
-                            <p className="text-lg leading-[1.6] flex-1">
-                              {branch || '..........................................................................................................................................................................................................................................'}
+                            <p className="leading-[1.4] flex-1 font-semibold whitespace-pre-line">
+                              {q.text}
                             </p>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      /* Case 2: No main text and no branches - Empty line with S1/ */
-                      !q.text && (
-                        <div className="flex items-start gap-4">
-                          <span className="text-xl font-bold shrink-0">س{idx + 1}/</span>
-                          <p className="text-lg leading-[1.6] flex-1">
-                            ..........................................................................................................................................................................................................................................
-                          </p>
+                          {q.marks && (
+                            <div className="font-bold italic whitespace-nowrap ml-4 text-[19px] shrink-0">
+                              {q.marks}
+                            </div>
+                          )}
                         </div>
-                      )
+                      )}
+
+                      {/* Specific Types Rendering */}
+                      {q.type === 'fill_in' && q.fillInWords && (
+                        <div className="border-[2px] border-black rounded-lg p-3 mx-8 mb-4 text-center font-bold text-xl tracking-wider shadow-sm" dir="ltr">
+                          {q.fillInWords.split(',').map(w => w.trim()).filter(Boolean).join('   ,   ')}
+                        </div>
+                      )}
+
+                      {q.type === 'matching' && (
+                        <div className="flex gap-8 justify-center mb-4 px-12" dir="rtl">
+                          <div className="min-w-[200px] flex-1 text-right">
+                            <p className="font-bold mb-2 italic">القائمة A :</p>
+                            {(q.matchingList1 || '').split('\n').filter(Boolean).map((item, i) => (
+                              <div key={i} className="mb-2 flex gap-2 font-semibold justify-start">
+                                <span className="w-8 shrink-0">{i + 1}.</span> <span>{item}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="min-w-[200px] flex-1 text-right">
+                            <p className="font-bold mb-2 italic">القائمة B :</p>
+                            {(q.matchingList2 || '').split('\n').filter(Boolean).map((item, i) => (
+                              <div key={i} className="mb-2 flex gap-2 font-semibold justify-start">
+                                <span className="w-8 shrink-0">{(englishLabels[i] || 'a').toLowerCase()}.</span> <span>{item}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Branches logic */}
+                      {q.branches.length > 0 ? (
+                        <div className={q.text ? "mr-12 space-y-3" : "space-y-3"}>
+                          {q.branches.map((branch, bIdx) => (
+                            <div key={bIdx} className="flex items-start gap-4">
+                              {!q.text && bIdx === 0 && (
+                                <span className="text-xl font-bold shrink-0">
+                                  {q.customLabel ? q.customLabel : `س${idx + 1}/`}
+                                </span>
+                              )}
+                              <span className={!q.text && bIdx === 0 ? "text-[19px] font-bold shrink-0 mr-2" : "text-[19px] font-bold shrink-0"}>
+                                {`${arabicLabels[bIdx] || 'أ'}/`}
+                              </span>
+                              <p className="text-[19px] leading-[1.4] flex-1 font-semibold">
+                                {branch || '......................................................................................................................................................................................'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* No main text and no branches - Empty line */
+                        !q.text && (
+                          <div className="flex items-start gap-4">
+                            <span className="text-xl font-bold shrink-0">
+                              {q.customLabel ? q.customLabel : `س${idx + 1}/`}
+                            </span>
+                            <p className="text-[19px] leading-[1.4] flex-1 font-semibold">
+                              ......................................................................................................................................................................................
+                            </p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                    {idx < questions.length - 1 && (
+                      <div className="border-t w-full" style={{ borderColor: 'rgba(0,0,0,0.1)' }}></div>
                     )}
-                  </div>
-                  {idx < questions.length - 1 && (
-                    <div className="border-t w-full" style={{ borderColor: 'rgba(0,0,0,0.1)' }}></div>
-                  )}
-                </React.Fragment>
-              ))}
+                  </React.Fragment>
+                ))}
+              </div>
+              
+              <div className="mt-auto"></div>
             </div>
-            
-            <div className="mt-auto"></div>
-          </div>
+          )}
 
           {/* PDF Footer Section */}
-          <div className="shrink-0">
-            <div className="mt-6 border-t pt-4 flex justify-between items-end" style={{ fontFamily: "'Milligram Arabic Trial', sans-serif", borderColor: 'rgba(0,0,0,0.2)' }}>
-              <div className="text-[10px] italic" style={{ color: '#94a3b8' }}>أُنشئ بواسطة "عراقي أكاديمي"</div>
-              <div className="text-right">
-                <p className="text-sm font-bold mb-1">مدرس المادة:</p>
-                <p className="text-lg font-bold">الأستاذ {formData.teacherName}</p>
+          <div className="shrink-0" dir={isEn ? "ltr" : "rtl"}>
+            <div className={`mt-6 border-t pt-4 flex justify-between items-end ${isEn ? '' : 'font-[Milligram Arabic Trial,sans-serif]'}`} style={{ borderColor: 'rgba(0,0,0,0.2)' }}>
+              <div className="text-xs font-bold leading-tight flex flex-col font-sans" style={{ color: '#94a3b8', textAlign: isEn ? 'left' : 'right' }}>
+                <span>{isEn ? 'Created by Iraqi Academy App' : 'صُنع بواسطة تطبيق عراقي أكاديمي'}</span>
+                <span style={{ fontSize: '10px', direction: 'ltr' }}>https://iraqi-academy.vercel.app</span>
+              </div>
+              <div className={isEn ? "text-left" : "text-right"}>
+                <p className="text-sm font-bold mb-1">{isEn ? 'Teacher:' : 'مدرس المادة:'}</p>
+                <p className="text-lg font-bold">{isEn ? '' : 'الأستاذ '} {formData.teacherName}</p>
               </div>
             </div>
             
-            <div className="text-center mt-6 mb-2" style={{ fontFamily: "'Milligram Arabic Trial', sans-serif" }}>
-              <p className="text-sm italic font-bold border inline-block px-8 py-2 rounded-full" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>مع تمنياتنا لكم بالنجاح والموفقية</p>
+            <div className={`text-center mt-6 mb-2 ${isEn ? '' : 'font-[Milligram Arabic Trial,sans-serif]'}`}>
+              <p className="text-sm italic font-bold border inline-block px-8 py-2 rounded-full" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
+                {isEn ? 'Best wishes for your success' : 'مع تمنياتنا لكم بالنجاح والموفقية'}
+              </p>
             </div>
           </div>
         </div>
@@ -241,8 +358,8 @@ export default function ExamBuilderModal({ onClose }: Props) {
               <FileEdit size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">صانع الأسئلة الاحترافي</h2>
-              <p className="text-xs text-slate-500">خاص بالمدرسين لتنظيم الأسئلة الامتحانية</p>
+              <h2 className="text-xl font-bold text-slate-900">{isEn ? 'Professional Exam Builder' : 'صانع الأسئلة الاحترافي'}</h2>
+              <p className="text-xs text-slate-500">{isEn ? 'For teachers to organize exam questions' : 'خاص بالمدرسين لتنظيم الأسئلة الامتحانية'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white rounded-xl text-slate-400 transition-colors z-20">
@@ -253,46 +370,46 @@ export default function ExamBuilderModal({ onClose }: Props) {
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col bg-slate-50/30">
           <div className="p-6 flex flex-col gap-8 flex-1">
             {/* Form Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" dir={isEn ? "ltr" : "rtl"}>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                    <School size={12} /> اسم المدرسة
+                    <School size={12} /> {isEn ? 'School Name' : 'اسم المدرسة'}
                   </label>
                   <input
                     type="text"
                     value={formData.schoolName}
                     onChange={(e) => setFormData({...formData, schoolName: e.target.value})}
                     className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20 text-sm focus:border-blue-500"
-                    placeholder="مدرسة المتميزين مثلاً"
+                    placeholder={isEn ? "e.g., High School" : "مدرسة المتميزين مثلاً"}
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                    <BookOpen size={12} /> المادة
+                    <BookOpen size={12} /> {isEn ? 'Subject' : 'المادة'}
                   </label>
                   <input
                     type="text"
                     value={formData.subject}
                     onChange={(e) => setFormData({...formData, subject: e.target.value})}
                     className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20 text-sm focus:border-blue-500"
-                    placeholder="الرياضيات"
+                    placeholder={isEn ? "Mathematics" : "الرياضيات"}
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                    <User size={12} /> اسم المدرس
+                    <User size={12} /> {isEn ? 'Teacher Name' : 'اسم المدرس'}
                   </label>
                   <input
                     type="text"
                     value={formData.teacherName}
                     onChange={(e) => setFormData({...formData, teacherName: e.target.value})}
                     className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20 text-sm focus:border-blue-500"
-                    placeholder="أ. حسن علي"
+                    placeholder={isEn ? "Mr. Smith" : "أ. حسن علي"}
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                    <Calendar size={12} /> العام الدراسي
+                    <Calendar size={12} /> {isEn ? 'Academic Year' : 'العام الدراسي'}
                   </label>
                   <input
                     type="text"
@@ -303,7 +420,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                    <Clock size={12} /> وقت الامتحان
+                    <Clock size={12} /> {isEn ? 'Exam Time' : 'وقت الامتحان'}
                   </label>
                   <input
                     type="text"
@@ -314,105 +431,169 @@ export default function ExamBuilderModal({ onClose }: Props) {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                    <Layout size={12} /> نوع الامتحان
+                    <Layout size={12} /> {isEn ? 'Exam Type' : 'نوع الامتحان'}
                   </label>
                   <select
                     value={formData.examType}
                     onChange={(e) => setFormData({...formData, examType: e.target.value})}
                     className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20 text-sm appearance-none focus:border-blue-500"
                   >
-                    <option>شهر أول</option>
-                    <option>شهر ثاني</option>
-                    <option>نصف السنة</option>
-                    <option>نهاية السنة</option>
-                    <option>امتحان يومي</option>
+                    {isEn ? (
+                      <>
+                        <option>First Month</option>
+                        <option>Second Month</option>
+                        <option>Midterm</option>
+                        <option>Final</option>
+                        <option>Daily/Quiz</option>
+                      </>
+                    ) : (
+                      <>
+                        <option>شهر أول</option>
+                        <option>شهر ثاني</option>
+                        <option>نصف السنة</option>
+                        <option>نهاية السنة</option>
+                        <option>امتحان يومي</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                    {isEn ? 'Exam Language' : 'لغة الامتحان'}
+                  </label>
+                  <select
+                    value={formData.language}
+                    onChange={(e) => setFormData({...formData, language: e.target.value as 'ar' | 'en'})}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20 text-sm appearance-none focus:border-blue-500"
+                  >
+                    <option value="ar">العربية</option>
+                    <option value="en">English (الانكليزية)</option>
                   </select>
                 </div>
               </div>
 
               {/* Questions Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b pb-2 border-slate-100">
-                  <h3 className="font-bold text-slate-900 border-r-4 border-blue-500 pr-2">أدخل الأسئلة والفروع</h3>
-                  <button 
-                    onClick={addQuestion}
-                    className="flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200"
-                  >
-                    <Plus size={14} /> إضافة سؤال جديد
-                  </button>
-                </div>
-                
+              {isEn ? (
                 <div className="space-y-4">
-                  <AnimatePresence initial={false}>
-                    {questions.map((q, idx) => (
-                      <motion.div 
-                        key={idx} 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="bg-white rounded-2xl p-5 border border-slate-200 space-y-4 shadow-sm"
-                      >
-                        <div className="flex gap-3 group">
-                          <div className="flex-1 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                                {q.branches.length > 0 ? `سؤال ${idx + 1} (منطوق السؤال أو الملاحظة)` : `سؤال ${idx + 1}`}
-                              </span>
-                              <button 
-                                onClick={() => removeQuestion(idx)}
-                                disabled={questions.length === 1}
-                                className="p-1 px-2 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-0"
-                              >
-                                حذف السؤال كاملًا
-                              </button>
-                            </div>
-                            <textarea
-                              value={q.text}
-                              onChange={(e) => updateQuestion(idx, e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm resize-none transition-all focus:bg-white"
-                              rows={q.text.length > 80 ? 3 : 2}
-                              placeholder="اكتب منطوق السؤال هنا..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* Branches Section */}
-                        <div className="mr-6 space-y-3 pl-2 border-r-2 border-blue-100 pr-4">
-                          {q.branches.map((branch, bIdx) => (
-                            <div key={bIdx} className="flex gap-3 group animate-in fade-in slide-in-from-right-1 duration-200">
-                              <div className="flex-1 space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 rounded">فرع {arabicLabels[bIdx] || 'أ'}</span>
-                                  <button 
-                                    onClick={() => removeBranch(idx, bIdx)}
-                                    className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors"
-                                  >
-                                    حذف الفرع
-                                  </button>
-                                </div>
-                                <textarea
-                                  value={branch}
-                                  onChange={(e) => updateBranch(idx, bIdx, e.target.value)}
-                                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm resize-none transition-all focus:bg-white"
-                                  rows={branch.length > 80 ? 2 : 1}
-                                  placeholder="اكتب تكملة الفرع أو السؤال الفرعي..."
-                                />
-                              </div>
-                            </div>
-                          ))}
-                          
-                          <button 
-                            onClick={() => addBranch(idx)}
-                            className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors py-1 opacity-80 hover:opacity-100 bg-blue-50/50 w-full justify-center rounded-lg border border-dashed border-blue-200"
-                          >
-                            <Plus size={12} /> أضف فرعاً جديدًا (أ، ب، ج...)
-                          </button>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 gap-4 border-slate-100">
+                    <h3 className="font-bold text-slate-900 border-r-4 border-blue-500 pl-2 text-left" dir="ltr">
+                      Enter Questions and Branches
+                    </h3>
+                  </div>
+                  <EnglishExamEditor exam={engExam} setExam={setEngExam} />
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 gap-4 border-slate-100">
+                    <h3 className="font-bold text-slate-900 border-r-4 border-blue-500 pr-2">
+                      أدخل الأسئلة والفروع
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={addQuestion}
+                        className="flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200"
+                      >
+                        <Plus size={14} /> إضافة سؤال جديد
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <AnimatePresence initial={false}>
+                      {questions.map((q, idx) => (
+                        <motion.div 
+                          key={idx} 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="bg-white rounded-2xl p-5 border border-slate-200 space-y-4 shadow-sm"
+                        >
+                          <div className="flex gap-3 group">
+                            <div className="flex-1 space-y-3">
+                              <div className="flex flex-wrap items-center justify-between mb-2 gap-2">
+                                <div className="flex items-center gap-2" dir="rtl">
+                                  <span className="text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                                    {q.branches.length > 0 ? `سؤال ${idx + 1} (منطوق السؤال أو الملاحظة)` : `سؤال ${idx + 1}`}
+                                  </span>
+                                </div>
+                                <button 
+                                  onClick={() => removeQuestion(idx)}
+                                  disabled={questions.length === 1}
+                                  className="p-1 px-2 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-0"
+                                >
+                                  حذف السؤال كاملًا
+                                </button>
+                              </div>
+
+                              {/* Additional Optional Formattings */}
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-3" dir="rtl">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-500 block">
+                                    الدرجة (اختياري)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={q.marks || ''}
+                                    onChange={(e) => updateQuestionProp(idx, 'marks', e.target.value)}
+                                    placeholder="مثلاً: (١٠ درجات)"
+                                    className="w-full sm:w-1/3 bg-white border border-slate-200 rounded px-2 py-1 outline-none focus:border-blue-500 text-xs"
+                                    dir="rtl"
+                                  />
+                                </div>
+                              </div>
+
+                              <textarea
+                                value={q.text}
+                                onChange={(e) => updateQuestionProp(idx, 'text', e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm resize-none transition-all focus:bg-white"
+                                rows={q.text.length > 80 ? 3 : 2}
+                                placeholder="اكتب منطوق السؤال هنا..."
+                                dir="rtl"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Branches Section */}
+                          <div className="mr-6 space-y-3 pl-2 border-r-2 border-blue-100 pr-4" dir="rtl">
+                            {q.branches.map((branch, bIdx) => (
+                              <div key={bIdx} className="flex gap-3 group animate-in fade-in slide-in-from-right-1 duration-200">
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 rounded">
+                                      {`فرع ${arabicLabels[bIdx] || 'أ'}`}
+                                    </span>
+                                    <button 
+                                      onClick={() => removeBranch(idx, bIdx)}
+                                      className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors"
+                                    >
+                                      حذف الفرع
+                                    </button>
+                                  </div>
+                                  <textarea
+                                    value={branch}
+                                    onChange={(e) => updateBranch(idx, bIdx, e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm resize-none transition-all focus:bg-white"
+                                    rows={branch.length > 80 ? 2 : 1}
+                                    placeholder="اكتب تكملة الفرع أو السؤال الفرعي..."
+                                    dir="rtl"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                            
+                            <button 
+                              onClick={() => addBranch(idx)}
+                              className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors py-1 opacity-80 hover:opacity-100 bg-blue-50/50 w-full justify-center rounded-lg border border-dashed border-blue-200"
+                            >
+                              <Plus size={12} /> أضف فرعاً جديدًا (أ، ب، ج...)
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
           </div>
 
           <div className="p-6 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-4 items-center justify-end shrink-0">
@@ -424,12 +605,12 @@ export default function ExamBuilderModal({ onClose }: Props) {
               {isGenerating ? (
                 <>
                   <Loader2 size={20} className="animate-spin" />
-                  <span>جاري المعالجة...</span>
+                  <span>{isEn ? 'Processing...' : 'جاري المعالجة...'}</span>
                 </>
               ) : (
                 <>
                   <Download size={20} />
-                  <span>حفظ كملف PDF</span>
+                  <span>{isEn ? 'Save as PDF' : 'حفظ كملف PDF'}</span>
                 </>
               )}
             </button>

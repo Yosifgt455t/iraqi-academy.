@@ -1,9 +1,4 @@
-export type Grade = 
-  | 'primary_1' | 'primary_2' | 'primary_3' | 'primary_4' | 'primary_5' | 'primary_6'
-  | 'middle_1' | 'middle_2' | 'middle_3'
-  | 'secondary_4_sci' | 'secondary_4_lit'
-  | 'secondary_5_sci' | 'secondary_5_lit'
-  | 'secondary_6_sci' | 'secondary_6_lit';
+export type Grade = string;
 
 export interface Profile {
   id: string;

@@ -70,29 +70,34 @@ service cloud.firestore {
       allow delete: if isSignedIn() && existing().teacherId == request.auth.uid;
     }
 
-    // --- Curriculum Collections (Public Read for Authenticated Users) ---
-    match /subjects/{id} {
-      allow read: if isSignedIn();
+    // --- Curriculum Collections (Public Read for Authenticated Users/Guests) ---
+    match /classes/{doc=**} {
+      allow read: if true; 
       allow write: if isAdmin();
     }
 
-    match /chapters/{id} {
-      allow read: if isSignedIn();
+    match /subjects/{doc=**} {
+      allow read: if true; 
       allow write: if isAdmin();
     }
 
-    match /materials/{id} {
-      allow read: if isSignedIn();
+    match /chapters/{doc=**} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /flashcards/{id} {
-      allow read: if isSignedIn();
+    match /materials/{doc=**} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /ministerial_questions/{id} {
-      allow read: if isSignedIn();
+    match /flashcards/{doc=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /ministerial_questions/{doc=**} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -101,7 +106,7 @@ service cloud.firestore {
       // Allow everyone to read the status to see if site is in maintenance
       allow read: if true; 
       // Only the Super Admin can change settings
-      allow write: if isAdmin();
+      allow write: if isSuperAdmin();
     }
 
     // --- AI Chats Collection ---
