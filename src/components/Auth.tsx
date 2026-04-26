@@ -49,13 +49,6 @@ export default function Auth({ onGuest }: Props) {
             exit={{ opacity: 0, x: -20 }}
             className="text-center space-y-8"
           >
-            <div className="flex justify-center mb-2">
-              <div className="bg-blue-50 text-blue-800 px-5 py-3 rounded-2xl text-sm font-bold border border-blue-100 flex flex-col items-center gap-1 shadow-sm">
-                <span>اعداد الطالب: يوسف حكيم</span>
-                <span>اشراف: م.م احمد قاسم ناصر</span>
-                <span className="text-xs text-blue-600 mt-1">ثانوية الميمونة للمتفوقين والمتفوقات</span>
-              </div>
-            </div>
             <div className="flex justify-center">
               <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center shadow-lg shadow-blue-200">
                 <Sparkles className="text-white w-12 h-12" />
@@ -241,7 +234,7 @@ export default function Auth({ onGuest }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans" dir="rtl">
+    <div className="flex items-center justify-center p-4 font-sans" dir="rtl">
       <div className="w-full max-w-md bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
         <AnimatePresence mode="wait">
           {renderStep()}

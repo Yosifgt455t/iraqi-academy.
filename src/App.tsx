@@ -6,7 +6,7 @@ import Auth from './components/Auth';
 import ProfileSetup from './components/ProfileSetup';
 import GradeSelector from './components/GradeSelector';
 import Dashboard from './components/Dashboard';
-import { Loader2, Wrench } from 'lucide-react';
+import { Loader2, Wrench, Instagram } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function App() {
@@ -116,93 +116,124 @@ export default function App() {
     setIsGuest(false);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center space-y-4">
-          <Loader2 className="animate-spin text-blue-600 mx-auto" size={48} />
-          <p className="text-slate-600 font-medium">جاري التحميل...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Not logged in and not guest
-  if (!user && !isGuest) {
-    return <Auth onGuest={handleGuestMode} />;
-  }
-
-  // Maintenance Mode (Blocks non-admins after they've had a chance to log in)
-  if (isMaintenanceActive && !isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center" dir="rtl">
-        <div className="max-w-md space-y-8">
-          <motion.div 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="w-24 h-24 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-amber-100/50"
-          >
-            <Wrench size={48} />
-          </motion.div>
-          <div className="space-y-4">
-            <h1 className="text-4xl font-black text-slate-900 leading-tight">المنصة في وضع الصيانة</h1>
-            <p className="text-lg text-slate-500 font-medium leading-relaxed">
-              نحن نقوم الآن ببعض التحديثات والتحسينات لنقدم لكم تجربة أفضل. 
-              سنعود للعمل قريباً جداً، شكراً لصبركم!
-            </p>
-          </div>
-          <div className="pt-8">
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full sm:w-auto px-12 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-2xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
-            >
-              تحديث الصفحة
-            </button>
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-center space-y-4">
+            <Loader2 className="animate-spin text-blue-600 mx-auto" size={48} />
+            <p className="text-slate-600 font-medium">جاري التحميل...</p>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  // Logged in but No Profile in DB (or missing displayName)
-  if (user && (!profile || !profile.displayName) && !isGuest) {
-    return <ProfileSetup user={user} onComplete={handleProfileComplete} />;
-  }
-
-  const displayUser = user ? {
-    id: user.uid,
-    email: user.email,
-    displayName: profile?.displayName || user.displayName || 'مستخدم',
-    photoURL: profile?.photoURL || user.photoURL,
-    user_metadata: { 
-      full_name: profile?.displayName || user.displayName || 'مستخدم',
-      avatar_url: profile?.photoURL || user.photoURL 
+      );
     }
-  } : { 
-    id: 'guest_user', 
-    email: null, 
-    displayName: 'زائر',
-    photoURL: null,
-    user_metadata: { full_name: 'زائر', avatar_url: null } 
+
+    // Not logged in and not guest
+    if (!user && !isGuest) {
+      return <Auth onGuest={handleGuestMode} />;
+    }
+
+    // Maintenance Mode (Blocks non-admins after they've had a chance to log in)
+    if (isMaintenanceActive && !isAdmin) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center" dir="rtl">
+          <div className="max-w-md space-y-8">
+            <motion.div 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="w-24 h-24 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-amber-100/50"
+            >
+              <Wrench size={48} />
+            </motion.div>
+            <div className="space-y-4">
+              <h1 className="text-4xl font-black text-slate-900 leading-tight">المنصة في وضع الصيانة</h1>
+              <p className="text-lg text-slate-500 font-medium leading-relaxed">
+                نحن نقوم الآن ببعض التحديثات والتحسينات لنقدم لكم تجربة أفضل. 
+                سنعود للعمل قريباً جداً، شكراً لصبركم!
+              </p>
+            </div>
+            <div className="pt-8">
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full sm:w-auto px-12 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-2xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
+              >
+                تحديث الصفحة
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Logged in but No Profile in DB (or missing displayName)
+    if (user && (!profile || !profile.displayName) && !isGuest) {
+      return <ProfileSetup user={user} onComplete={handleProfileComplete} />;
+    }
+
+    const displayUser = user ? {
+      id: user.uid,
+      email: user.email,
+      displayName: profile?.displayName || user.displayName || 'مستخدم',
+      photoURL: profile?.photoURL || user.photoURL,
+      user_metadata: { 
+        full_name: profile?.displayName || user.displayName || 'مستخدم',
+        avatar_url: profile?.photoURL || user.photoURL 
+      }
+    } : { 
+      id: 'guest_user', 
+      email: null, 
+      displayName: 'زائر',
+      photoURL: null,
+      user_metadata: { full_name: 'زائر', avatar_url: null } 
+    };
+
+    // Logged in but No Grade set yet
+    if (!grade && !isGuest) {
+      return <GradeSelector userId={displayUser.id} onComplete={handleSetGrade} />;
+    }
+
+    // Guest mode without grade
+    if (isGuest && !grade) {
+      return <GradeSelector userId="guest_user" onComplete={handleSetGrade} />;
+    }
+
+    return (
+      <Dashboard 
+        user={displayUser} 
+        grade={grade} 
+        isAdmin={isAdmin}
+        onChangeGrade={() => setGrade(null)} 
+        onLogout={handleLogout} 
+      />
+    );
   };
 
-  // Logged in but No Grade set yet
-  if (!grade && !isGuest) {
-    return <GradeSelector userId={displayUser.id} onComplete={handleSetGrade} />;
-  }
-
-  // Guest mode without grade
-  if (isGuest && !grade) {
-    return <GradeSelector userId="guest_user" onComplete={handleSetGrade} />;
-  }
-
   return (
-    <Dashboard 
-      user={displayUser} 
-      grade={grade} 
-      isAdmin={isAdmin}
-      onChangeGrade={() => setGrade(null)} 
-      onLogout={handleLogout} 
-    />
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      <div className="flex-1">
+        {renderContent()}
+      </div>
+      
+      {/* Global Footer */}
+      <footer className="py-6 px-4 text-center border-t border-slate-100 bg-white/50 backdrop-blur-sm" dir="rtl">
+        <div className="max-w-md mx-auto flex flex-col items-center gap-2">
+          <p className="text-slate-500 font-medium text-sm">
+            تم تطويره بواسطة
+            <a 
+              href="https://www.instagram.com/yosifhkem?igsh=MWNtdmEzMm52dWp0bQ==" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 mr-1.5 text-blue-600 hover:text-pink-600 transition-all font-bold group"
+            >
+              يوسف حكيم
+              <Instagram size={18} className="group-hover:scale-110 transition-transform" />
+            </a>
+          </p>
+          <p className="text-[10px] text-slate-400 font-sans tracking-wider uppercase">
+            © {new Date().getFullYear()} Iraqi Academy • All Rights Reserved
+          </p>
+        </div>
+      </footer>
+    </div>
   );
 }
