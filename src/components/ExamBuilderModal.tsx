@@ -118,7 +118,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
       const contentHeight = element.scrollHeight;
       
       const a4Height = 1123;
-      const totalPages = Math.max(1, Math.ceil(contentHeight / a4Height));
+      const totalPages = Math.max(1, Math.ceil((contentHeight - 20) / a4Height));
       const newTotalHeight = totalPages * a4Height;
       
       // Temporarily fix height to exact multiple of A4 so footer sticks to bottom of last page
@@ -183,19 +183,19 @@ export default function ExamBuilderModal({ onClose }: Props) {
           }}
         >
           {/* PDF Header Section */}
-          <div className="border-b-2 border-black pb-2 mb-4 shrink-0" dir={isEn ? "ltr" : "rtl"}>
-            <div className="flex justify-between items-start text-sm font-bold">
-              <div className={isEn ? "text-left space-y-1 pt-1" : "text-right space-y-1 pt-1"}>
+          <div className="border-b-2 border-black pb-1 mb-2 shrink-0" dir={isEn ? "ltr" : "rtl"}>
+            <div className="flex justify-between items-start text-xs font-bold">
+              <div className={isEn ? "text-left space-y-0.5" : "text-right space-y-0.5"}>
                 <p>{isEn ? 'Subject:' : 'المادة:'} {formData.subject}</p>
                 <p>{isEn ? 'Time:' : 'الوقت:'} {formData.examTime}</p>
               </div>
-              <div className="text-center space-y-0.5 flex-1 px-4">
-                <p className="text-xl font-bold">{isEn ? 'Republic of Iraq' : 'جمهورية العراق'}</p>
-                <p className="text-lg font-bold">{isEn ? 'Ministry of Education' : 'وزارة التربية'}</p>
-                <p className="text-base font-bold mt-1">{formData.schoolName}</p>
-                <p className="text-xs font-sans mt-0.5">{formData.academicYear}</p>
+              <div className="text-center space-y-0 flex-1 px-4">
+                <p className="text-lg font-bold">{isEn ? 'Republic of Iraq' : 'جمهورية العراق'}</p>
+                <p className="text-base font-bold">{isEn ? 'Ministry of Education' : 'وزارة التربية'}</p>
+                <p className="text-sm font-bold">{formData.schoolName}</p>
+                <p className="text-[10px] font-sans">{formData.academicYear}</p>
               </div>
-              <div className={isEn ? "text-right space-y-1 pt-1" : "text-left space-y-1 pt-1"}>
+              <div className={isEn ? "text-right space-y-0.5" : "text-left space-y-0.5"}>
                 <p>{isEn ? 'Exam:' : 'الامتحان:'} {formData.examType}</p>
               </div>
             </div>
@@ -209,26 +209,27 @@ export default function ExamBuilderModal({ onClose }: Props) {
               className="flex flex-col flex-1"
               dir="rtl"
               style={{ 
-                minHeight: '700px',
+                minHeight: '850px',
                 fontFamily: "'Cairo', 'Milligram Arabic Trial', 'Noto Sans Arabic', sans-serif",
                 fontWeight: 400,
                 textAlign: 'right',
-                justifyContent: 'flex-start'
+                justifyContent: 'flex-start',
+                lineHeight: '1.3'
               }}
             >
-              <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold underline inline-block px-4">
+              <div className="text-center mb-2">
+                <h1 className="text-lg font-bold underline inline-block px-4">
                   الأسئلة الامتحانية
                 </h1>
               </div>
 
-              <div className="space-y-0 text-[19px]">
+              <div className="space-y-0 text-[16.5px]">
                 {questions.map((q, idx) => (
                   <React.Fragment key={idx}>
-                    <div className="py-2 space-y-3">
+                    <div className="py-0.5 space-y-1.5">
                       {/* Section Title */}
                       {q.sectionTitle && (
-                        <div className="font-bold text-[20px] italic mt-4 mb-2">
+                        <div className="font-bold text-[17px] italic mt-1 mb-0.5">
                           {q.sectionTitle}
                         </div>
                       )}
@@ -237,7 +238,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
                       {q.text && (
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-start gap-4">
-                            <span className="text-xl font-bold shrink-0">
+                            <span className="text-lg font-bold shrink-0">
                               {q.customLabel ? q.customLabel : `س${idx + 1}/`}
                             </span>
                             <p className="leading-[1.4] flex-1 font-semibold whitespace-pre-line">
@@ -245,7 +246,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
                             </p>
                           </div>
                           {q.marks && (
-                            <div className="font-bold italic whitespace-nowrap ml-4 text-[19px] shrink-0">
+                            <div className="font-bold italic whitespace-nowrap ml-4 text-[17px] shrink-0">
                               {q.marks}
                             </div>
                           )}
@@ -254,26 +255,26 @@ export default function ExamBuilderModal({ onClose }: Props) {
 
                       {/* Specific Types Rendering */}
                       {q.type === 'fill_in' && q.fillInWords && (
-                        <div className="border-[2px] border-black rounded-lg p-3 mx-8 mb-4 text-center font-bold text-xl tracking-wider shadow-sm" dir="ltr">
+                        <div className="border-[2px] border-black rounded-lg p-2 mx-8 mb-3 text-center font-bold text-lg tracking-wider shadow-sm" dir="ltr">
                           {q.fillInWords.split(',').map(w => w.trim()).filter(Boolean).join('   ,   ')}
                         </div>
                       )}
 
                       {q.type === 'matching' && (
-                        <div className="flex gap-8 justify-center mb-4 px-12" dir="rtl">
+                        <div className="flex gap-8 justify-center mb-3 px-12" dir="rtl">
                           <div className="min-w-[200px] flex-1 text-right">
-                            <p className="font-bold mb-2 italic">القائمة A :</p>
+                            <p className="font-bold mb-1 italic">القائمة A :</p>
                             {(q.matchingList1 || '').split('\n').filter(Boolean).map((item, i) => (
-                              <div key={i} className="mb-2 flex gap-2 font-semibold justify-start">
-                                <span className="w-8 shrink-0">{i + 1}.</span> <span>{item}</span>
+                              <div key={i} className="mb-1 flex gap-2 font-semibold justify-start">
+                                <span className="w-6 shrink-0">{i + 1}.</span> <span>{item}</span>
                               </div>
                             ))}
                           </div>
                           <div className="min-w-[200px] flex-1 text-right">
-                            <p className="font-bold mb-2 italic">القائمة B :</p>
+                            <p className="font-bold mb-1 italic">القائمة B :</p>
                             {(q.matchingList2 || '').split('\n').filter(Boolean).map((item, i) => (
-                              <div key={i} className="mb-2 flex gap-2 font-semibold justify-start">
-                                <span className="w-8 shrink-0">{(englishLabels[i] || 'a').toLowerCase()}.</span> <span>{item}</span>
+                              <div key={i} className="mb-1 flex gap-2 font-semibold justify-start">
+                                <span className="w-6 shrink-0">{(englishLabels[i] || 'a').toLowerCase()}.</span> <span>{item}</span>
                               </div>
                             ))}
                           </div>
@@ -282,19 +283,19 @@ export default function ExamBuilderModal({ onClose }: Props) {
 
                       {/* Branches logic */}
                       {q.branches.length > 0 ? (
-                        <div className={q.text ? "mr-12 space-y-3" : "space-y-3"}>
+                        <div className={q.text ? "mr-10 space-y-1" : "space-y-1"}>
                           {q.branches.map((branch, bIdx) => (
                             <div key={bIdx} className="flex items-start gap-4">
                               {!q.text && bIdx === 0 && (
-                                <span className="text-xl font-bold shrink-0">
+                                <span className="text-base font-bold shrink-0">
                                   {q.customLabel ? q.customLabel : `س${idx + 1}/`}
                                 </span>
                               )}
-                              <span className={!q.text && bIdx === 0 ? "text-[19px] font-bold shrink-0 mr-2" : "text-[19px] font-bold shrink-0"}>
+                              <span className={!q.text && bIdx === 0 ? "text-[16.5px] font-bold shrink-0 mr-2" : "text-[16.5px] font-bold shrink-0"}>
                                 {`${arabicLabels[bIdx] || 'أ'}/`}
                               </span>
-                              <p className="text-[19px] leading-[1.4] flex-1 font-semibold">
-                                {branch || '......................................................................................................................................................................................'}
+                              <p className="text-[16.5px] leading-[1.3] flex-1 font-semibold">
+                                {branch || '......................................................................................................................'}
                               </p>
                             </div>
                           ))}
@@ -303,11 +304,11 @@ export default function ExamBuilderModal({ onClose }: Props) {
                         /* No main text and no branches - Empty line */
                         !q.text && (
                           <div className="flex items-start gap-4">
-                            <span className="text-xl font-bold shrink-0">
+                            <span className="text-base font-bold shrink-0">
                               {q.customLabel ? q.customLabel : `س${idx + 1}/`}
                             </span>
-                            <p className="text-[19px] leading-[1.4] flex-1 font-semibold">
-                              ......................................................................................................................................................................................
+                            <p className="text-[16.5px] leading-[1.3] flex-1 font-semibold">
+                              ......................................................................................................................
                             </p>
                           </div>
                         )
@@ -326,19 +327,19 @@ export default function ExamBuilderModal({ onClose }: Props) {
 
           {/* PDF Footer Section */}
           <div className="shrink-0" dir={isEn ? "ltr" : "rtl"}>
-            <div className={`mt-6 border-t pt-4 flex justify-between items-end ${isEn ? '' : 'font-[Milligram Arabic Trial,sans-serif]'}`} style={{ borderColor: 'rgba(0,0,0,0.2)' }}>
-              <div className="text-xs font-bold leading-tight flex flex-col font-sans" style={{ color: '#94a3b8', textAlign: isEn ? 'left' : 'right' }}>
+            <div className={`mt-4 border-t pt-2 flex justify-between items-end ${isEn ? '' : 'font-[Milligram Arabic Trial,sans-serif]'}`} style={{ borderColor: 'rgba(0,0,0,0.2)' }}>
+              <div className="text-[10px] font-bold leading-tight flex flex-col font-sans" style={{ color: '#94a3b8', textAlign: isEn ? 'left' : 'right' }}>
                 <span>{isEn ? 'Created by Iraqi Academy App' : 'صُنع بواسطة تطبيق عراقي أكاديمي'}</span>
-                <span style={{ fontSize: '10px', direction: 'ltr' }}>https://iraqi-academy.vercel.app</span>
+                <span style={{ fontSize: '9px', direction: 'ltr' }}>https://iraqi-academy.vercel.app</span>
               </div>
               <div className={isEn ? "text-left" : "text-right"}>
-                <p className="text-sm font-bold mb-1">{isEn ? 'Teacher:' : 'مدرس المادة:'}</p>
-                <p className="text-lg font-bold">{isEn ? '' : 'الأستاذ '} {formData.teacherName}</p>
+                <p className="text-xs font-bold mb-0.5">{isEn ? 'Teacher:' : 'مدرس المادة:'}</p>
+                <p className="text-base font-bold">{isEn ? '' : 'الأستاذ '} {formData.teacherName}</p>
               </div>
             </div>
             
-            <div className={`text-center mt-6 mb-2 ${isEn ? '' : 'font-[Milligram Arabic Trial,sans-serif]'}`}>
-              <p className="text-sm italic font-bold border inline-block px-8 py-2 rounded-full" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
+            <div className={`text-center mt-3 mb-1 ${isEn ? '' : 'font-[Milligram Arabic Trial,sans-serif]'}`}>
+              <p className="text-xs italic font-bold border inline-block px-6 py-1 rounded-full" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
                 {isEn ? 'Best wishes for your success' : 'مع تمنياتنا لكم بالنجاح والموفقية'}
               </p>
             </div>

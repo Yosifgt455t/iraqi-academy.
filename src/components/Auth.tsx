@@ -75,12 +75,6 @@ export default function Auth({ onGuest }: Props) {
                 ابدأ الآن
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <button
-                onClick={onGuest}
-                className="w-full py-2 text-slate-500 font-medium hover:text-blue-600 transition-colors"
-              >
-                تخطي تسجيل الدخول
-              </button>
             </div>
           </motion.div>
         );
@@ -232,17 +226,7 @@ export default function Auth({ onGuest }: Props) {
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-100"></div>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-slate-400">أو</span>
-                </div>
               </div>
-
-              <button
-                onClick={onGuest}
-                className="w-full py-4 px-4 border border-transparent rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all font-bold text-lg"
-              >
-                الاستمرار كزائر
-              </button>
             </div>
             
             <button
