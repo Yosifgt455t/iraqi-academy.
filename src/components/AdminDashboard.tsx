@@ -229,8 +229,14 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "subjects") fetchSubjects();
-    if (activeTab === "chapters") fetchChapters();
+    // Fetch base dependencies needed across multiple tabs
+    if (["subjects", "chapters", "materials", "flashcards", "ministerial", "quiz", "database"].includes(activeTab)) {
+      fetchSubjects();
+    }
+    if (["chapters", "materials", "flashcards", "ministerial", "quiz", "database"].includes(activeTab)) {
+      fetchChapters();
+    }
+
     if (activeTab === "materials") {
       fetchMaterials();
       fetchTeachers();
@@ -245,8 +251,6 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     if (activeTab === "quiz") fetchQuizQuestions();
     if (activeTab === "news") fetchNews();
     if (activeTab === "database") {
-      fetchSubjects();
-      fetchChapters();
       fetchMaterials();
       fetchFlashcards();
       fetchMinisterialQuestions();
@@ -2707,7 +2711,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   (b.order_index ?? Number.MAX_SAFE_INTEGER),
                               )
                               .map((m) => (
-                                <button
+                                <div
                                   key={m.id}
                                   onClick={() => {
                                     setEditingId(m.id);
@@ -2730,19 +2734,16 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                         {m.question}
                                       </span>
                                     </div>
-                                    <button
- type="button"
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
-                                        handleDelete(
+                                    <div
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(
                                           "ministerial_questions",
                                           m.id,
                                           fetchMinisterialQuestions,
-                                        );
-                                       }}
+                                        ); }}
  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all shrink-0 z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
 >
  <Trash2 size={16} className="pointer-events-none" />
-</button>
+</div>
                                   </div>
                                   <div className="mt-2 flex items-center gap-4 text-[10px] font-black uppercase">
                                     <span className="bg-white group-hover:bg-blue-700 group-hover:text-white text-slate-500 px-2 py-0.5 rounded border border-slate-100 group-hover:border-blue-500 transition-colors">
@@ -2754,7 +2755,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       </span>
                                     )}
                                   </div>
-                                </button>
+                                </div>
                               ))}
 
                           {activeTab === "reviews" && (
@@ -2847,7 +2848,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                           )}
                           {activeTab === "quiz" &&
                             quizQuestions.map((q) => (
-                              <button
+                              <div
                                 key={q.id}
                                 onClick={() => {
                                   setEditingId(q.id);
@@ -2864,16 +2865,13 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   <HelpCircle size={18} className="group-hover:text-white text-amber-500" />
                                   <span className="font-bold truncate max-w-[200px]">{q.question}</span>
                                 </div>
-                                <button
- type="button"
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
-                                    handleDelete("quiz_questions", q.id, fetchQuizQuestions);
-                                   }}
+                                <div
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete("quiz_questions", q.id, fetchQuizQuestions); }}
  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
 >
  <Trash2 size={16} className="pointer-events-none" />
-</button>
-                              </button>
+</div>
+                              </div>
                             ))}
 
                           {activeTab === "teachers" &&
@@ -2902,7 +2900,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     </span>
                                   </div>
                                 </div>
-                                <button
+                                <div
                                   type="button"
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -2912,13 +2910,13 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   className="p-3 bg-red-50 hover:bg-red-500 rounded-xl text-red-500 hover:text-white transition-all z-10"
                                 >
                                   <Trash2 size={18} className="pointer-events-none" />
-                                </button>
+                                </div>
                               </div>
                             ))}
 
                           {activeTab === "subjects" &&
                             subjects.map((s) => (
-                              <button
+                              <div
                                 key={s.id}
                                 onClick={() => {
                                   setEditingId(s.id);
@@ -2935,25 +2933,22 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   />
                                   <span className="font-bold">{s.name}</span>
                                 </div>
-                                <button
- type="button"
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
-                                    handleDelete(
+                                <div
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(
                                       "subjects",
                                       s.id,
                                       fetchSubjects,
-                                    );
-                                   }}
+                                    ); }}
  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
 >
  <Trash2 size={16} className="pointer-events-none" />
-</button>
-                              </button>
+</div>
+                              </div>
                             ))}
 
                           {activeTab === "chapters" &&
                             chapters.map((c) => (
-                              <button
+                              <div
                                 key={c.id}
                                 onClick={() => {
                                   setEditingId(c.id);
@@ -2970,20 +2965,17 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   />
                                   <span className="font-bold">{c.name}</span>
                                 </div>
-                                <button
- type="button"
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
-                                    handleDelete(
+                                <div
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(
                                       "chapters",
                                       c.id,
                                       fetchChapters,
-                                    );
-                                   }}
+                                    ); }}
  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
 >
  <Trash2 size={16} className="pointer-events-none" />
-</button>
-                              </button>
+</div>
+                              </div>
                             ))}
 
                           {activeTab === "materials" &&
@@ -3025,19 +3017,16 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                         {m.title}
                                       </span>
                                     </div>
-                                    <button
- type="button"
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
-                                        handleDelete(
+                                    <div
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(
                                           "materials",
                                           m.id,
                                           fetchMaterials,
-                                        );
-                                       }}
+                                        ); }}
  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
 >
  <Trash2 size={16} className="pointer-events-none" />
-</button>
+</div>
                                   </div>
                                   <div className="mt-2 flex items-center gap-4 text-[10px] font-black uppercase">
                                     <span className="bg-white group-hover:bg-blue-700 group-hover:text-white text-slate-500 px-2 py-0.5 rounded border border-slate-100 group-hover:border-blue-500 transition-colors">
@@ -3083,19 +3072,16 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       {f.question}
                                     </span>
                                   </div>
-                                  <button
- type="button"
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
-                                      handleDelete(
+                                  <div
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(
                                         "flashcards",
                                         f.id,
                                         fetchFlashcards,
-                                      );
-                                     }}
+                                      ); }}
  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
 >
  <Trash2 size={16} className="pointer-events-none" />
-</button>
+</div>
                                 </div>
                                 <p className="mt-2 text-[10px] opacity-60 italic truncate w-full">
                                   {f.answer}
@@ -3127,15 +3113,12 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{item.category}</span>
                                     <h4 className="font-bold text-slate-900 group-hover:text-blue-600">{item.title}</h4>
                                   </div>
-                                  <button
- type="button"
- onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
-                                      handleDelete("news", item.id, fetchNews);
-                                     }}
+                                  <div
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete("news", item.id, fetchNews); }}
  className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
 >
  <Trash2 size={16} className="pointer-events-none" />
-</button>
+</div>
                                 </div>
                                 <p className="mt-2 text-xs text-slate-500 line-clamp-2">{item.content}</p>
                               </button>
