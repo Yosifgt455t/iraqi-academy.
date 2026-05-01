@@ -37,13 +37,15 @@ import {
   where,
   orderBy,
 } from "firebase/firestore";
-import { db, auth, setMaintenanceMode } from "../lib/firebase";
+import { db, auth, setMaintenanceMode, storage } from "../lib/firebase";
 import { onSnapshot } from "firebase/firestore";
 import { signOut } from "firebase/auth";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { motion, AnimatePresence } from "framer-motion";
 import { getAdmins, addAdmin, removeAdmin } from "../services/adminService";
 import { Grade } from "../types";
 import { useClasses } from "../hooks/useClasses";
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface Subject {
   id: string;
@@ -151,6 +153,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     "Video" | "PDF" | "Ministerial"
   >("Video");
   const [materialUrl, setMaterialUrl] = useState("");
+  const [materialFile, setMaterialFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
 
   const [materialOrderIndex, setMaterialOrderIndex] = useState<number>(0);
@@ -171,6 +175,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [reviewMatTitle, setReviewMatTitle] = useState("");
   const [reviewMatType, setReviewMatType] = useState<"PDF" | "Video">("PDF");
   const [reviewMatUrl, setReviewMatUrl] = useState("");
+  const [reviewMatFile, setReviewMatFile] = useState<File | null>(null);
   const [selectedReviewSubId, setSelectedReviewSubId] = useState("");
 
   // Quiz states
@@ -193,6 +198,11 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isBulkMode, setIsBulkMode] = useState(false);
+  const [isYoutubeMode, setIsYoutubeMode] = useState(false); // NEW
+  const [youtubePlaylistUrl, setYoutubePlaylistUrl] = useState("");
+  const [aiParsing, setAiParsing] = useState(false);
+  const [parsedYoutubeLessons, setParsedYoutubeLessons] = useState<{title: string, url: string}[]>([]); 
+
   const [bulkInput, setBulkInput] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -200,6 +210,48 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [formGradeFilter, setFormGradeFilter] = useState<Grade | "">("");
   const [formSubjectFilter, setFormSubjectFilter] = useState<string | "">("");
   const [listTeacherFilter, setListTeacherFilter] = useState<string>("");
+
+  const uploadFile = async (file: File): Promise<string> => {
+    try {
+      setUploadProgress(10);
+      const storageRef = ref(storage, `materials/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+      
+      return new Promise((resolve, reject) => {
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            // Prevent progress from going to 0 or weird values initially
+            setUploadProgress(Math.max(10, progress));
+          },
+          (err) => {
+            console.error("Firebase Storage Upload Error:", err);
+            // Alert user about common storage issues
+            if (err.message.includes("unauthorized")) {
+              alert("رفض الوصول: يرجى التأكد من تفعيل Storage Rules في Firebase.");
+            } else if (err.message.includes("retry")) {
+              alert("خطأ في الاتصال أو CORS. يرجى مراجعة إعدادات Firebase Storage.");
+            }
+            reject(err);
+          },
+          async () => {
+            try {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              setUploadProgress(100);
+              resolve(downloadURL);
+            } catch (urlErr) {
+              console.error("Error getting download URL", urlErr);
+              reject(urlErr);
+            }
+          }
+        );
+      });
+    } catch (err) {
+      console.error("Upload preparation error", err);
+      throw err;
+    }
+  };
 
   const filteredSubjectsForForms = useMemo(() => {
     return subjects.filter(
@@ -510,12 +562,73 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     }
   };
 
+  const handleParseYoutubeWithAI = async () => {
+    if (!youtubePlaylistUrl) return;
+    setAiParsing(true);
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: `Given the YouTube playlist URL: ${youtubePlaylistUrl}\nPlease extract all the videos in this playlist using your search capabilities. Return ONLY a JSON array containing objects with two properties: 'title' (the video title, strictly in its original Arabic if present) and 'url' (the absolute YouTube video link). Please do your best to extract all visible videos from this playlist.`,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                url: { type: Type.STRING }
+              },
+              required: ["title", "url"]
+            }
+          }
+        }
+      });
+      const items = JSON.parse(response.text || "[]");
+      if (items.length > 0) {
+        setParsedYoutubeLessons(items);
+        showToast("success", `تم استخراج ${items.length} فيديوهات، سيتم إدراجها عند الحفظ`);
+      } else {
+        showToast("error", "لم يتم العثور على فيديوهات");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("error", "حدث خطأ أثناء الاتصال بالذكاء الاصطناعي");
+    } finally {
+      setAiParsing(false);
+    }
+  };
+
   const handleAddMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedChapterIds.length === 0) return;
     setLoading(true);
     try {
-      if (isBulkMode) {
+      if (isYoutubeMode) {
+        if (parsedYoutubeLessons.length === 0) {
+           showToast("error", "لم يتم استخراج محاضرات بعد");
+           setLoading(false);
+           return;
+        }
+        for (let i = 0; i < parsedYoutubeLessons.length; i++) {
+          const l = parsedYoutubeLessons[i];
+          await addDoc(collection(db, "materials"), {
+            title: l.title,
+            url: l.url,
+            type: "Video",
+            chapterIds: selectedChapterIds,
+            teacherId: materialTeacherId,
+            order_index: materialOrderIndex + i,
+          });
+        }
+        showToast("success", `تمت إضافة ${parsedYoutubeLessons.length} محاضرات بنجاح`);
+        setParsedYoutubeLessons([]);
+        setYoutubePlaylistUrl("");
+      } else if (isBulkMode) {
         const lines = bulkInput
           .split("\n")
           .filter((l) => l.trim().includes("|"));
@@ -537,20 +650,28 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
         setBulkInput("");
       } else {
         if (editingId) {
+          let finalUrl = materialUrl;
+          if (materialFile) {
+            finalUrl = await uploadFile(materialFile);
+          }
           await updateDoc(doc(db, "materials", editingId), {
             title: materialTitle,
             type: materialType,
-            url: materialUrl,
+            url: finalUrl,
             chapterIds: selectedChapterIds,
             teacherId: materialTeacherId,
             order_index: materialOrderIndex,
           });
           showToast("success", "تم تعديل المحتوى بنجاح");
         } else {
+          let finalUrl = materialUrl;
+          if (materialFile) {
+            finalUrl = await uploadFile(materialFile);
+          }
           await addDoc(collection(db, "materials"), {
             title: materialTitle,
             type: materialType,
-            url: materialUrl,
+            url: finalUrl,
             chapterIds: selectedChapterIds,
             teacherId: materialTeacherId,
             order_index: materialOrderIndex,
@@ -560,11 +681,14 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
       }
       setMaterialTitle("");
       setMaterialUrl("");
+      setMaterialFile(null);
+      setUploadProgress(0);
       setMaterialOrderIndex(0);
       setEditingId(null);
       fetchMaterials();
-    } catch (err) {
-      showToast("error", "فشل الإجراء");
+    } catch (err: any) {
+      console.error("Error adding material:", err);
+      showToast("error", err?.message || "فشل الإجراء");
     } finally {
       setLoading(false);
     }
@@ -799,18 +923,26 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     setLoading(true);
     try {
       if (editingId) {
+        let finalUrl = reviewMatUrl;
+        if (reviewMatFile) {
+          finalUrl = await uploadFile(reviewMatFile);
+        }
         await updateDoc(doc(db, "review_materials", editingId), {
           title: reviewMatTitle,
           type: reviewMatType,
-          url: reviewMatUrl,
+          url: finalUrl,
           reviewSubjectId: selectedReviewSubId
         });
         showToast("success", "تم تعديل الملف بنجاح");
       } else {
+        let finalUrl = reviewMatUrl;
+        if (reviewMatFile) {
+          finalUrl = await uploadFile(reviewMatFile);
+        }
         await addDoc(collection(db, "review_materials"), {
           title: reviewMatTitle,
           type: reviewMatType,
-          url: reviewMatUrl,
+          url: finalUrl,
           reviewSubjectId: selectedReviewSubId,
           createdAt: new Date().toISOString()
         });
@@ -818,10 +950,13 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
       }
       setReviewMatTitle("");
       setReviewMatUrl("");
+      setReviewMatFile(null);
+      setUploadProgress(0);
       setEditingId(null);
       fetchReviewMaterials();
-    } catch (err) {
-      showToast("error", "فشل الإجراء");
+    } catch (err: any) {
+      console.error("Error adding review material:", err);
+      showToast("error", err?.message || "فشل الإجراء");
     } finally {
       setLoading(false);
     }
@@ -1310,12 +1445,29 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                         <h3 className="text-xl font-black text-slate-900 border-r-4 border-blue-500 pr-3">
                           {editingId ? "تعديل البيانات" : "إضافة بيانات جديدة"}
                         </h3>
-                        <button
-                          onClick={() => setIsBulkMode(!isBulkMode)}
-                          className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl font-black text-xs hover:bg-slate-100 transition-colors"
-                        >
-                          {isBulkMode ? "الوضع العادي" : "وضع الإضافة الجماعية"}
-                        </button>
+                        <div className="flex gap-2">
+                          {activeTab === "materials" && !editingId && (
+                            <button
+                              onClick={() => {
+                                setIsYoutubeMode(!isYoutubeMode);
+                                setIsBulkMode(false);
+                                setParsedYoutubeLessons([]);
+                                setYoutubePlaylistUrl("");
+                              }}
+                              className={`px-4 py-2 rounded-xl font-black text-xs transition-colors ${isYoutubeMode ? "bg-red-600 text-white" : "bg-red-50 text-red-600 hover:bg-red-100"}`}
+                            >
+                              إضافة من يوتيوب (AI)
+                            </button>
+                          )}
+                          {!isYoutubeMode && (
+                            <button
+                              onClick={() => setIsBulkMode(!isBulkMode)}
+                              className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl font-black text-xs hover:bg-slate-100 transition-colors"
+                            >
+                              {isBulkMode ? "الوضع العادي" : "وضع الإضافة الجماعية"}
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {activeTab === "classes" && (
@@ -1826,7 +1978,45 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                             </div>
                           </div>
 
-                          {isBulkMode ? (
+                          {isYoutubeMode ? (
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">استخراج قائمة تشغيل من يوتيوب (بواسطة الذكاء الاصطناعي)</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="url"
+                                  value={youtubePlaylistUrl}
+                                  onChange={(e) => setYoutubePlaylistUrl(e.target.value)}
+                                  placeholder="أدخل رابط قائمة تشغيل يوتيوب (YouTube Playlist URL)"
+                                  className="flex-1 w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-red-100 focus:border-red-500 font-bold text-sm text-left"
+                                  dir="ltr"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleParseYoutubeWithAI}
+                                  disabled={!youtubePlaylistUrl || aiParsing}
+                                  className="px-6 py-4 bg-red-600 text-white rounded-xl font-black text-sm whitespace-nowrap hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                                >
+                                  {aiParsing ? <Loader2 size={20} className="animate-spin" /> : <Youtube size={20} />}
+                                  {aiParsing ? "جاري التحليل..." : "تحليل واستخراج"}
+                                </button>
+                              </div>
+                              {parsedYoutubeLessons.length > 0 && (
+                                <div className="mt-4 border border-emerald-200 bg-emerald-50 rounded-xl p-4">
+                                  <h4 className="font-black text-emerald-800 mb-3 text-sm flex items-center justify-between">
+                                    <span>تم استخراج {parsedYoutubeLessons.length} دروس بنجاح، عند ضغط 'إضافة' سيتم ادراجها</span>
+                                  </h4>
+                                  <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2 mb-4">
+                                    {parsedYoutubeLessons.map((l, idx) => (
+                                      <li key={idx} className="flex flex-col gap-1 p-2 bg-white rounded-lg border border-emerald-100 text-right">
+                                        <span className="font-bold text-sm text-slate-800 line-clamp-1">{l.title}</span>
+                                        <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-500 hover:underline line-clamp-1 truncate block w-full" dir="ltr">{l.url}</a>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ) : isBulkMode ? (
                             <div className="space-y-4">
                               <label className="block text-sm font-black text-slate-700">
                                 الإضافة الجماعية للمحاضرات (العنوان | الرابط |
@@ -1900,12 +2090,36 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   onChange={(e) =>
                                     setMaterialUrl(e.target.value)
                                   }
-                                  required={!isBulkMode}
+                                  required={!isBulkMode && !materialFile}
                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="https://..."
+                                  disabled={!!materialFile}
                                 />
                               </div>
                               <div className="md:col-span-1">
+                                <label className="block text-sm font-black text-slate-700 mb-2">
+                                  أو رفع ملف (PDF)
+                                </label>
+                                <input
+                                  type="file"
+                                  accept=".pdf"
+                                  onChange={(e) => {
+                                      if (e.target.files && e.target.files[0]) {
+                                          setMaterialFile(e.target.files[0]);
+                                      } else {
+                                          setMaterialFile(null);
+                                      }
+                                  }}
+                                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold text-sm"
+                                  disabled={!!materialUrl && materialUrl.length > 0}
+                                />
+                                {uploadProgress > 0 && uploadProgress < 100 && (
+                                  <div className="w-full bg-slate-200 rounded-full h-2.5 mt-2">
+                                    <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="md:col-span-full">
                                 <label className="block text-sm font-black text-slate-700 mb-2">
                                   ترتيب ظهور المحاضرة (اختياري)
                                 </label>
@@ -2327,12 +2541,36 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                             <div className="space-y-4">
                               <label className="block text-sm font-black text-slate-700">الرابط (رابط PDF أو يوتيوب)</label>
                               <input
-                                required
+                                required={!reviewMatFile}
                                 value={reviewMatUrl}
                                 onChange={(e) => setReviewMatUrl(e.target.value)}
                                 className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 placeholder="https://..."
+                                dir="ltr"
+                                disabled={!!reviewMatFile}
                               />
+                            </div>
+
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">أو رفع ملف (PDF)</label>
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    setReviewMatFile(e.target.files[0]);
+                                  } else {
+                                    setReviewMatFile(null);
+                                  }
+                                }}
+                                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold text-sm"
+                                disabled={!!reviewMatUrl && reviewMatUrl.length > 0}
+                              />
+                              {uploadProgress > 0 && uploadProgress < 100 && (
+                                <div className="w-full bg-slate-200 rounded-full h-2.5 mt-2">
+                                  <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+                                </div>
+                              )}
                             </div>
 
                             <button
@@ -2714,7 +2952,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <option value="">الكل (بدون تصفية)</option>
                               {teachers.map((t) => (
                                 <option key={t.id} value={t.id}>
-                                  {t.name} - {t.subject}
+                                  {t.name} - {subjects.find(s => s.id === t.subjectId)?.name || 'بدون مادة'}
                                 </option>
                               ))}
                             </select>
@@ -2919,7 +3157,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     </span>
                                   </div>
                                 </div>
-                                <div
+                                <button
                                   type="button"
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -2929,7 +3167,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   className="p-3 bg-red-50 hover:bg-red-500 rounded-xl text-red-500 hover:text-white transition-all z-10"
                                 >
                                   <Trash2 size={18} className="pointer-events-none" />
-                                </div>
+                                </button>
                               </div>
                             ))}
 

@@ -78,8 +78,23 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
   }, [selectedVideo]);
 
   const getPdfSource = (url: string | null | undefined) => {
-    if (!url) return null;
+    if (!url) return undefined;
     if (url.startsWith('data:')) return url;
+    if (url.includes('firebasestorage.googleapis.com')) return url;
+    
+    // Handle Google Drive links
+    if (url.includes('drive.google.com/file/d/')) {
+      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://drive.google.com/file/d/${match[1]}/preview`;
+      }
+    } else if (url.includes('drive.google.com/open?id=')) {
+      const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://drive.google.com/file/d/${match[1]}/preview`;
+      }
+    }
+    
     return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
   };
 

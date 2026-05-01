@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { initializeFirestore, doc, getDoc, setDoc, updateDoc, getDocFromServer, onSnapshot } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 console.log("Firebase initializing with Project ID:", firebaseConfig.projectId);
@@ -8,8 +9,10 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore with force long polling to bypass network restrictions
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
+  experimentalAutoDetectLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
+
+export const storage = getStorage(app);
 
 console.log("Firestore initialized with DB ID:", firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
