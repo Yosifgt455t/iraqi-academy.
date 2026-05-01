@@ -9,6 +9,16 @@
         "displayName": { "type": "string", "description": "User's display name." },
         "email": { "type": "string", "description": "User's email address." },
         "photoURL": { "type": "string", "description": "URL to the user's profile picture." },
+        "grade": { "type": "string" },
+        "xp": { "type": "number", "default": 0 },
+        "level": { "type": "number", "default": 1 },
+        "streak": {
+          "type": "object",
+          "properties": {
+            "count": { "type": "number" },
+            "lastUpdate": { "type": "string" }
+          }
+        },
         "createdAt": { "type": "string", "format": "date-time", "description": "When the account was created." }
       },
       "required": ["uid", "email"]
@@ -66,11 +76,23 @@
       "type": "object",
       "properties": {
         "chapterId": { "type": "string" },
+        "teacherId": { "type": "string" },
         "title": { "type": "string" },
         "type": { "type": "string", "enum": ["PDF", "Video", "Ministerial"] },
         "url": { "type": "string" }
       },
       "required": ["chapterId", "title", "type", "url"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Information about a teacher for a specific subject.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "avatar": { "type": "string" }
+      },
+      "required": ["name", "subjectId"]
     },
     "Flashcard": {
       "title": "Flashcard",
@@ -141,6 +163,64 @@
         "type": { "type": "string", "enum": ["pdf", "link", "text", "youtube"] },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "Review": {
+      "title": "Focused Review",
+      "description": "Educational reviews or summaries for specific subjects.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subjectIds": { "type": "array", "items": { "type": "string" } },
+        "gradeIds": { "type": "array", "items": { "type": "string" } },
+        "url": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "url"]
+    },
+    "QuizQuestion": {
+      "title": "Millionaire Quiz Question",
+      "description": "Questions for the Millionaire-style game.",
+      "type": "object",
+      "properties": {
+        "question": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "correctAnswer": { "type": "number" },
+        "difficulty": { "type": "number" },
+        "subjectId": { "type": "string" }
+      },
+      "required": ["question", "options", "correctAnswer"]
+    },
+    "ForumPost": {
+      "title": "Forum Post",
+      "description": "A community discussion post.",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "likes": { "type": "number" },
+        "commentCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "title", "content"]
+    },
+    "ForumComment": {
+      "title": "Forum Comment",
+      "description": "A comment on a forum post.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "authorId", "content"]
     }
   },
   "firestore": {
@@ -168,6 +248,10 @@
       "schema": "Material",
       "description": "Lectures, PDFs, and videos."
     },
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Teachers collection."
+    },
     "/flashcards/{flashcardId}": {
       "schema": "Flashcard",
       "description": "Smart study cards."
@@ -183,6 +267,34 @@
     "/sources/{sourceId}": {
       "schema": "Source",
       "description": "User's saved sources for contextual AI AI."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Focused reviews for students."
+    },
+    "/quiz_questions/{questionId}": {
+      "schema": "QuizQuestion",
+      "description": "Millionaire game questions."
+    },
+    "/forum_posts/{postId}": {
+      "schema": "ForumPost",
+      "description": "Community posts."
+    },
+    "/forum_comments/{commentId}": {
+      "schema": "ForumComment",
+      "description": "Comments on community posts."
+    },
+    "/news/{newsId}": {
+      "schema": "NewsItem",
+      "description": "Platform global news."
+    },
+    "/review_subjects/{subjectId}": {
+      "schema": "ReviewSubject",
+      "description": "Subjects in the review section."
+    },
+    "/review_materials/{materialId}": {
+      "schema": "ReviewMaterial",
+      "description": "Files/Videos inside a review subject."
     }
   }
 }

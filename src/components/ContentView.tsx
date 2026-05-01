@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { db } from '../lib/firebase';
+import { db, awardXP } from '../lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
-import { Material, Flashcard, Chapter, Grade, MinisterialQuestion } from '../types';
+import { Material, Flashcard, Chapter, Grade, MinisterialQuestion, Teacher } from '../types';
 import { getAIClient } from '../services/aiService';
 import { Type } from "@google/genai";
-import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye } from 'lucide-react';
+import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye, GraduationCap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
 
@@ -14,9 +14,10 @@ interface Props {
   chapter: Chapter;
   userId: string;
   grade: Grade;
+  teacher?: Teacher | null;
 }
 
-export default function ContentView({ chapter, userId, grade }: Props) {
+export default function ContentView({ chapter, userId, grade, teacher }: Props) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [ministerialQuestions, setMinisterialQuestions] = useState<MinisterialQuestion[]>([]);
@@ -93,6 +94,8 @@ export default function ContentView({ chapter, userId, grade }: Props) {
         completed_materials: newCompletedIds,
         updatedAt: new Date().toISOString()
       });
+      // Award 50 XP for completing a lesson
+      await awardXP(userId, 50);
     } catch (err) {
       console.error('Error updating progress in Firestore:', err);
     }
@@ -321,6 +324,14 @@ export default function ContentView({ chapter, userId, grade }: Props) {
       const text = response.text || "{}";
       const result = JSON.parse(text);
       setEvaluationResult(result);
+      
+      // Award XP for good answers
+      const numericScore = parseInt(result.score) || 0;
+      if (numericScore >= 90) {
+        await awardXP(userId, 150); // Big reward for excellence
+      } else if (numericScore >= 50) {
+        await awardXP(userId, 75); // Reward for passing
+      }
     } catch (err) {
       console.error("Evaluation Error:", err);
       setEvaluationResult({
@@ -331,6 +342,10 @@ export default function ContentView({ chapter, userId, grade }: Props) {
       setIsEvaluationLoading(false);
     }
   };
+
+  const filteredMaterials = teacher
+    ? materials.filter(m => (m as any).teacherId === teacher.id || !(m as any).teacherId)
+    : materials;
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
@@ -425,103 +440,119 @@ export default function ContentView({ chapter, userId, grade }: Props) {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-4"
           >
-            {materials.filter(m => m.type !== 'Ministerial').length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {materials.filter(m => m.type !== 'Ministerial').map((m) => {
-                  const isCompleted = completedIds.includes(m.id);
-                  return (
-                    <div key={m.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col relative group overflow-hidden">
-                      <div className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4 relative z-10 bg-white">
-                        <button
-                          onClick={() => toggleCompletion(m.id)}
-                          className={`absolute -top-2 -left-2 p-1.5 rounded-full shadow-md transition-all z-10 ${
-                            isCompleted ? 'bg-green-500 text-white' : 'bg-white text-slate-300 hover:text-green-500'
-                          }`}
-                          title={isCompleted ? 'تم الإكمال' : (m.type === 'PDF' ? 'تحديد كمكتمل' : 'تحديد كمكتمل (يتم تلقائياً بعد مشاهدة 80%)')}
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                        
-                        <div className={`p-3 sm:p-4 rounded-xl transition-colors flex-shrink-0 mt-1 sm:mt-0 ${
-                          isCompleted 
-                            ? 'bg-green-50 text-green-600' 
-                            : m.type === 'PDF' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
-                        }`}>
-                          {m.type === 'PDF' ? <FileText size={24} /> : <Play size={24} />}
-                        </div>
-                        <div className="flex-1 min-w-0 pr-1">
-                          <h4 className={`font-bold transition-colors text-sm sm:text-base leading-relaxed break-words ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                            {m.title}
-                          </h4>
-                          <p className="text-xs text-slate-500 mt-1">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
-                          {m.type !== 'PDF' && (
-                            <div className="mt-3 w-full max-w-[200px] bg-slate-100 rounded-full h-1.5 overflow-hidden flex items-center">
-                              <div 
-                                className={`h-full transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
-                                style={{ width: `${isCompleted ? 100 : Math.min(100, Math.max(0, videoProgress[m.id] || 0))}%` }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => setExpandedMaterialId(expandedMaterialId === m.id ? null : m.id)}
-                            className={`p-2 rounded-lg transition-all ${expandedMaterialId === m.id ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
-                            title="عرض سريع"
-                          >
-                            <Eye size={20} />
-                          </button>
-                          {m.type === 'PDF' ? (
-                            <button
-                              onClick={() => setSelectedPdf(m.url || (m as any).content)}
-                              className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                              title="عرض بشاشة كاملة"
-                            >
-                              <ExternalLink size={20} />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => openVideoModal(m)}
-                              className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                              title="عرض بشاشة كاملة"
-                            >
-                              <Play size={20} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <AnimatePresence>
-                        {expandedMaterialId === m.id && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="bg-slate-50 border-t border-slate-100"
-                          >
-                            <div className="p-4">
-                              {m.type === 'PDF' ? (
-                                <iframe
-                                  src={getPdfSource(m.url || (m as any).content)}
-                                  className="w-full h-80 sm:h-96 rounded-xl border border-slate-200"
-                                  title="PDF Quick View"
-                                ></iframe>
-                              ) : (
-                                <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-sm relative">
-                                  <VideoPlayer
-                                    material={m}
-                                    isPlaying={false}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </motion.div>
+            {filteredMaterials.filter(m => m.type !== 'Ministerial').length > 0 ? (
+              <>
+                {teacher && (
+                  <div className="flex items-center justify-between mb-4 px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100">
+                        {teacher.avatar ? (
+                          <img src={teacher.avatar} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-400">
+                            <GraduationCap size={16} />
+                          </div>
                         )}
-                      </AnimatePresence>
+                      </div>
+                      <span className="text-sm font-bold text-slate-700">شرح أ. {teacher.name}</span>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredMaterials.filter(m => m.type !== 'Ministerial').map((m) => {
+                    const isCompleted = completedIds.includes(m.id);
+                    return (
+                      <div key={m.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col relative group overflow-hidden">
+                        <div className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4 relative z-10 bg-white">
+                          <button
+                            onClick={() => toggleCompletion(m.id)}
+                            className={`absolute -top-2 -left-2 p-1.5 rounded-full shadow-md transition-all z-10 ${
+                              isCompleted ? 'bg-green-500 text-white' : 'bg-white text-slate-300 hover:text-green-500'
+                            }`}
+                            title={isCompleted ? 'تم الإكمال' : (m.type === 'PDF' ? 'تحديد كمكتمل' : 'تحديد كمكتمل (يتم تلقائياً بعد مشاهدة 80%)')}
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                          <div className={`p-3 sm:p-4 rounded-xl transition-colors flex-shrink-0 mt-1 sm:mt-0 ${
+                            isCompleted 
+                              ? 'bg-green-50 text-green-600' 
+                              : m.type === 'PDF' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+                          }`}>
+                            {m.type === 'PDF' ? <FileText size={24} /> : <Play size={24} />}
+                          </div>
+                          <div className="flex-1 min-w-0 pr-1">
+                            <h4 className={`font-bold transition-colors text-sm sm:text-base leading-relaxed break-words ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                              {m.title}
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-1">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
+                            {m.type !== 'PDF' && (
+                              <div className="mt-3 w-full max-w-[200px] bg-slate-100 rounded-full h-1.5 overflow-hidden flex items-center">
+                                <div 
+                                  className={`h-full transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
+                                  style={{ width: `${isCompleted ? 100 : Math.min(100, Math.max(0, videoProgress[m.id] || 0))}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => setExpandedMaterialId(expandedMaterialId === m.id ? null : m.id)}
+                              className={`p-2 rounded-lg transition-all ${expandedMaterialId === m.id ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                              title="عرض سريع"
+                            >
+                              <Eye size={20} />
+                            </button>
+                            {m.type === 'PDF' ? (
+                              <button
+                                onClick={() => setSelectedPdf(m.url || (m as any).content)}
+                                className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                title="عرض بشاشة كاملة"
+                              >
+                                <ExternalLink size={20} />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => openVideoModal(m)}
+                                className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                title="عرض بشاشة كاملة"
+                              >
+                                <Play size={20} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <AnimatePresence>
+                          {expandedMaterialId === m.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="bg-slate-50 border-t border-slate-100"
+                            >
+                              <div className="p-4">
+                                {m.type === 'PDF' ? (
+                                  <iframe
+                                    src={getPdfSource(m.url || (m as any).content)}
+                                    className="w-full h-80 sm:h-96 rounded-xl border border-slate-200"
+                                    title="PDF Quick View"
+                                  ></iframe>
+                                ) : (
+                                  <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-sm relative">
+                                    <VideoPlayer
+                                      material={m}
+                                      isPlaying={false}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}

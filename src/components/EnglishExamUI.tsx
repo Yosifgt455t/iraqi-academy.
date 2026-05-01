@@ -38,7 +38,7 @@ const englishLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
   return (
     <div 
-      className="flex flex-col flex-1"
+      className="flex flex-col flex-1 shrink-0"
       dir="ltr"
       style={{ 
         minHeight: '700px',

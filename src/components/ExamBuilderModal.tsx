@@ -118,12 +118,13 @@ export default function ExamBuilderModal({ onClose }: Props) {
       const contentHeight = element.scrollHeight;
       
       const a4Height = 1123;
-      const totalPages = Math.max(1, Math.ceil((contentHeight - 20) / a4Height));
+      const totalPages = isEn ? 2 : 1;
       const newTotalHeight = totalPages * a4Height;
       
       // Temporarily fix height to exact multiple of A4 so footer sticks to bottom of last page
       element.style.minHeight = `${newTotalHeight}px`;
       element.style.height = `${newTotalHeight}px`;
+      element.style.overflow = 'hidden';
 
       const canvas = await html2canvas(element, {
         scale: 2,
@@ -134,27 +135,24 @@ export default function ExamBuilderModal({ onClose }: Props) {
       // restore original heights
       element.style.height = originalContainerHeight;
       element.style.minHeight = originalMinHeight;
+      element.style.overflow = 'visible';
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       
-      // Calculate height of the image on the PDF based on the canvas
       const imgProps = pdf.getImageProperties(imgData);
       const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
-      let heightLeft = imgHeight;
-      let position = 0;
+      const targetPages = isEn ? 2 : 1;
       
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-      heightLeft -= pageHeight;
-      
-      while (heightLeft > 0) {
-        position = position - pageHeight;
-        pdf.addPage();
+      for (let i = 0; i < targetPages; i++) {
+        if (i > 0) {
+          pdf.addPage();
+        }
+        const position = -(i * pageHeight);
         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-        heightLeft -= pageHeight;
       }
       
       pdf.save(isEn ? `Exam_${formData.subject || 'Questions'}.pdf` : `اسئلة_${formData.subject || 'امتحان'}.pdf`);
@@ -179,7 +177,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
             width: '794px', 
             minHeight: '1123px',
             direction: isEn ? 'ltr' : 'rtl',
-            fontFamily: isEn ? "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" : "'Noto Sans Arabic', sans-serif"
+            fontFamily: isEn ? "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" : "Arial, Tahoma, sans-serif"
           }}
         >
           {/* PDF Header Section */}
@@ -206,15 +204,15 @@ export default function ExamBuilderModal({ onClose }: Props) {
             <EnglishExamPdf exam={engExam} />
           ) : (
             <div 
-              className="flex flex-col flex-1"
+              className="flex flex-col flex-1 overflow-hidden"
               dir="rtl"
               style={{ 
                 minHeight: '850px',
-                fontFamily: "'Cairo', 'Milligram Arabic Trial', 'Noto Sans Arabic', sans-serif",
+                fontFamily: "Arial, Tahoma, sans-serif",
                 fontWeight: 400,
                 textAlign: 'right',
                 justifyContent: 'flex-start',
-                lineHeight: '1.3'
+                lineHeight: '1.4'
               }}
             >
               <div className="text-center mb-2">
@@ -226,7 +224,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
               <div className="space-y-0 text-[16.5px]">
                 {questions.map((q, idx) => (
                   <React.Fragment key={idx}>
-                    <div className="py-0.5 space-y-1.5">
+                    <div className="py-0.5 space-y-1.5 shrink-0">
                       {/* Section Title */}
                       {q.sectionTitle && (
                         <div className="font-bold text-[17px] italic mt-1 mb-0.5">
@@ -320,14 +318,12 @@ export default function ExamBuilderModal({ onClose }: Props) {
                   </React.Fragment>
                 ))}
               </div>
-              
-              <div className="mt-auto"></div>
             </div>
           )}
 
           {/* PDF Footer Section */}
-          <div className="shrink-0" dir={isEn ? "ltr" : "rtl"}>
-            <div className={`mt-4 border-t pt-2 flex justify-between items-end ${isEn ? '' : 'font-[Milligram Arabic Trial,sans-serif]'}`} style={{ borderColor: 'rgba(0,0,0,0.2)' }}>
+          <div className="shrink-0 mt-auto" dir={isEn ? "ltr" : "rtl"}>
+            <div className={`mt-4 border-t pt-2 flex justify-between items-end ${isEn ? '' : ''}`} style={{ borderColor: 'rgba(0,0,0,0.2)' }}>
               <div className="text-[10px] font-bold leading-tight flex flex-col font-sans" style={{ color: '#94a3b8', textAlign: isEn ? 'left' : 'right' }}>
                 <span>{isEn ? 'Created by Iraqi Academy App' : 'صُنع بواسطة تطبيق عراقي أكاديمي'}</span>
                 <span style={{ fontSize: '9px', direction: 'ltr' }}>https://iraqi-academy.vercel.app</span>

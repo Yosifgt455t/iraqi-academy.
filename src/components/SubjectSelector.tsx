@@ -119,14 +119,14 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center py-20 px-6 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-6"
+        className="text-center py-20 px-6 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 space-y-6"
       >
         <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
           <Sparkles size={40} />
         </div>
         <div className="space-y-2">
-          <h3 className="text-2xl font-bold text-slate-900">سيتم إضافة المواد قريباً</h3>
-          <p className="text-slate-500 max-w-md mx-auto">
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white">سيتم إضافة المواد قريباً</h3>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
             نحن نعمل حالياً على تجهيز أفضل المصادر التعليمية لهذا الصف الدراسي. ترقبونا قريباً!
           </p>
         </div>
@@ -136,7 +136,7 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-slate-900 text-center">اختر المادة الدراسية</h2>
+      <h2 className="text-2xl font-bold text-slate-900 dark:text-white text-center">اختر المادة الدراسية</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {subjects.map((subject) => {
           const Icon = iconMap[subject.name] || Book;
@@ -145,25 +145,25 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
             <button
               key={subject.id}
               onClick={() => onSelect(subject)}
-              className="flex flex-col p-6 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-blue-500 hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 group text-right"
+              className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 hover:border-blue-500 hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 group text-right"
             >
               <div className="flex items-center w-full mb-4">
-                <div className="p-4 bg-blue-50 text-blue-600 rounded-xl ml-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl ml-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <Icon size={28} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-slate-900">{subject.name}</h3>
-                  <p className="text-sm text-slate-500">تصفح الفصول والمصادر</p>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">{subject.name}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">تصفح الفصول والمصادر</p>
                 </div>
-                <ChevronLeft className="text-slate-300 group-hover:text-blue-500" />
+                <ChevronLeft className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
               </div>
               
               <div className="w-full space-y-2">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-blue-600">اكتملت بنسبة {progress}%</span>
-                  <span className="text-slate-400">التقدم الكلي</span>
+                  <span className="text-blue-600 dark:text-blue-400">اكتملت بنسبة {progress}%</span>
+                  <span className="text-slate-400 dark:text-slate-500">التقدم الكلي</span>
                 </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}

@@ -9,9 +9,10 @@ interface Props {
   subject: Subject;
   userId: string;
   onSelect: (chapter: Chapter) => void;
+  teacherId?: string;
 }
 
-export default function ChapterSelector({ subject, userId, onSelect }: Props) {
+export default function ChapterSelector({ subject, userId, onSelect, teacherId }: Props) {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [completedMaterials, setCompletedMaterials] = useState<string[]>([]);
@@ -62,10 +63,19 @@ export default function ChapterSelector({ subject, userId, onSelect }: Props) {
 
   const getChapterProgress = (chapterId: string) => {
     const chapterMaterials = allMaterials.filter((m: any) => {
-      if (m.chapterIds && Array.isArray(m.chapterIds)) {
-        return m.chapterIds.includes(chapterId);
+      // Filter by chapter
+      const belongsToChapter = (m.chapterIds && Array.isArray(m.chapterIds)) 
+        ? m.chapterIds.includes(chapterId)
+        : m.chapterId === chapterId;
+        
+      if (!belongsToChapter) return false;
+
+      // Filter by teacher if selected
+      if (teacherId) {
+        return m.teacherId === teacherId || !m.teacherId;
       }
-      return m.chapterId === chapterId;
+      
+      return true;
     });
     if (chapterMaterials.length === 0) return 0;
     const completedInChapter = chapterMaterials.filter(m => completedMaterials.includes(m.id)).length;

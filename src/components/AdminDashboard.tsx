@@ -23,6 +23,8 @@ import {
   School,
   Eye,
   EyeOff,
+  GraduationCap,
+  MessageSquare
 } from "lucide-react";
 import {
   collection,
@@ -62,6 +64,7 @@ interface Material {
   url: string;
   chapterIds: string[];
   order_index?: number;
+  teacherId?: string;
 }
 
 export interface MinisterialQuestion {
@@ -85,6 +88,13 @@ interface AdminDashboardProps {
   onBack: () => void;
 }
 
+interface Teacher {
+  id: string;
+  name: string;
+  subjectId: string;
+  avatar?: string;
+}
+
 export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const {
     stages,
@@ -101,6 +111,10 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     | "materials"
     | "flashcards"
     | "ministerial"
+    | "teachers"
+    | "reviews"
+    | "quiz"
+    | "news"
     | "database"
     | "settings"
   >("subjects");
@@ -109,10 +123,21 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [ministerialQuestions, setMinisterialQuestions] = useState<any[]>([]);
+  const [reviewSubjects, setReviewSubjects] = useState<any[]>([]);
+  const [reviewMaterials, setReviewMaterials] = useState<any[]>([]);
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [news, setNews] = useState<any[]>([]);
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
 
   const ADMIN_EMAIL = "jwjwjwjueue@gmail.com";
   const isSuperAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  // News form
+  const [newsTitle, setNewsTitle] = useState('');
+  const [newsContent, setNewsContent] = useState('');
+  const [newsImage, setNewsImage] = useState('');
+  const [newsCategory, setNewsCategory] = useState('عام');
 
   // Form states
   const [subjectName, setSubjectName] = useState("");
@@ -138,6 +163,27 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [minQuestYear, setMinQuestYear] = useState("");
 
   const [minQuestOrderIndex, setMinQuestOrderIndex] = useState<number>(0);
+
+  // Review states
+  const [reviewSubName, setReviewSubName] = useState("");
+  const [reviewSubGrades, setReviewSubGrades] = useState<Grade[]>([]);
+  
+  const [reviewMatTitle, setReviewMatTitle] = useState("");
+  const [reviewMatType, setReviewMatType] = useState<"PDF" | "Video">("PDF");
+  const [reviewMatUrl, setReviewMatUrl] = useState("");
+  const [selectedReviewSubId, setSelectedReviewSubId] = useState("");
+
+  // Quiz states
+  const [quizQuestion, setQuizQuestion] = useState("");
+  const [quizOptions, setQuizOptions] = useState(["", "", "", ""]);
+  const [quizCorrectAnswer, setQuizCorrectAnswer] = useState(0);
+  const [quizDifficulty, setQuizDifficulty] = useState(1);
+  const [quizSubjectId, setQuizSubjectId] = useState("");
+  
+  const [teacherName, setTeacherName] = useState("");
+  const [teacherSubjectId, setTeacherSubjectId] = useState("");
+  const [teacherAvatar, setTeacherAvatar] = useState("");
+  const [materialTeacherId, setMaterialTeacherId] = useState("");
 
   const [adminEmails, setAdminEmails] = useState<string[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
@@ -185,15 +231,28 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   useEffect(() => {
     if (activeTab === "subjects") fetchSubjects();
     if (activeTab === "chapters") fetchChapters();
-    if (activeTab === "materials") fetchMaterials();
+    if (activeTab === "materials") {
+      fetchMaterials();
+      fetchTeachers();
+    }
     if (activeTab === "flashcards") fetchFlashcards();
     if (activeTab === "ministerial") fetchMinisterialQuestions();
+    if (activeTab === "teachers") fetchTeachers();
+    if (activeTab === "reviews") {
+      fetchReviewSubjects();
+      fetchReviewMaterials();
+    }
+    if (activeTab === "quiz") fetchQuizQuestions();
+    if (activeTab === "news") fetchNews();
     if (activeTab === "database") {
       fetchSubjects();
       fetchChapters();
       fetchMaterials();
       fetchFlashcards();
       fetchMinisterialQuestions();
+      fetchReviewSubjects();
+      fetchReviewMaterials();
+      fetchQuizQuestions();
     }
   }, [activeTab]);
 
@@ -220,6 +279,15 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     if (!isSuperAdmin) return;
     const list = await getAdmins();
     setAdminEmails(list);
+  };
+
+  const fetchTeachers = async () => {
+    try {
+      const snap = await getDocs(collection(db, "teachers"));
+      setTeachers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Teacher)));
+    } catch (err) {
+      console.error("Error fetching teachers:", err);
+    }
   };
 
   const handleAddAdmin = async () => {
@@ -302,6 +370,16 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     setMaterials(
       snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Material),
     );
+  };
+
+  const fetchNews = async () => {
+    try {
+      const q = query(collection(db, "news"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      setNews(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (err) {
+      console.error("Error fetching news:", err);
+    }
   };
 
   const fetchFlashcards = async () => {
@@ -391,6 +469,42 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     }
   };
 
+  const handleAddNews = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (editingId) {
+        await updateDoc(doc(db, "news", editingId), {
+          title: newsTitle,
+          content: newsContent,
+          imageUrl: newsImage,
+          category: newsCategory,
+          updatedAt: new Date().toISOString()
+        });
+        showToast("success", "تم تعديل الخبر بنجاح");
+      } else {
+        await addDoc(collection(db, "news"), {
+          title: newsTitle,
+          content: newsContent,
+          imageUrl: newsImage,
+          category: newsCategory,
+          createdAt: new Date().toISOString()
+        });
+        showToast("success", "تمت إضافة الخبر بنجاح");
+      }
+      setNewsTitle("");
+      setNewsContent("");
+      setNewsImage("");
+      setNewsCategory("عام");
+      setEditingId(null);
+      fetchNews();
+    } catch (err) {
+      showToast("error", "فشل إضافة الخبر");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedChapterIds.length === 0) return;
@@ -409,6 +523,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
               url,
               type: type || "Video",
               chapterIds: selectedChapterIds,
+              teacherId: materialTeacherId,
               order_index: materialOrderIndex + i,
             });
           }
@@ -422,6 +537,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             type: materialType,
             url: materialUrl,
             chapterIds: selectedChapterIds,
+            teacherId: materialTeacherId,
             order_index: materialOrderIndex,
           });
           showToast("success", "تم تعديل المحتوى بنجاح");
@@ -431,6 +547,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             type: materialType,
             url: materialUrl,
             chapterIds: selectedChapterIds,
+            teacherId: materialTeacherId,
             order_index: materialOrderIndex,
           });
           showToast("success", "تمت إضافة المحتوى بنجاح");
@@ -556,6 +673,35 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     }
   };
 
+  const handleAddTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = {
+        name: teacherName,
+        subjectId: teacherSubjectId,
+        avatar: teacherAvatar || ""
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "teachers", editingId), data);
+        showToast("success", "تم تعديل المدرس بنجاح");
+      } else {
+        await addDoc(collection(db, "teachers"), data);
+        showToast("success", "تمت إضافة المدرس بنجاح");
+      }
+      setTeacherName("");
+      setTeacherSubjectId("");
+      setTeacherAvatar("");
+      setEditingId(null);
+      fetchTeachers();
+    } catch (err) {
+      showToast("error", "فشل الإجراء");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async (
     coll: string,
     id: string,
@@ -572,6 +718,148 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     } catch (err) {
       showToast("error", "فشل الحذف");
     }
+  };
+
+  const fetchReviewSubjects = async () => {
+    try {
+      const q = query(collection(db, "review_subjects"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      setReviewSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (err) {
+      console.error("Error fetching review subjects:", err);
+    }
+  };
+
+  const fetchReviewMaterials = async () => {
+    try {
+      const q = query(collection(db, "review_materials"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      setReviewMaterials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (err) {
+      console.error("Error fetching review materials:", err);
+    }
+  };
+
+  const fetchQuizQuestions = async () => {
+    try {
+      const snap = await getDocs(collection(db, "quiz_questions"));
+      setQuizQuestions(
+        snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+      );
+    } catch (err) {
+      console.error("Error fetching quiz questions:", err);
+    }
+  };
+
+  const handleAddReviewSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reviewSubGrades.length === 0) return showToast("error", "اختر صفاً واحداً على الأقل");
+    setLoading(true);
+    try {
+      if (editingId) {
+        await updateDoc(doc(db, "review_subjects", editingId), {
+          name: reviewSubName,
+          gradeIds: reviewSubGrades,
+        });
+        showToast("success", "تم تعديل المادة بنجاح");
+      } else {
+        await addDoc(collection(db, "review_subjects"), {
+          name: reviewSubName,
+          gradeIds: reviewSubGrades,
+          createdAt: new Date().toISOString()
+        });
+        showToast("success", "تمت إضافة المادة بنجاح");
+      }
+      setReviewSubName("");
+      setReviewSubGrades([]);
+      setEditingId(null);
+      fetchReviewSubjects();
+    } catch (err) {
+      showToast("error", "فشل الإجراء");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddReviewMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReviewSubId) return showToast("error", "اختر مادة أولاً");
+    setLoading(true);
+    try {
+      if (editingId) {
+        await updateDoc(doc(db, "review_materials", editingId), {
+          title: reviewMatTitle,
+          type: reviewMatType,
+          url: reviewMatUrl,
+          reviewSubjectId: selectedReviewSubId
+        });
+        showToast("success", "تم تعديل الملف بنجاح");
+      } else {
+        await addDoc(collection(db, "review_materials"), {
+          title: reviewMatTitle,
+          type: reviewMatType,
+          url: reviewMatUrl,
+          reviewSubjectId: selectedReviewSubId,
+          createdAt: new Date().toISOString()
+        });
+        showToast("success", "تمت إضافة الملف بنجاح");
+      }
+      setReviewMatTitle("");
+      setReviewMatUrl("");
+      setEditingId(null);
+      fetchReviewMaterials();
+    } catch (err) {
+      showToast("error", "فشل الإجراء");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetReviewForm = () => {
+    setReviewSubName("");
+    setReviewSubGrades([]);
+    setReviewMatTitle("");
+    setReviewMatType("PDF");
+    setReviewMatUrl("");
+    setSelectedReviewSubId("");
+    setEditingId(null);
+  };
+
+  const handleAddQuizQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = {
+        question: quizQuestion,
+        options: quizOptions,
+        correctAnswer: quizCorrectAnswer,
+        difficulty: quizDifficulty,
+        subjectId: quizSubjectId,
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "quiz_questions", editingId), data);
+        showToast("success", "تم تعديل السؤال بنجاح");
+      } else {
+        await addDoc(collection(db, "quiz_questions"), data);
+        showToast("success", "تمت إضافة السؤال بنجاح");
+      }
+      resetQuizForm();
+      fetchQuizQuestions();
+    } catch (err) {
+      showToast("error", "فشل الإجراء");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetQuizForm = () => {
+    setQuizQuestion("");
+    setQuizOptions(["", "", "", ""]);
+    setQuizCorrectAnswer(0);
+    setQuizDifficulty(1);
+    setQuizSubjectId("");
+    setEditingId(null);
   };
 
   const handleToggleMaintenance = async () => {
@@ -668,6 +956,26 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                 icon: ShieldAlert,
                 label: "الأسئلة الوزارية",
               },
+              {
+                id: "teachers",
+                icon: GraduationCap,
+                label: "إدارة المدرسين",
+              },
+              {
+                id: "reviews",
+                icon: FileText,
+                label: "المراجعات المركزة",
+              },
+              {
+                id: "quiz",
+                icon: HelpCircle,
+                label: "مسابقة المليون",
+              },
+              {
+                id: "news",
+                icon: MessageSquare,
+                label: "أخر الأخبار",
+              },
               { id: "database", icon: Database, label: "النسخ الاحتياطي" },
               { id: "settings", icon: Wrench, label: "إعدادات النظام" },
             ].map((item) => (
@@ -740,6 +1048,9 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                   {activeTab === "materials" && "إدارة المحاضرات"}
                   {activeTab === "flashcards" && "إدارة البطاقات"}
                   {activeTab === "ministerial" && "إدارة الأسئلة الوزارية"}
+                  {activeTab === "reviews" && "إدارة المراجعات المركزة"}
+                  {activeTab === "quiz" && "إدارة مسابقة المليون"}
+                  {activeTab === "news" && "إدارة أخر الأخبار"}
                   {activeTab === "database" && "النسخ الاحتياطي"}
                   {activeTab === "settings" && "إعدادات النظام"}
                 </h1>
@@ -1551,6 +1862,25 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               </div>
                               <div className="md:col-span-1">
                                 <label className="block text-sm font-black text-slate-700 mb-2">
+                                  المدرس المسؤول
+                                </label>
+                                <select
+                                  value={materialTeacherId}
+                                  onChange={(e) =>
+                                    setMaterialTeacherId(e.target.value)
+                                  }
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                >
+                                  <option value="">اختر المدرس (اختياري)</option>
+                                  {teachers
+                                    .filter(t => !formSubjectFilter || t.subjectId === formSubjectFilter || t.id === materialTeacherId)
+                                    .map(t => (
+                                      <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                              </div>
+                              <div className="md:col-span-1">
+                                <label className="block text-sm font-black text-slate-700 mb-2">
                                   رابط المحتوى (URL)
                                 </label>
                                 <input
@@ -1836,6 +2166,311 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                         </form>
                       )}
 
+                      {activeTab === "teachers" && (
+                        <form onSubmit={handleAddTeacher} className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <label className="block text-sm font-black text-slate-700 mb-2">اسم المدرس</label>
+                              <input
+                                required
+                                value={teacherName}
+                                onChange={(e) => setTeacherName(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                placeholder="مثال: أ. محمد العراقي"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-black text-slate-700 mb-2">المادة (التخصص)</label>
+                              <select
+                                required
+                                value={teacherSubjectId}
+                                onChange={(e) => setTeacherSubjectId(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                              >
+                                <option value="">اختر المادة</option>
+                                {subjects.map(sub => (
+                                  <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-black text-slate-700 mb-2">رابط صورة المدرس (اختياري)</label>
+                              <input
+                                value={teacherAvatar}
+                                onChange={(e) => setTeacherAvatar(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                placeholder="https://..."
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            disabled={loading}
+                            className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                          >
+                            {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                            {editingId ? "حفظ التعديلات" : "إضافة المدرس"}
+                          </button>
+                        </form>
+                      )}
+
+                      {activeTab === "reviews" && (
+                        <div className="space-y-12">
+                          {/* Create Review Subject */}
+                          <form onSubmit={handleAddReviewSubject} className="space-y-6 pb-8 border-b border-slate-100">
+                            <h3 className="text-lg font-black text-slate-900 border-r-4 border-blue-600 pr-3">1. إنشاء موضوع مراجعة</h3>
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">تصفية حسب المرحلة (للمراجعة)</label>
+                              <div className="grid grid-cols-3 gap-2">
+                                {allGrades.map((g) => (
+                                  <button
+                                    key={g.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setReviewSubGrades(prev => 
+                                        prev.includes(g.id) ? prev.filter(id => id !== g.id) : [...prev, g.id]
+                                      );
+                                    }}
+                                    className={`py-2 px-1 rounded-xl text-[8px] font-black border transition-all ${
+                                      reviewSubGrades.includes(g.id)
+                                        ? "bg-slate-900 border-slate-900 text-white shadow-lg"
+                                        : "bg-white border-slate-200 text-slate-400"
+                                    }`}
+                                  >
+                                    {g.label.replace("الابتدائي", "ب").replace("المتوسط", "م")}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">اسم المادة (مثال: مراجعة الفيزياء)</label>
+                              <input
+                                required
+                                value={reviewSubName}
+                                onChange={(e) => setReviewSubName(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                placeholder="ادخل اسم مادة المراجعة..."
+                              />
+                            </div>
+
+                            <button
+                              disabled={loading}
+                              className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-slate-800 disabled:opacity-50"
+                            >
+                              {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                              {editingId ? "حفظ التعديلات" : "إنشاء مادة مراجعة"}
+                            </button>
+                          </form>
+
+                          {/* Create Review Material */}
+                          <form onSubmit={handleAddReviewMaterial} className="space-y-6">
+                            <h3 className="text-lg font-black text-slate-900 border-r-4 border-purple-600 pr-3">2. إضافة ملفات/محاضرات للمراجعة</h3>
+                            
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">اختر مادة المراجعة</label>
+                              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1 border border-slate-50 rounded-2xl">
+                                {reviewSubjects.map((sub) => (
+                                  <button
+                                    key={sub.id}
+                                    type="button"
+                                    onClick={() => setSelectedReviewSubId(sub.id)}
+                                    className={`py-3 px-2 rounded-xl text-[10px] font-black border transition-all ${
+                                      selectedReviewSubId === sub.id
+                                        ? "bg-purple-600 border-purple-600 text-white shadow-md"
+                                        : "bg-white border-slate-100 text-slate-500"
+                                    }`}
+                                  >
+                                    {sub.name}
+                                  </button>
+                                ))}
+                                {reviewSubjects.length === 0 && <p className="col-span-2 text-center text-xs text-slate-400 py-4 italic">يرجى إنشاء مادة مراجعة أولاً</p>}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <label className="block text-sm font-black text-slate-700">عنوان الملف/المحاضرة</label>
+                                <input
+                                  required
+                                  value={reviewMatTitle}
+                                  onChange={(e) => setReviewMatTitle(e.target.value)}
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  placeholder="العنوان..."
+                                />
+                              </div>
+                              <div className="space-y-4">
+                                <label className="block text-sm font-black text-slate-700">نوع المحتوى</label>
+                                <select
+                                  value={reviewMatType}
+                                  onChange={(e) => setReviewMatType(e.target.value as "PDF" | "Video")}
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                >
+                                  <option value="PDF">ملف PDF</option>
+                                  <option value="Video">محاضرة فيديو</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">الرابط (رابط PDF أو يوتيوب)</label>
+                              <input
+                                required
+                                value={reviewMatUrl}
+                                onChange={(e) => setReviewMatUrl(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                placeholder="https://..."
+                              />
+                            </div>
+
+                            <button
+                              disabled={loading}
+                              className="w-full py-5 bg-purple-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 disabled:opacity-50 shadow-xl shadow-purple-100"
+                            >
+                              {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                              {editingId ? "حفظ التعديلات" : "إضافة إلى المراجعة"}
+                            </button>
+                          </form>
+                        </div>
+                      )}
+
+                      {activeTab === "quiz" && (
+                        <form onSubmit={handleAddQuizQuestion} className="space-y-6">
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">اختر المادة (اختياري)</label>
+                              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1 border border-slate-50 rounded-2xl">
+                                {subjects.map((sub) => (
+                                  <button
+                                    key={sub.id}
+                                    type="button"
+                                    onClick={() => setQuizSubjectId(sub.id)}
+                                    className={`py-3 px-2 rounded-xl text-[10px] font-black border transition-all ${
+                                      quizSubjectId === sub.id
+                                        ? "bg-amber-600 border-amber-600 text-white shadow-md"
+                                        : "bg-white border-slate-100 text-slate-500"
+                                    }`}
+                                  >
+                                    {sub.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">السؤال</label>
+                              <textarea
+                                required
+                                value={quizQuestion}
+                                onChange={(e) => setQuizQuestion(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-24"
+                                placeholder="اكتب السؤال هنا..."
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              {quizOptions.map((opt, i) => (
+                                <div key={i} className="space-y-2">
+                                  <label className="block text-xs font-black text-slate-500">الخيار {i + 1}</label>
+                                  <div className="flex gap-2 items-center">
+                                    <input
+                                      required
+                                      value={opt}
+                                      onChange={(e) => {
+                                        const newOpts = [...quizOptions];
+                                        newOpts[i] = e.target.value;
+                                        setQuizOptions(newOpts);
+                                      }}
+                                      className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 font-bold text-sm"
+                                    />
+                                    <input
+                                      type="radio"
+                                      name="correct"
+                                      checked={quizCorrectAnswer === i}
+                                      onChange={() => setQuizCorrectAnswer(i)}
+                                      className="w-5 h-5 text-green-600"
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="space-y-4">
+                                <label className="block text-sm font-black text-slate-700">المستوى (Difficulty 1-15)</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="15"
+                                  value={quizDifficulty}
+                                  onChange={(e) => setQuizDifficulty(Number(e.target.value))}
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                />
+                            </div>
+
+                            <button
+                              disabled={loading}
+                              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                            >
+                              {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                              {editingId ? "حفظ التعديلات" : "إضافة السؤال للعبة"}
+                            </button>
+                        </form>
+                      )}
+
+                      {activeTab === "news" && (
+                        <form onSubmit={handleAddNews} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <label className="block text-sm font-black text-slate-700">عنوان الخبر</label>
+                                <input
+                                  required
+                                  value={newsTitle}
+                                  onChange={(e) => setNewsTitle(e.target.value)}
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  placeholder="مثال: تنويه هام بخصوص الامتحانات"
+                                />
+                              </div>
+                              <div className="space-y-4">
+                                <label className="block text-sm font-black text-slate-700">التصنيف</label>
+                                <input
+                                  value={newsCategory}
+                                  onChange={(e) => setNewsCategory(e.target.value)}
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  placeholder="مثال: عاجل، تنويه، هام"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">رابط الصورة (اختياري)</label>
+                              <input
+                                value={newsImage}
+                                onChange={(e) => setNewsImage(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                placeholder="https://..."
+                              />
+                            </div>
+
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">محتوى الخبر</label>
+                              <textarea
+                                required
+                                value={newsContent}
+                                onChange={(e) => setNewsContent(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
+                                placeholder="اكتب تفاصيل الخبر هنا..."
+                              />
+                            </div>
+
+                            <button
+                              disabled={loading}
+                              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                            >
+                              {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+                              {editingId ? "حفظ التعديلات" : "إضافة الخبر"}
+                            </button>
+                        </form>
+                      )}
+
                       {activeTab === "flashcards" && (
                         <form
                           onSubmit={handleAddFlashcard}
@@ -2038,7 +2673,9 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 ? "قائمة الفصول"
                                 : activeTab === "materials"
                                   ? "قائمة المحاضرات"
-                                  : "البطاقات المنشورة"}
+                                  : activeTab === "teachers"
+                                    ? "قائمة المدرسين"
+                                    : "البطاقات المنشورة"}
                             :{" "}
                             {activeTab === "subjects"
                               ? subjects.length
@@ -2046,7 +2683,11 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 ? chapters.length
                                 : activeTab === "materials"
                                   ? materials.length
-                                  : flashcards.length}
+                                  : activeTab === "teachers"
+                                    ? teachers.length
+                                    : activeTab === "reviews"
+                                      ? reviewSubjects.length + reviewMaterials.length
+                                      : flashcards.length}
                           </span>
                         </div>
 
@@ -2091,7 +2732,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                           fetchMinisterialQuestions,
                                         );
                                       }}
-                                      className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                                      className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all shrink-0"
                                     >
                                       <Trash2 size={16} />
                                     </div>
@@ -2108,6 +2749,163 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   </div>
                                 </button>
                               ))}
+
+                          {activeTab === "reviews" && (
+                            <div className="space-y-8">
+                              <div>
+                                <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-4">مواضيع المراجعة</h4>
+                                <div className="space-y-2">
+                                  {reviewSubjects.map((sub) => (
+                                    <div
+                                      key={sub.id}
+                                      className="w-full flex items-center justify-between p-4 bg-slate-100/50 rounded-2xl group hover:border-blue-600 border border-transparent transition-all text-right"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <Layers size={18} className="text-blue-500" />
+                                        <div>
+                                          <div className="font-bold text-slate-900">{sub.name}</div>
+                                          <div className="text-[10px] text-slate-500 font-bold">
+                                            {sub.gradeIds?.map((gid: string) => allGrades.find(g => g.id === gid)?.label || gid).join(' - ')}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                         <button
+                                          onClick={() => {
+                                            setEditingId(sub.id);
+                                            setReviewSubName(sub.name);
+                                            setReviewSubGrades(sub.gradeIds || []);
+                                          }}
+                                          className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg"
+                                        >
+                                          <Edit size={16} />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDelete("review_subjects", sub.id, fetchReviewSubjects)}
+                                          className="p-2 hover:bg-red-50 text-red-500 rounded-lg"
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-4">الملفات والمحاضرات</h4>
+                                <div className="space-y-2">
+                                  {reviewMaterials.map((mat) => {
+                                    const parent = reviewSubjects.find(s => s.id === mat.reviewSubjectId);
+                                    return (
+                                      <div
+                                        key={mat.id}
+                                        className="w-full flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl group hover:border-purple-600 transition-all text-right shadow-sm"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          {mat.type === 'PDF' ? <FileText size={18} className="text-purple-500" /> : <Youtube size={18} className="text-red-500" />}
+                                          <div>
+                                            <div className="font-bold text-slate-900">{mat.title}</div>
+                                            <div className="text-[10px] text-slate-400 font-bold">
+                                              مادة: {parent?.name || 'غير معروف'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                           <button
+                                            onClick={() => {
+                                              setEditingId(mat.id);
+                                              setReviewMatTitle(mat.title);
+                                              setReviewMatType(mat.type);
+                                              setReviewMatUrl(mat.url);
+                                              setSelectedReviewSubId(mat.reviewSubjectId);
+                                            }}
+                                            className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg"
+                                          >
+                                            <Edit size={16} />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDelete("review_materials", mat.id, fetchReviewMaterials)}
+                                            className="p-2 hover:bg-red-50 text-red-500 rounded-lg"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {activeTab === "quiz" &&
+                            quizQuestions.map((q) => (
+                              <button
+                                key={q.id}
+                                onClick={() => {
+                                  setEditingId(q.id);
+                                  setQuizQuestion(q.question);
+                                  setQuizOptions([...q.options]);
+                                  setQuizCorrectAnswer(q.correctAnswer);
+                                  setQuizDifficulty(q.difficulty);
+                                  setQuizSubjectId(q.subjectId || "");
+                                  setIsBulkMode(false);
+                                }}
+                                className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <HelpCircle size={18} className="group-hover:text-white text-amber-500" />
+                                  <span className="font-bold truncate max-w-[200px]">{q.question}</span>
+                                </div>
+                                <div
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete("quiz_questions", q.id, fetchQuizQuestions);
+                                  }}
+                                  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
+                                >
+                                  <Trash2 size={16} />
+                                </div>
+                              </button>
+                            ))}
+
+                          {activeTab === "teachers" &&
+                            teachers.map((t) => (
+                              <button
+                                key={t.id}
+                                onClick={() => {
+                                  setEditingId(t.id);
+                                  setTeacherName(t.name);
+                                  setTeacherSubjectId(t.subjectId);
+                                  setTeacherAvatar(t.avatar || "");
+                                  setIsBulkMode(false);
+                                }}
+                                className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {t.avatar ? (
+                                    <img src={t.avatar} className="w-8 h-8 rounded-full object-cover" alt="" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <GraduationCap size={18} className="group-hover:text-white text-blue-500" />
+                                  )}
+                                  <div className="flex flex-col text-right">
+                                    <span className="font-bold">{t.name}</span>
+                                    <span className="text-[10px] opacity-70">
+                                      {subjects.find(s => s.id === t.subjectId)?.name || "بدون مادة"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete("teachers", t.id, fetchTeachers);
+                                  }}
+                                  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
+                                >
+                                  <Trash2 size={16} />
+                                </div>
+                              </button>
+                            ))}
 
                           {activeTab === "subjects" &&
                             subjects.map((s) => (
@@ -2137,7 +2935,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       fetchSubjects,
                                     );
                                   }}
-                                  className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
                                 >
                                   <Trash2 size={16} />
                                 </div>
@@ -2172,7 +2970,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       fetchChapters,
                                     );
                                   }}
-                                  className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
                                 >
                                   <Trash2 size={16} />
                                 </div>
@@ -2195,6 +2993,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setMaterialType(m.type);
                                     setMaterialUrl(m.url);
                                     setMaterialOrderIndex(m.order_index || 0);
+                                    setMaterialTeacherId((m as any).teacherId || "");
                                     setSelectedChapterIds(m.chapterIds || []);
                                     setIsBulkMode(false);
                                   }}
@@ -2226,7 +3025,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                           fetchMaterials,
                                         );
                                       }}
-                                      className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                      className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
                                     >
                                       <Trash2 size={16} />
                                     </div>
@@ -2238,6 +3037,11 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     {m.order_index !== undefined && (
                                       <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
                                         ترتيب: {m.order_index}
+                                      </span>
+                                    )}
+                                    {(m as any).teacherId && (
+                                      <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
+                                        المدرس: {teachers.find(t => t.id === (m as any).teacherId)?.name}
                                       </span>
                                     )}
                                     <span className="opacity-60 group-hover:opacity-100 italic">
@@ -2279,7 +3083,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                         fetchFlashcards,
                                       );
                                     }}
-                                    className="p-2 hover:bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                    className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
                                   >
                                     <Trash2 size={16} />
                                   </div>
@@ -2287,6 +3091,44 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 <p className="mt-2 text-[10px] opacity-60 italic truncate w-full">
                                   {f.answer}
                                 </p>
+                              </button>
+                            ))}
+
+                          {activeTab === "news" &&
+                            news.map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  setEditingId(item.id);
+                                  setNewsTitle(item.title);
+                                  setNewsContent(item.content);
+                                  setNewsImage(item.imageUrl || "");
+                                  setNewsCategory(item.category || "عام");
+                                  setIsBulkMode(false);
+                                }}
+                                className="w-full flex flex-col p-4 bg-white rounded-3xl group hover:border-blue-600 transition-all border border-slate-100 text-right shadow-sm"
+                              >
+                                {item.imageUrl && (
+                                  <div className="w-full h-32 rounded-2xl overflow-hidden mb-4 bg-slate-100">
+                                    <img src={item.imageUrl} className="w-full h-full object-cover" alt="" />
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{item.category}</span>
+                                    <h4 className="font-bold text-slate-900 group-hover:text-blue-600">{item.title}</h4>
+                                  </div>
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete("news", item.id, fetchNews);
+                                    }}
+                                    className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-all"
+                                  >
+                                    <Trash2 size={16} />
+                                  </div>
+                                </div>
+                                <p className="mt-2 text-xs text-slate-500 line-clamp-2">{item.content}</p>
                               </button>
                             ))}
 

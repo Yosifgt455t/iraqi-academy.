@@ -12,7 +12,6 @@ import { motion } from 'motion/react';
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [isGuest, setIsGuest] = useState(false);
   const [grade, setGrade] = useState<Grade | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
@@ -24,19 +23,9 @@ export default function App() {
       setIsMaintenanceActive(active);
     });
 
-    const savedGuest = localStorage.getItem('isGuest') === 'true';
-    if (savedGuest) {
-      setIsGuest(true);
-      const savedGrade = localStorage.getItem('guestGrade') as Grade;
-      if (savedGrade) setGrade(savedGrade);
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        setIsGuest(false);
-        localStorage.removeItem('isGuest');
-        
         // Dynamic Admin Check (Quick check for Super Admin to avoid flash)
         const isSuperAdmin = firebaseUser.email?.toLowerCase() === 'jwjwjwjueue@gmail.com'.toLowerCase();
         if (isSuperAdmin) {
@@ -56,7 +45,7 @@ export default function App() {
         } catch (error) {
           console.error("Error fetching profile:", error);
         }
-      } else if (!savedGuest) {
+      } else {
         setGrade(null);
         setProfile(null);
         setIsAdmin(false);
@@ -70,23 +59,12 @@ export default function App() {
     };
   }, []);
 
-  const handleGuestMode = () => {
-    setIsGuest(true);
-    localStorage.setItem('isGuest', 'true');
-    const localGrade = localStorage.getItem('guestGrade') as Grade;
-    if (localGrade) setGrade(localGrade);
-  };
-
   const handleSetGrade = async (newGrade: Grade) => {
     setGrade(newGrade);
-    if (isGuest) {
-      localStorage.setItem('guestGrade', newGrade);
-    } else {
-      localStorage.setItem('savedGrade', newGrade);
-      // Also update local profile state so we don't show selector again
-      if (profile) {
-        setProfile({ ...profile, grade: newGrade });
-      }
+    localStorage.setItem('savedGrade', newGrade);
+    // Also update local profile state so we don't show selector again
+    if (profile) {
+      setProfile({ ...profile, grade: newGrade });
     }
   };
 
@@ -110,10 +88,7 @@ export default function App() {
     localStorage.removeItem('isGuest');
     setGrade(null);
     setProfile(null);
-    if (!isGuest) {
-      await logout();
-    }
-    setIsGuest(false);
+    await logout();
   };
 
   const renderContent = () => {
@@ -129,8 +104,8 @@ export default function App() {
     }
 
     // Not logged in and not guest
-    if (!user && !isGuest) {
-      return <Auth onGuest={handleGuestMode} />;
+    if (!user) {
+      return <Auth onGuest={() => {}} />;
     }
 
     // Maintenance Mode (Blocks non-admins after they've had a chance to log in)
@@ -166,36 +141,27 @@ export default function App() {
     }
 
     // Logged in but No Profile in DB (or missing displayName)
-    if (user && (!profile || !profile.displayName) && !isGuest) {
+    if (user && (!profile || !profile.displayName)) {
       return <ProfileSetup user={user} onComplete={handleProfileComplete} />;
     }
 
-    const displayUser = user ? {
-      id: user.uid,
-      email: user.email,
-      displayName: profile?.displayName || user.displayName || 'مستخدم',
-      photoURL: profile?.photoURL || user.photoURL,
+    const displayUser = {
+      id: user!.uid,
+      email: user!.email,
+      displayName: profile?.displayName || user!.displayName || 'مستخدم',
+      photoURL: profile?.photoURL || user!.photoURL,
       user_metadata: { 
-        full_name: profile?.displayName || user.displayName || 'مستخدم',
-        avatar_url: profile?.photoURL || user.photoURL 
+        full_name: profile?.displayName || user!.displayName || 'مستخدم',
+        avatar_url: profile?.photoURL || user!.photoURL 
       }
-    } : { 
-      id: 'guest_user', 
-      email: null, 
-      displayName: 'زائر',
-      photoURL: null,
-      user_metadata: { full_name: 'زائر', avatar_url: null } 
     };
 
     // Logged in but No Grade set yet
-    if (!grade && !isGuest) {
+    if (!grade) {
       return <GradeSelector userId={displayUser.id} onComplete={handleSetGrade} />;
     }
 
     // Guest mode without grade
-    if (isGuest && !grade) {
-      return <GradeSelector userId="guest_user" onComplete={handleSetGrade} />;
-    }
 
     return (
       <Dashboard 
@@ -209,27 +175,27 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
       <div className="flex-1">
         {renderContent()}
       </div>
       
       {/* Global Footer */}
-      <footer className="py-6 px-4 text-center border-t border-slate-100 bg-white/50 backdrop-blur-sm" dir="rtl">
+      <footer className="py-6 px-4 text-center border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm" dir="rtl">
         <div className="max-w-md mx-auto flex flex-col items-center gap-2">
-          <p className="text-slate-500 font-medium text-sm">
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
             تم تطويره بواسطة
             <a 
               href="https://www.instagram.com/yosifhkem?igsh=MWNtdmEzMm52dWp0bQ==" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mr-1.5 text-blue-600 hover:text-pink-600 transition-all font-bold group"
+              className="inline-flex items-center gap-1.5 mr-1.5 text-blue-600 dark:text-blue-400 hover:text-pink-600 dark:hover:text-pink-400 transition-all font-bold group"
             >
               يوسف حكيم
               <Instagram size={18} className="group-hover:scale-110 transition-transform" />
             </a>
           </p>
-          <p className="text-[10px] text-slate-400 font-sans tracking-wider uppercase">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-sans tracking-wider uppercase">
             © {new Date().getFullYear()} Iraqi Academy • All Rights Reserved
           </p>
         </div>

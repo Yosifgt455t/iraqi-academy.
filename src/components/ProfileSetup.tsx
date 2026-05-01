@@ -23,7 +23,10 @@ export default function ProfileSetup({ user, onComplete }: Props) {
         email: user.email,
         displayName: name.trim(),
         photoURL: user.photoURL,
-        grade: null // Will be set in next step
+        grade: null, // Will be set in next step
+        xp: 0,
+        level: 1,
+        streak: { count: 0, lastUpdate: '' }
       });
       onComplete(name.trim());
     } catch (error) {
