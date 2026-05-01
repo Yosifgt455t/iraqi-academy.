@@ -172,7 +172,7 @@ export default function MillionaireGame({ onBack }: Props) {
           >
             <div className="relative">
               <div className="absolute inset-0 bg-blue-500 rounded-full blur-3xl opacity-20 animate-pulse" />
-              <div className="w-32 h-32 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center shadow-2xl relative z-10 border-4 border-white/10">
+              <div className="w-32 h-32 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center shadow-md relative z-10 border-4 border-white/10">
                 <Trophy size={60} className="text-amber-300" />
               </div>
             </div>
@@ -214,7 +214,7 @@ export default function MillionaireGame({ onBack }: Props) {
             <button
               onClick={handleStart}
               disabled={loading}
-              className="w-full py-5 bg-gradient-to-r from-amber-500 to-orange-600 rounded-3xl font-black text-xl shadow-xl shadow-amber-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              className="w-full py-5 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl font-black text-xl shadow-sm shadow-amber-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
               {loading ? <Zap className="animate-spin" /> : null}
               ابدأ المسابقة الآن
@@ -247,8 +247,8 @@ export default function MillionaireGame({ onBack }: Props) {
             <div className="lg:col-span-9 flex flex-col gap-12">
               {/* Question Box */}
               <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2.5rem] blur opacity-25 group-hover:opacity-40 transition" />
-                <div className="relative bg-[#161b36] p-10 rounded-[2.5rem] border border-white/5 text-center shadow-2xl">
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition" />
+                <div className="relative bg-[#161b36] p-10 rounded-xl border border-white/5 text-center shadow-md">
                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-blue-600 rounded-full text-xs font-black uppercase tracking-widest border-2 border-[#0a0b1e]">
                      سؤال المستوى {currentLevel + 1}
                    </div>
@@ -272,7 +272,7 @@ export default function MillionaireGame({ onBack }: Props) {
                       disabled={isAnswerRevealed || isDisabled}
                       onClick={() => handleOptionClick(idx)}
                       className={`
-                        group relative p-6 rounded-3xl border-2 text-right transition-all duration-500
+                        group relative p-6 rounded-xl border-2 text-right transition-all duration-500
                         ${isSelected && !isAnswerRevealed ? 'bg-amber-500/20 border-amber-500 text-amber-500' : ''}
                         ${isCorrect ? 'bg-green-500/20 border-green-500 text-green-500' : ''}
                         ${isWrong ? 'bg-red-500/20 border-red-500 text-red-500' : ''}
@@ -357,7 +357,7 @@ export default function MillionaireGame({ onBack }: Props) {
                 </p>
               </div>
 
-              <div className="bg-white/5 p-8 rounded-3xl border border-white/10 w-full max-w-sm">
+              <div className="bg-white/5 p-8 rounded-xl border border-white/10 w-full max-w-sm">
                  <p className="text-white/40 font-black mb-2 uppercase tracking-tighter">المبلغ المحصل عليه</p>
                  <p className="text-5xl font-black text-amber-400">
                    ₪ {gameState === 'won' ? '1,000,000' : (currentLevel > 0 ? MONEY_LADDER[currentLevel-1] : '0')}

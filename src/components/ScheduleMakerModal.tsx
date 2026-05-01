@@ -57,7 +57,7 @@ ${subjectsText}
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+      <div className="bg-white rounded-xl w-full max-w-lg overflow-hidden shadow-md flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">

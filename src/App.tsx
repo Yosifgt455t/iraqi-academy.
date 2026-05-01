@@ -116,7 +116,7 @@ export default function App() {
             <motion.div 
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="w-24 h-24 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-amber-100/50"
+              className="w-24 h-24 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mx-auto mb-8 shadow-sm shadow-amber-100/50"
             >
               <Wrench size={48} />
             </motion.div>
@@ -130,7 +130,7 @@ export default function App() {
             <div className="pt-8">
               <button 
                 onClick={() => window.location.reload()}
-                className="w-full sm:w-auto px-12 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-2xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
+                className="w-full sm:w-auto px-12 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-md shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
               >
                 تحديث الصفحة
               </button>

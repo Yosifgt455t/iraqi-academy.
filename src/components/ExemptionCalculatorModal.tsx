@@ -89,7 +89,7 @@ export default function ExemptionCalculatorModal({ onClose }: Props) {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white rounded-[2.5rem] w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-white rounded-xl w-full max-w-xl overflow-hidden shadow-md flex flex-col max-h-[90vh]"
       >
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-4">
@@ -174,7 +174,7 @@ export default function ExemptionCalculatorModal({ onClose }: Props) {
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-indigo-600 text-white p-6 rounded-3xl shadow-xl shadow-indigo-200 space-y-4"
+              className="bg-indigo-600 text-white p-6 rounded-xl shadow-sm shadow-indigo-200 space-y-4"
             >
               <div className="flex items-center justify-between border-b border-indigo-500/50 pb-4">
                 <span className="font-medium text-indigo-100">المعدل العام</span>

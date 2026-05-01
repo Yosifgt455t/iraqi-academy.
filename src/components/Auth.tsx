@@ -50,7 +50,7 @@ export default function Auth({ onGuest }: Props) {
             className="text-center space-y-8"
           >
             <div className="flex justify-center">
-              <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center shadow-lg shadow-blue-200">
+              <div className="w-24 h-24 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
                 <Sparkles className="text-white w-12 h-12" />
               </div>
             </div>
@@ -235,7 +235,7 @@ export default function Auth({ onGuest }: Props) {
 
   return (
     <div className="flex items-center justify-center p-4 font-sans" dir="rtl">
-      <div className="w-full max-w-md bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
+      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-md shadow-slate-200 border border-slate-100 overflow-hidden">
         <AnimatePresence mode="wait">
           {renderStep()}
         </AnimatePresence>

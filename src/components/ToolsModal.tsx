@@ -47,7 +47,7 @@ export default function ToolsModal({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-2xl z-[101] flex flex-col"
+            className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-md z-[101] flex flex-col"
           >
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">

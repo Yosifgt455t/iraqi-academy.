@@ -143,7 +143,7 @@ export default function GradeSelector({ userId, onComplete }: Props) {
 
         {/* Stage Tabs */}
         <div className="flex justify-center mb-12 flex-wrap gap-2">
-          <div className="inline-flex p-1.5 bg-slate-100 rounded-3xl gap-1 flex-wrap justify-center">
+          <div className="inline-flex p-1.5 bg-slate-100 rounded-xl gap-1 flex-wrap justify-center">
             {visibleStages.map((stage) => {
               const Icon = getIcon(stage.iconName);
               return (
@@ -200,11 +200,11 @@ export default function GradeSelector({ userId, onComplete }: Props) {
                       if (isAvailable) setSelectedGrade(grade.id);
                     }}
                     disabled={!isAvailable || fetchingGrades}
-                    className={`relative p-8 rounded-[2.5rem] border-2 transition-all text-right group overflow-hidden ${
+                    className={`relative p-8 rounded-xl border-2 transition-all text-right group overflow-hidden ${
                       isSelected
-                        ? 'bg-slate-900 border-slate-900 text-white shadow-2xl shadow-slate-200'
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-200'
                         : isAvailable
-                          ? 'bg-white border-slate-100 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-50/50 cursor-pointer'
+                          ? 'bg-white border-slate-100 hover:border-blue-500 hover:shadow-sm hover:shadow-blue-50/50 cursor-pointer'
                           : 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed'
                     }`}
                   >
@@ -265,7 +265,7 @@ export default function GradeSelector({ userId, onComplete }: Props) {
                 exit={{ opacity: 0, scale: 0.9, y: 10 }}
                 onClick={handleSelect}
                 disabled={loading}
-                className="w-full max-w-xs py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-2xl shadow-blue-200 transition-all active:scale-95 group"
+                className="w-full max-w-xs py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-md shadow-blue-200 transition-all active:scale-95 group"
               >
                 {loading ? (
                   <Loader2 className="animate-spin" />

@@ -96,10 +96,11 @@ async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log("Firestore connection successful");
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
+  } catch (error: any) {
+    const errorMsg = error?.message || String(error);
+    if (errorMsg.includes('the client is offline')) {
       console.error("Please check your Firebase configuration or network connection. Firestore is currently offline.");
-    } else if (error instanceof Error && error.message.includes('Missing or insufficient permissions')) {
+    } else if (errorMsg.includes('Missing or insufficient permissions') || errorMsg.includes('permission_denied')) {
       console.log("Firestore connection successful (permissions denied, but reachable).");
     } else {
       console.error("Firestore test connection error:", error);

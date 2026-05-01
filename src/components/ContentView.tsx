@@ -7,7 +7,6 @@ import { Type } from "@google/genai";
 import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye, GraduationCap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
-import { AdSense } from './AdSense';
 
 const Player = ReactPlayer as any;
 
@@ -202,37 +201,38 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
       setLoading(true);
       try {
         setDbError(null);
-        // Fetch all materials and filter locally
-        const materialsSnap = await getDocs(collection(db, 'materials'));
-        const allMaterials = materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Material));
-        const filteredMaterials = allMaterials.filter((m: any) => {
-          if (m.chapterIds && Array.isArray(m.chapterIds)) {
-            return m.chapterIds.includes(chapter.id);
-          }
-          return m.chapterId === chapter.id;
-        }).sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER));
+        // Fetch materials
+        const [matSnap, legacyMatSnap] = await Promise.all([
+          getDocs(query(collection(db, 'materials'), where('chapterIds', 'array-contains', chapter.id))),
+          getDocs(query(collection(db, 'materials'), where('chapterId', '==', chapter.id)))
+        ]);
+        const materialsMap = new Map<string, Material>();
+        matSnap.docs.forEach(doc => materialsMap.set(doc.id, { id: doc.id, ...doc.data() } as Material));
+        legacyMatSnap.docs.forEach(doc => materialsMap.set(doc.id, { id: doc.id, ...doc.data() } as Material));
+        const filteredMaterials = Array.from(materialsMap.values())
+          .sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER));
         setMaterials(filteredMaterials);
         
-        // Fetch all flashcards and filter locally
-        const flashcardsSnap = await getDocs(collection(db, 'flashcards'));
-        const allFlashcards = flashcardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Flashcard));
-        const filteredFlashcards = allFlashcards.filter((f: any) => {
-          if (f.chapterIds && Array.isArray(f.chapterIds)) {
-            return f.chapterIds.includes(chapter.id);
-          }
-          return f.chapterId === chapter.id;
-        });
-        setFlashcards(filteredFlashcards);
+        // Fetch flashcards
+        const [flashSnap, legacyFlashSnap] = await Promise.all([
+          getDocs(query(collection(db, 'flashcards'), where('chapterIds', 'array-contains', chapter.id))),
+          getDocs(query(collection(db, 'flashcards'), where('chapterId', '==', chapter.id)))
+        ]);
+        const flashcardsMap = new Map<string, Flashcard>();
+        flashSnap.docs.forEach(doc => flashcardsMap.set(doc.id, { id: doc.id, ...doc.data() } as Flashcard));
+        legacyFlashSnap.docs.forEach(doc => flashcardsMap.set(doc.id, { id: doc.id, ...doc.data() } as Flashcard));
+        setFlashcards(Array.from(flashcardsMap.values()));
 
-        // Fetch all ministerial questions and filter locally
-        const ministerialSnap = await getDocs(collection(db, 'ministerial_questions'));
-        const allMinQuests = ministerialSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MinisterialQuestion));
-        const filteredMinQuests = allMinQuests.filter((m: any) => {
-          if (m.chapterIds && Array.isArray(m.chapterIds)) {
-            return m.chapterIds.includes(chapter.id);
-          }
-          return m.chapterId === chapter.id;
-        }).sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER));
+        // Fetch ministerial questions
+        const [minSnap, legacyMinSnap] = await Promise.all([
+          getDocs(query(collection(db, 'ministerial_questions'), where('chapterIds', 'array-contains', chapter.id))),
+          getDocs(query(collection(db, 'ministerial_questions'), where('chapterId', '==', chapter.id)))
+        ]);
+        const minMap = new Map<string, MinisterialQuestion>();
+        minSnap.docs.forEach(doc => minMap.set(doc.id, { id: doc.id, ...doc.data() } as MinisterialQuestion));
+        legacyMinSnap.docs.forEach(doc => minMap.set(doc.id, { id: doc.id, ...doc.data() } as MinisterialQuestion));
+        const filteredMinQuests = Array.from(minMap.values())
+          .sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER));
         setMinisterialQuestions(filteredMinQuests);
 
         // Fetch user progress
@@ -352,11 +352,8 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
 
   return (
     <div className="space-y-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <AdSense />
-      </div>
       {/* Chapter Progress Header */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center gap-6">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-6">
         <div className="relative w-20 h-20 flex-shrink-0">
           <svg className="w-full h-full transform -rotate-90">
             <circle
@@ -366,7 +363,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               stroke="currentColor"
               strokeWidth="8"
               fill="transparent"
-              className="text-slate-100"
+              className="text-slate-100 dark:text-slate-800"
             />
             <motion.circle
               cx="40"
@@ -381,17 +378,17 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               className="text-blue-600"
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center font-bold text-slate-900">
+          <div className="absolute inset-0 flex items-center justify-center font-bold text-slate-900 dark:text-white">
             {chapterProgress}%
           </div>
         </div>
         <div className="flex-1 text-center sm:text-right">
-          <h2 className="text-xl font-bold text-slate-900">تقدمك في {chapter.name}</h2>
-          <p className="text-slate-500 text-sm">أكمل كافة المحاضرات والمصادر لإنهاء الفصل بنسبة 100%</p>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">تقدمك في {chapter.name}</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">أكمل كافة المحاضرات والمصادر لإنهاء الفصل بنسبة 100%</p>
         </div>
       </div>
 
-      <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm max-w-md mx-auto overflow-x-auto">
+      <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 max-w-md mx-auto overflow-x-auto">
         <button
           onClick={() => setActiveTab('materials')}
           className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
@@ -425,9 +422,9 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-16 bg-red-50 rounded-3xl border border-red-200 space-y-4"
+            className="text-center py-16 bg-white rounded-xl border border-red-200 space-y-4"
           >
-            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto">
               <X size={32} />
             </div>
             <div className="space-y-1">
@@ -458,7 +455,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                           </div>
                         )}
                       </div>
-                      <span className="text-sm font-bold text-slate-700">شرح أ. {teacher.name}</span>
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-300">شرح أ. {teacher.name}</span>
                     </div>
                   </div>
                 )}
@@ -466,8 +463,8 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                   {filteredMaterials.filter(m => m.type !== 'Ministerial').map((m) => {
                     const isCompleted = completedIds.includes(m.id);
                     return (
-                      <div key={m.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col relative group overflow-hidden">
-                        <div className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4 relative z-10 bg-white">
+                      <div key={m.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col relative group overflow-hidden">
+                        <div className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4 relative z-10">
                           <button
                             onClick={() => toggleCompletion(m.id)}
                             className={`absolute -top-2 -left-2 p-1.5 rounded-full shadow-md transition-all z-10 ${
@@ -485,12 +482,12 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             {m.type === 'PDF' ? <FileText size={24} /> : <Play size={24} />}
                           </div>
                           <div className="flex-1 min-w-0 pr-1">
-                            <h4 className={`font-bold transition-colors text-sm sm:text-base leading-relaxed break-words ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                            <h4 className={`font-bold transition-colors text-sm sm:text-base leading-relaxed break-words ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-900 dark:text-white'}`}>
                               {m.title}
                             </h4>
-                            <p className="text-xs text-slate-500 mt-1">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
                             {m.type !== 'PDF' && (
-                              <div className="mt-3 w-full max-w-[200px] bg-slate-100 rounded-full h-1.5 overflow-hidden flex items-center">
+                              <div className="mt-3 w-full max-w-[200px] bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden flex items-center">
                                 <div 
                                   className={`h-full transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
                                   style={{ width: `${isCompleted ? 100 : Math.min(100, Math.max(0, videoProgress[m.id] || 0))}%` }}
@@ -501,7 +498,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                           <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
                             <button
                               onClick={() => setExpandedMaterialId(expandedMaterialId === m.id ? null : m.id)}
-                              className={`p-2 rounded-lg transition-all ${expandedMaterialId === m.id ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                              className={`p-2 rounded-lg transition-all ${expandedMaterialId === m.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'}`}
                               title="عرض سريع"
                             >
                               <Eye size={20} />
@@ -509,7 +506,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             {m.type === 'PDF' ? (
                               <button
                                 onClick={() => setSelectedPdf(m.url || (m as any).content)}
-                                className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                className="p-2 bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
                                 title="عرض بشاشة كاملة"
                               >
                                 <ExternalLink size={20} />
@@ -517,7 +514,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             ) : (
                               <button
                                 onClick={() => openVideoModal(m)}
-                                className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                className="p-2 bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
                                 title="عرض بشاشة كاملة"
                               >
                                 <Play size={20} />
@@ -561,7 +558,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 space-y-4"
+                className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-200 space-y-4"
               >
                 <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
                   <Sparkles size={32} />
@@ -583,7 +580,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
           >
             {ministerialQuestions.length > 0 ? (
               <>
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-indigo-50 p-6 rounded-xl border border-indigo-100">
                   <div className="text-right">
                     <h3 className="text-xl font-bold text-indigo-900">الأسئلة الوزارية ({ministerialQuestions.length})</h3>
                     <p className="text-indigo-600 text-sm">تدرب على الأسئلة التي وردت في الامتحانات الوزارية لسنوات سابقة</p>
@@ -594,7 +591,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                       setRevealedAnswers({});
                       setCardIndex(0);
                     }}
-                    className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all hover:scale-105"
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-sm shadow-indigo-200 hover:bg-indigo-700 transition-all hover:scale-105"
                   >
                     <BrainCircuit size={20} />
                     <span>امتحني بالأسئلة</span>
@@ -672,7 +669,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                        </div>
                     </div>
 
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl space-y-8 min-h-[400px] flex flex-col">
+                    <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-md space-y-8 min-h-[400px] flex flex-col">
                        <div className="space-y-4 flex-1">
                           <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-xs font-black">وزاري - {ministerialQuestions[cardIndex].year}</span>
                           <h3 className="text-2xl font-black text-slate-900 leading-tight">
@@ -717,7 +714,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="bg-blue-50 p-6 rounded-3xl border border-blue-100 space-y-4"
+                              className="bg-blue-50 p-6 rounded-xl border border-blue-100 space-y-4"
                             >
                                <div className="flex items-center justify-between">
                                  <div className="flex items-center gap-2 text-blue-700 font-black">
@@ -750,7 +747,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="bg-emerald-50 p-6 rounded-3xl border-2 border-emerald-100 space-y-3"
+                              className="bg-emerald-50 p-6 rounded-xl border-2 border-emerald-100 space-y-3"
                             >
                                <div className="flex items-center gap-2 text-emerald-700 font-black">
                                  <CheckCircle2 size={20} />
@@ -816,7 +813,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 space-y-4"
+                className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-200 space-y-4"
               >
                 <div className="w-16 h-16 bg-purple-50 text-purple-500 rounded-full flex items-center justify-center mx-auto">
                   <Award size={32} />
@@ -847,14 +844,14 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                       onClick={() => setIsFlipped(!isFlipped)}
                     >
                       {/* Front */}
-                      <div className="absolute inset-0 backface-hidden bg-white rounded-3xl p-8 shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center space-y-4">
+                      <div className="absolute inset-0 backface-hidden bg-white rounded-xl p-8 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center space-y-4">
                         <HelpCircle size={40} className="text-blue-500" />
                         <h3 className="text-xl font-bold text-slate-800">{flashcards[cardIndex].question}</h3>
                         <p className="text-xs text-slate-400">اضغط لقلب البطاقة</p>
                       </div>
                       {/* Back */}
                       <div 
-                        className="absolute inset-0 backface-hidden bg-blue-600 rounded-3xl p-8 shadow-xl flex flex-col items-center justify-center text-center space-y-4 text-white"
+                        className="absolute inset-0 backface-hidden bg-blue-600 rounded-xl p-8 shadow-sm flex flex-col items-center justify-center text-center space-y-4 text-white"
                         style={{ transform: 'rotateY(180deg)' }}
                       >
                         <CheckCircle2 size={40} />
@@ -896,7 +893,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 space-y-4"
+                className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-200 space-y-4"
               >
                 <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
                   <Sparkles size={32} />
@@ -923,7 +920,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-md rounded-[2.5rem] p-8 text-center space-y-6 shadow-2xl"
+              className="bg-white w-full max-w-md rounded-xl p-8 text-center space-y-6 shadow-md"
             >
               <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle2 size={40} />
@@ -958,7 +955,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-black rounded-xl sm:rounded-2xl overflow-hidden w-full h-full max-h-[100dvh] flex flex-col shadow-2xl"
+              className="bg-black rounded-xl sm:rounded-2xl overflow-hidden w-full h-full max-h-[100dvh] flex flex-col shadow-md"
             >
               <div className="p-3 sm:p-4 flex items-center justify-between border-b border-white/10 bg-black/50 text-white z-10">
                 <h3 className="font-bold text-sm sm:text-base">{selectedVideo.title}</h3>
@@ -994,7 +991,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl sm:rounded-2xl overflow-hidden w-full h-full max-h-[100dvh] shadow-2xl flex flex-col"
+              className="bg-white rounded-xl sm:rounded-2xl overflow-hidden w-full h-full max-h-[100dvh] shadow-md flex flex-col"
             >
               <div className="p-4 flex items-center justify-between border-b border-slate-100">
                 <h3 className="font-bold text-slate-900">عرض الملزمة</h3>

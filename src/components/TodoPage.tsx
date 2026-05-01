@@ -85,7 +85,7 @@ export default function TodoPage({ userId, onBack }: Props) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             onSubmit={handleAdd} 
-            className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-4 items-end sm:items-center"
+            className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-4 items-end sm:items-center"
           >
             <div className="flex-1 w-full space-y-2">
               <label className="text-sm font-bold text-slate-700">المهمة</label>
@@ -145,7 +145,7 @@ export default function TodoPage({ userId, onBack }: Props) {
                     <Calendar size={18} className="text-emerald-500" />
                     <span>{new Date(date).toLocaleDateString('ar-IQ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                   </div>
-                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
                     {groupedTodos[date].map(todo => (
                       <div 
                         key={todo.id} 

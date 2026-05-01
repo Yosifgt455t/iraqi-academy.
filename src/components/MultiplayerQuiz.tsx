@@ -211,31 +211,31 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <button
               onClick={() => setView('create')}
-              className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center justify-center gap-4 hover:border-blue-500 hover:shadow-2xl hover:-translate-y-2 transition-all group"
+              className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center gap-4 hover:border-blue-500 hover:shadow-md hover:-translate-y-1 transition-all group"
             >
-              <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Users size={40} />
               </div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white">إنشاء غرفة</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-center font-medium">ابدأ تحدياً جديداً وادعُ أصدقاءك</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">إنشاء غرفة</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-center text-sm">ابدأ تحدياً جديداً وادعُ أصدقاءك</p>
             </button>
 
             <button
               onClick={() => setView('join')}
-              className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center justify-center gap-4 hover:border-emerald-500 hover:shadow-2xl hover:-translate-y-2 transition-all group"
+              className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center gap-4 hover:border-emerald-500 hover:shadow-md hover:-translate-y-1 transition-all group"
             >
-              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Play size={40} />
               </div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white">الانضمام لغرفة</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-center font-medium">أدخل رمز الغرفة للبدء باللعب</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">الانضمام لغرفة</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-center text-sm">أدخل رمز الغرفة للبدء باللعب</p>
             </button>
           </div>
         )}
 
         {view === 'create' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl">
-            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-6">إعدادات الغرفة</h2>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">إعدادات الغرفة</h2>
             <div className="space-y-6">
               <div>
                 <label className="block text-slate-700 dark:text-slate-300 font-bold mb-2">أقصى عدد للاعبين (2 - 10)</label>
@@ -295,8 +295,8 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
         )}
 
         {view === 'join' && (
-          <motion.form onSubmit={handleJoinRoom} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl space-y-6">
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">أدخل رمز الغرفة</h2>
+          <motion.form onSubmit={handleJoinRoom} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">أدخل رمز الغرفة</h2>
             <input 
               type="text" 
               value={roomCode}
@@ -315,12 +315,12 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
         )}
 
         {view === 'lobby' && roomData && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl text-center space-y-6 relative overflow-hidden">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-100 dark:border-slate-800 shadow-md text-center space-y-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-blue-900/20 rounded-full translate-x-12 -translate-y-12 blur-2xl"></div>
             
             <h2 className="text-2xl font-black text-slate-900 dark:text-white relative z-10">غرفة الانتظار</h2>
             
-            <div className="bg-slate-50 dark:bg-slate-800 py-6 px-4 rounded-3xl border border-slate-200 dark:border-slate-700 relative z-10 inline-block w-full">
+            <div className="bg-slate-50 dark:bg-slate-800 py-6 px-4 rounded-xl border border-slate-200 dark:border-slate-700 relative z-10 inline-block w-full">
                <p className="text-slate-500 dark:text-slate-400 font-bold mb-2">رمز الغرفة (شارك هذا الرمز مع أصدقائك)</p>
                <div className="flex items-center justify-center gap-4">
                  <span className="text-4xl font-black tracking-widest text-blue-600 dark:text-blue-400">{roomCode}</span>
@@ -371,9 +371,9 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
             <motion.div 
               key={currentQuestionIdx}
               initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
-              className="bg-[#0a0b1e] p-8 rounded-[2.5rem] border-2 border-white/10 shadow-2xl space-y-8 relative overflow-hidden"
+              className="bg-[#0a0b1e] p-8 rounded-xl border-2 border-white/10 shadow-md space-y-8 relative overflow-hidden"
             >
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2.5rem] blur opacity-10" />
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-10" />
               <h3 className="text-2xl font-black text-white leading-relaxed text-center relative z-10">
                 {questions[currentQuestionIdx]?.question}
               </h3>
@@ -397,7 +397,7 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
         )}
 
         {view === 'results' && roomData && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl text-center space-y-8">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-100 dark:border-slate-800 shadow-md text-center space-y-8">
             <div className="w-24 h-24 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
               <Trophy size={48} />
             </div>

@@ -37,19 +37,17 @@ body {
   color: #FAFAFA;
 }
 
-/* Premium Card Style */
+/* Simple Card Style */
 .premium-card {
   background-color: var(--color-pure-surface);
-  border-radius: 2.5rem;
-  border: 1px solid rgba(226, 232, 240, 0.5);
-  box-shadow: var(--shadow-diffused);
-  padding: 2rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(226, 232, 240, 1);
+  padding: 1.5rem;
 }
 
 .dark .premium-card {
-  background-color: #18181B;
-  border-color: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+  background-color: #1e293b;
+  border-color: rgba(51, 65, 85, 1);
 }
 
 /* Base Typo */

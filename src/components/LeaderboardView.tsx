@@ -41,7 +41,7 @@ export default function LeaderboardView() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700" dir="rtl">
       <div className="text-center space-y-4">
-        <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-2 shadow-xl shadow-amber-50 dark:shadow-none">
+        <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm shadow-amber-50 dark:shadow-none">
           <Trophy size={40} />
         </div>
         <h2 className="text-3xl font-black text-slate-900 dark:text-white">قائمة المتصدرين في العراق</h2>
@@ -49,7 +49,7 @@ export default function LeaderboardView() {
       </div>
 
       {leaders.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm max-w-2xl mx-auto">
+        <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm max-w-2xl mx-auto">
           <p className="text-slate-500 dark:text-slate-400 font-bold mb-2">لا يوجد متصدرين حالياً</p>
           <p className="text-sm text-slate-400">ابدأ بالدراسة واجمع النقاط لتكون أول المتصدرين!</p>
         </div>
@@ -68,7 +68,7 @@ export default function LeaderboardView() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
-              className={`p-4 rounded-3xl border flex items-center gap-4 group transition-all hover:scale-[1.02] shadow-sm ${bgClass}`}
+              className={`p-4 rounded-xl border flex items-center gap-4 group transition-all hover:scale-[1.02] shadow-sm ${bgClass}`}
             >
               <div className="w-12 h-12 flex items-center justify-center flex-shrink-0 font-black text-xl">
                 {index === 0 ? <Crown className="text-amber-500" size={32} />
@@ -116,7 +116,7 @@ export default function LeaderboardView() {
       </div>
       )}
       
-      <div className="bg-blue-600 p-8 rounded-[3rem] text-white text-center space-y-4 shadow-2xl shadow-blue-200 dark:shadow-none mt-12 overflow-hidden relative">
+      <div className="bg-blue-600 p-8 rounded-[3rem] text-white text-center space-y-4 shadow-md shadow-blue-200 dark:shadow-none mt-12 overflow-hidden relative">
          <div className="relative z-10 space-y-4">
            <h3 className="text-2xl font-black italic">كن الأول على دفعتك!</h3>
            <p className="text-blue-100 font-medium">كلما درست أكثر، كلما زادت فرصك في الظهور هنا أمام آلاف الطلاب.</p>

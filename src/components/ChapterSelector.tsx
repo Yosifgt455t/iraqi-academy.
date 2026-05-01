@@ -22,36 +22,45 @@ export default function ChapterSelector({ subject, userId, onSelect, teacherId }
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch all chapters and filter locally to support both single subject (legacy) and multiple subjects (new)
-        const chaptersSnap = await getDocs(collection(db, 'chapters'));
-        const allChapters = chaptersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chapter));
+        // Fetch chapters related to this subject using queries
+        const [chaptersSnap, legacyChaptersSnap] = await Promise.all([
+          getDocs(query(collection(db, 'chapters'), where('subjectIds', 'array-contains', subject.id))),
+          getDocs(query(collection(db, 'chapters'), where('subjectId', '==', subject.id)))
+        ]);
         
-        const filteredChapters = allChapters
-          .filter(chap => {
-            const chapterData = chap as any;
-            if (chapterData.subjectIds && Array.isArray(chapterData.subjectIds)) {
-              return chapterData.subjectIds.includes(subject.id);
-            }
-            return chapterData.subjectId === subject.id;
-          })
+        const allChaptersMap = new Map<string, Chapter>();
+        chaptersSnap.docs.forEach(doc => allChaptersMap.set(doc.id, { id: doc.id, ...doc.data() } as Chapter));
+        legacyChaptersSnap.docs.forEach(doc => allChaptersMap.set(doc.id, { id: doc.id, ...doc.data() } as Chapter));
+        
+        const filteredChapters = Array.from(allChaptersMap.values())
           .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
         setChapters(filteredChapters);
 
-        // Fetch all materials to calculate chapter progress
-        const materialsSnap = await getDocs(collection(db, 'materials'));
-        setAllMaterials(materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
         // Fetch user progress
+        let progress: string[] = [];
         try {
           const userDoc = await getDoc(doc(db, 'users', userId));
           if (userDoc.exists()) {
-            const userData = userDoc.data();
-            const progress = userData.completed_materials || [];
+            progress = userDoc.data().completed_materials || [];
             setCompletedMaterials(progress);
           }
         } catch (profileErr) {
           console.warn('Could not fetch profile progress:', profileErr);
+        }
+
+        // Only fetch materials if there are chapters and progress
+        if (filteredChapters.length > 0) {
+          const [materialsSnap, legacyMaterialsSnap] = await Promise.all([
+            getDocs(query(collection(db, 'materials'), where('subjectIds', 'array-contains', subject.id))),
+            getDocs(query(collection(db, 'materials'), where('subjectId', '==', subject.id)))
+          ]);
+          
+          const materialsMap = new Map<string, any>();
+          materialsSnap.docs.forEach(doc => materialsMap.set(doc.id, { id: doc.id, ...doc.data() }));
+          legacyMaterialsSnap.docs.forEach(doc => materialsMap.set(doc.id, { id: doc.id, ...doc.data() }));
+          
+          setAllMaterials(Array.from(materialsMap.values()));
         }
       } catch (err) {
         console.error('Error fetching chapters from Firestore:', err);
@@ -89,7 +98,7 @@ export default function ChapterSelector({ subject, userId, onSelect, teacherId }
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 space-y-4"
+        className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-200 space-y-4"
       >
         <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
           <Sparkles size={32} />

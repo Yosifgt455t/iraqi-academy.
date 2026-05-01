@@ -41,11 +41,11 @@ export default function ProfileSetup({ user, onComplete }: Props) {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100"
+        className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-slate-200"
       >
         <div className="text-center space-y-6">
           <div className="flex justify-center">
-            <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-lg shadow-blue-200">
+            <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center">
               <User className="text-white w-10 h-10" />
             </div>
           </div>

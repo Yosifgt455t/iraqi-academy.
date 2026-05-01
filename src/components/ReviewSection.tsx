@@ -40,13 +40,21 @@ export default function ReviewSection({ grade, onBack }: Props) {
         const fetchedSubjects = subjectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ReviewSubject);
         setSubjects(fetchedSubjects);
 
-        // Fetch all materials (we'll filter later or fetch per subject)
-        const materialsQuery = query(
-          collection(db, 'review_materials'),
-          orderBy('createdAt', 'desc')
-        );
-        const materialsSnap = await getDocs(materialsQuery);
-        setMaterials(materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ReviewMaterial));
+        if (fetchedSubjects.length > 0) {
+          const subjectIds = fetchedSubjects.map(s => s.id);
+          let allMaterialsList: ReviewMaterial[] = [];
+
+          for (let i = 0; i < subjectIds.length; i += 30) {
+            const chunk = subjectIds.slice(i, i + 30);
+            const materialsQuery = query(
+              collection(db, 'review_materials'),
+              where('reviewSubjectId', 'in', chunk)
+            );
+            const materialsSnap = await getDocs(materialsQuery);
+            materialsSnap.docs.forEach(doc => allMaterialsList.push({ id: doc.id, ...doc.data() } as ReviewMaterial));
+          }
+          setMaterials(allMaterialsList);
+        }
         
       } catch (err) {
         console.error('Error fetching review data:', err);
@@ -128,9 +136,9 @@ export default function ReviewSection({ grade, onBack }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
                   onClick={() => handleSubjectClick(sub)}
-                  className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center gap-4 group hover:border-blue-200 dark:hover:border-blue-800 transition-all text-center"
+                  className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/50 dark:shadow-none flex flex-col items-center gap-4 group hover:border-blue-200 dark:hover:border-blue-800 transition-all text-center"
                 >
-                  <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 rounded-3xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-3 transition-transform shadow-inner">
+                  <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-3 transition-transform shadow-inner">
                     <Layers size={40} />
                   </div>
                   <div>
@@ -147,7 +155,7 @@ export default function ReviewSection({ grade, onBack }: Props) {
               ))}
             </AnimatePresence>
             {filteredSubjects.length === 0 && (
-              <div className="col-span-full text-center py-20 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="col-span-full text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
                 <p className="text-slate-500 font-black">لا توجد مواد مراجعة متاحة حالياً</p>
               </div>
             )}
@@ -162,7 +170,7 @@ export default function ReviewSection({ grade, onBack }: Props) {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all"
+                  className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all"
                 >
                   <div className="flex items-center gap-4">
                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${
@@ -193,7 +201,7 @@ export default function ReviewSection({ grade, onBack }: Props) {
               ))}
             </AnimatePresence>
             {filteredMaterials.length === 0 && (
-              <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
                  <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">
                     <BookOpen className="text-slate-300" size={40} />
                   </div>

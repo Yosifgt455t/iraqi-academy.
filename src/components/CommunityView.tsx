@@ -157,7 +157,7 @@ export default function CommunityView({ user }: Props) {
         </div>
         <button 
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all hover:scale-105"
+          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl font-black shadow-sm shadow-blue-100 hover:bg-blue-700 transition-all hover:scale-105"
         >
           <Plus size={20} />
           <span>منشور جديد</span>
@@ -182,7 +182,7 @@ export default function CommunityView({ user }: Props) {
               key={post.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-md transition-all cursor-pointer"
+              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-md transition-all cursor-pointer"
               onClick={() => {
                 setSelectedPost(post);
                 fetchComments(post.id);
@@ -241,7 +241,7 @@ export default function CommunityView({ user }: Props) {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden"
+              className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-xl shadow-md overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <h3 className="text-xl font-black text-slate-900 dark:text-white">إنشاء منشور جديد</h3>
@@ -296,7 +296,7 @@ export default function CommunityView({ user }: Props) {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+              className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-xl shadow-md flex flex-col max-h-[90vh] overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
                 <button onClick={() => setSelectedPost(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">

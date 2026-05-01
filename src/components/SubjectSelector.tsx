@@ -54,29 +54,40 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
         if (filteredSubjects.length > 0) {
           const subjectIds = filteredSubjects.map(s => s.id);
           
-          // Flatten into chunks to avoid "in" clause limits (max 10/30 depending on SDK)
-          // But since we are fetching all chapters and filtering locally, it might still be slow
-          // Actually, let's fetch only chapters related to these subjects
-          const chaptersSnap = await getDocs(collection(db, 'chapters'));
-          const chaptersData = chaptersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-          const relevantChapters = chaptersData.filter(c => 
-            subjectIds.includes(c.subjectId) || 
-            (c.subjectIds && c.subjectIds.some((sid: string) => subjectIds.includes(sid)))
-          );
-          setAllChapters(relevantChapters);
+          // Instead of fetching all chapters/materials (which is very slow), 
+          // we fetch them in chunks of 30, but wait, `in` can only take 30.
+          // array-contains-any can only take 10.
+          // Doing multiple queries is much faster than downloading the whole DB.
+          
+          let allChaptersList: any[] = [];
+          let allMaterialsList: any[] = [];
 
-          // Fetch materials - also fetching all then filtering locally
-          // For now, keep it simple but ensure it's parallel
-          const materialsSnap = await getDocs(collection(db, 'materials'));
-          const materialsData = materialsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-          const chapterIds = relevantChapters.map(c => c.id);
-          const relevantMaterials = materialsData.filter(m => 
-            subjectIds.includes(m.subjectId) || 
-            (m.subjectIds && m.subjectIds.some((sid: string) => subjectIds.includes(sid))) ||
-            chapterIds.includes(m.chapterId) ||
-            (m.chapterIds && m.chapterIds.some((cid: string) => chapterIds.includes(cid)))
-          );
-          setAllMaterials(relevantMaterials);
+          // Split subjectIds into chunks of 10 for array-contains-any
+          for (let i = 0; i < subjectIds.length; i += 10) {
+            const chunk = subjectIds.slice(i, i + 10);
+            const [chapSnap1, chapSnap2] = await Promise.all([
+              getDocs(query(collection(db, 'chapters'), where('subjectIds', 'array-contains-any', chunk))),
+              getDocs(query(collection(db, 'chapters'), where('subjectId', 'in', chunk)))
+            ]);
+            chapSnap1.docs.forEach(d => allChaptersList.push({ id: d.id, ...d.data() }));
+            chapSnap2.docs.forEach(d => allChaptersList.push({ id: d.id, ...d.data() }));
+
+            const [matSnap1, matSnap2] = await Promise.all([
+              getDocs(query(collection(db, 'materials'), where('subjectIds', 'array-contains-any', chunk))),
+              getDocs(query(collection(db, 'materials'), where('subjectId', 'in', chunk)))
+            ]);
+            matSnap1.docs.forEach(d => allMaterialsList.push({ id: d.id, ...d.data() }));
+            matSnap2.docs.forEach(d => allMaterialsList.push({ id: d.id, ...d.data() }));
+          }
+
+          // Deduplicate
+          const uniqueChaptersMap = new Map();
+          allChaptersList.forEach(c => uniqueChaptersMap.set(c.id, c));
+          setAllChapters(Array.from(uniqueChaptersMap.values()));
+
+          const uniqueMaterialsMap = new Map();
+          allMaterialsList.forEach(m => uniqueMaterialsMap.set(m.id, m));
+          setAllMaterials(Array.from(uniqueMaterialsMap.values()));
         }
       } catch (err) {
         console.error('Error fetching subjects data:', err);
@@ -119,7 +130,7 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center py-20 px-6 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 space-y-6"
+        className="text-center py-20 px-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-6"
       >
         <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
           <Sparkles size={40} />
@@ -145,7 +156,7 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
             <button
               key={subject.id}
               onClick={() => onSelect(subject)}
-              className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 hover:border-blue-500 hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 group text-right"
+              className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all duration-300 group text-right"
             >
               <div className="flex items-center w-full mb-4">
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl ml-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">

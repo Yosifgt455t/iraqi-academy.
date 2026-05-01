@@ -81,7 +81,7 @@ export default function TeacherSelector({ subject, onSelect }: Props) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
             onClick={() => onSelect(teacher)}
-            className="p-6 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:border-blue-200 transition-all group text-right flex items-center gap-5"
+            className="p-6 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-sm hover:border-blue-200 transition-all group text-right flex items-center gap-5"
           >
             <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-100 border-4 border-slate-50 group-hover:border-blue-50 flex-shrink-0 transition-all">
               {teacher.avatar ? (

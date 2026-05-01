@@ -702,22 +702,29 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     }
   };
 
-  const handleDelete = async (
-    coll: string,
-    id: string,
-    refresh: () => void,
-  ) => {
-    if (
-      !window.confirm("هل أنت متأكد من الحذف؟ لا يمكن التراجع عن هذا الإجراء.")
-    )
-      return;
+  const [deleteConfirm, setDeleteConfirm] = useState<{coll: string, id: string, refresh: () => void} | null>(null);
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    const { coll, id, refresh } = deleteConfirm;
     try {
       await deleteDoc(doc(db, coll, id));
       showToast("success", "تم الحذف بنجاح");
       refresh();
-    } catch (err) {
-      showToast("error", "فشل الحذف");
+    } catch (err: any) {
+      console.error("Delete error:", err);
+      showToast("error", err.message || "فشل الحذف");
+    } finally {
+      setDeleteConfirm(null);
     }
+  };
+
+  const handleDelete = (
+    coll: string,
+    id: string,
+    refresh: () => void,
+  ) => {
+    setDeleteConfirm({ coll, id, refresh });
   };
 
   const fetchReviewSubjects = async () => {
@@ -988,7 +995,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                 }}
                 className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-300 font-black text-sm group ${
                   activeTab === item.id
-                    ? "bg-blue-600 text-white shadow-xl shadow-blue-100 translate-x-1"
+                    ? "bg-blue-600 text-white shadow-sm shadow-blue-100 translate-x-1"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
@@ -1080,9 +1087,9 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                 }
               >
                 {activeTab === "database" ? (
-                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50">
+                  <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm shadow-slate-100/50">
                     <div className="space-y-6">
-                      <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100 flex items-center gap-4">
+                      <div className="p-6 bg-blue-50 rounded-xl border border-blue-100 flex items-center gap-4">
                         <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
                           <Database size={28} />
                         </div>
@@ -1098,7 +1105,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 text-center">
+                        <div className="p-6 bg-slate-50 rounded-xl border border-slate-100 text-center">
                           <h4 className="text-[10px] text-slate-400 font-black mb-1 uppercase">
                             إجمالي المواد
                           </h4>
@@ -1106,7 +1113,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                             {subjects.length}
                           </p>
                         </div>
-                        <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 text-center">
+                        <div className="p-6 bg-slate-50 rounded-xl border border-slate-100 text-center">
                           <h4 className="text-[10px] text-slate-400 font-black mb-1 uppercase">
                             إجمالي المحاضرات
                           </h4>
@@ -1116,7 +1123,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                         </div>
                       </div>
 
-                      <div className="p-6 rounded-3xl bg-slate-900 text-white space-y-4">
+                      <div className="p-6 rounded-xl bg-slate-900 text-white space-y-4">
                         <div className="flex items-center gap-3">
                           <ShieldAlert className="text-amber-400" />
                           <h4 className="font-black">منطقة حساسة</h4>
@@ -1136,7 +1143,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                   </div>
                 ) : activeTab === "settings" ? (
                   <div className="space-y-8">
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 overflow-hidden relative">
+                    <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm shadow-slate-100/50 overflow-hidden relative">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-slate-900 mb-1">
@@ -1192,7 +1199,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                       <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-slate-50 rounded-full blur-3xl opacity-50" />
                     </div>
 
-                    <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 flex items-center gap-4">
+                    <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 flex items-center gap-4">
                       <div className="p-3 bg-white rounded-2xl text-blue-600 shadow-sm">
                         <LayoutGrid size={24} />
                       </div>
@@ -1208,7 +1215,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                     </div>
 
                     {isSuperAdmin && (
-                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50 space-y-6">
+                      <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm shadow-slate-100/50 space-y-6">
                         <div className="flex items-center gap-3 border-r-4 border-purple-500 pr-3">
                           <ShieldAlert className="text-purple-600" size={24} />
                           <h3 className="text-xl font-black text-slate-900">
@@ -1220,13 +1227,13 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                           <input
                             value={newAdminEmail}
                             onChange={(e) => setNewAdminEmail(e.target.value)}
-                            className="flex-1 p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-purple-100 font-bold"
+                            className="flex-1 p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-purple-100 font-bold"
                             placeholder="إيميل المسؤول الجديد..."
                           />
                           <button
                             onClick={handleAddAdmin}
                             disabled={loading || !newAdminEmail}
-                            className="px-8 bg-purple-600 text-white rounded-3xl font-black hover:bg-purple-700 transition-all disabled:opacity-50"
+                            className="px-8 bg-purple-600 text-white rounded-xl font-black hover:bg-purple-700 transition-all disabled:opacity-50"
                           >
                             {loading ? (
                               <Loader2 className="animate-spin" />
@@ -1292,7 +1299,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                       key={activeTab}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50"
+                      className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm shadow-slate-100/50"
                     >
                       <div className="flex items-center justify-between mb-8">
                         <h3 className="text-xl font-black text-slate-900 border-r-4 border-blue-500 pr-3">
@@ -1407,7 +1414,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   ) as HTMLInputElement
                                 ).value = "";
                               }}
-                              className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-100"
+                              className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm shadow-blue-100"
                             >
                               <Plus size={20} />
                               إضافة الصف
@@ -1529,7 +1536,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <textarea
                                 value={bulkInput}
                                 onChange={(e) => setBulkInput(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[150px]"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[150px]"
                                 placeholder="اللغة العربية\nاللغة الإنجليزية"
                               />
                             ) : (
@@ -1537,7 +1544,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 value={subjectName}
                                 onChange={(e) => setSubjectName(e.target.value)}
                                 required={!isBulkMode}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl focus:ring-4 focus:ring-blue-100 outline-none transition-all font-bold"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-blue-100 outline-none transition-all font-bold"
                                 placeholder="مثال: اللغة العربية"
                               />
                             )}
@@ -1607,7 +1614,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
                           <button
                             disabled={loading}
-                            className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                            className="w-full py-5 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-100"
                           >
                             {loading ? (
                               <Loader2 className="animate-spin" size={24} />
@@ -1687,7 +1694,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <textarea
                                 value={bulkInput}
                                 onChange={(e) => setBulkInput(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[150px]"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[150px]"
                                 placeholder="الفصل الأول\nالفصل الثاني"
                               />
                             ) : (
@@ -1695,7 +1702,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 value={chapterName}
                                 onChange={(e) => setChapterName(e.target.value)}
                                 required={!isBulkMode}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 placeholder="مثال: الفصل الأول"
                               />
                             )}
@@ -1705,7 +1712,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                             disabled={
                               loading || selectedSubjectIds.length === 0
                             }
-                            className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                            className="w-full py-5 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-100"
                           >
                             {loading ? (
                               <Loader2 className="animate-spin" size={24} />
@@ -1783,7 +1790,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                             <label className="block text-sm font-black text-slate-700 mb-4 font-black bg-emerald-100/50 p-2 rounded-lg inline-block">
                               3. حدد الفصول المستهدفة (تعدد اختيار)
                             </label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-3xl bg-slate-50 custom-scrollbar text-right">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-xl bg-slate-50 custom-scrollbar text-right">
                               {chapters
                                 .filter(
                                   (c) =>
@@ -1823,7 +1830,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <textarea
                                 value={bulkInput}
                                 onChange={(e) => setBulkInput(e.target.value)}
-                                className="w-full p-6 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
+                                className="w-full p-6 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
                                 placeholder={
                                   "المحاضرة 1 | https://url | Video\nملف الشرح | https://url | PDF"
                                 }
@@ -1841,7 +1848,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setMaterialTitle(e.target.value)
                                   }
                                   required={!isBulkMode}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="اسم المحاضرة أو الملف"
                                 />
                               </div>
@@ -1854,7 +1861,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   onChange={(e) =>
                                     setMaterialType(e.target.value as any)
                                   }
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 >
                                   <option value="Video">يوتيوب (Video)</option>
                                   <option value="PDF">ملف (PDF)</option>
@@ -1869,7 +1876,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   onChange={(e) =>
                                     setMaterialTeacherId(e.target.value)
                                   }
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 >
                                   <option value="">اختر المدرس (اختياري)</option>
                                   {teachers
@@ -1889,7 +1896,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setMaterialUrl(e.target.value)
                                   }
                                   required={!isBulkMode}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="https://..."
                                 />
                               </div>
@@ -1905,7 +1912,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       Number(e.target.value),
                                     )
                                   }
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="مثال: 1, 2, 3..."
                                   min="0"
                                 />
@@ -1917,7 +1924,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                             disabled={
                               loading || selectedChapterIds.length === 0
                             }
-                            className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                            className="w-full py-5 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-100"
                           >
                             {loading ? (
                               <Loader2 className="animate-spin" size={24} />
@@ -2003,7 +2010,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                             <label className="block text-sm font-black text-slate-700 mb-4 font-black bg-amber-100/50 p-2 rounded-lg inline-block">
                               3. اربط السؤال بالفصول (تعدد اختيار)
                             </label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-3xl bg-slate-50 custom-scrollbar text-right">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-xl bg-slate-50 custom-scrollbar text-right">
                               {chapters
                                 .filter(
                                   (c) =>
@@ -2041,7 +2048,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <textarea
                                 value={bulkInput}
                                 onChange={(e) => setBulkInput(e.target.value)}
-                                className="w-full p-6 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
+                                className="w-full p-6 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
                                 placeholder={
                                   "السؤال الأول | الجواب الأول | 2023 الدور الأول\nالسؤال الثاني | الجواب الثاني | 2022 الدور الثاني"
                                 }
@@ -2058,7 +2065,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       Number(e.target.value),
                                     )
                                   }
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="مثال: 1, 2, 3..."
                                   min="0"
                                 />
@@ -2078,7 +2085,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       Number(e.target.value),
                                     )
                                   }
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="مثال: 1, 2, 3..."
                                   min="0"
                                 />
@@ -2094,7 +2101,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setMinQuestText(e.target.value)
                                   }
                                   placeholder="اكتب السؤال هنا..."
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[100px]"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[100px]"
                                 />
                               </div>
                               <div className="space-y-4">
@@ -2109,7 +2116,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setMinQuestYear(e.target.value)
                                   }
                                   placeholder="مثال: 2023 الدور الأول"
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 />
                               </div>
                               <div className="space-y-4">
@@ -2123,7 +2130,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setMinQuestAnswer(e.target.value)
                                   }
                                   placeholder="اكتب الجواب هنا..."
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
                                 />
                               </div>
                             </div>
@@ -2140,7 +2147,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   setMinQuestYear("");
                                   setMinQuestOrderIndex(0);
                                 }}
-                                className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black flex items-center justify-center gap-2"
+                                className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-xl font-black flex items-center justify-center gap-2"
                               >
                                 إلغاء
                               </button>
@@ -2149,7 +2156,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               disabled={
                                 loading || selectedChapterIds.length === 0
                               }
-                              className="flex-[2] py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                              className="flex-[2] py-5 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-100"
                             >
                               {loading ? (
                                 <Loader2 className="animate-spin" size={24} />
@@ -2175,7 +2182,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 required
                                 value={teacherName}
                                 onChange={(e) => setTeacherName(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 placeholder="مثال: أ. محمد العراقي"
                               />
                             </div>
@@ -2185,7 +2192,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 required
                                 value={teacherSubjectId}
                                 onChange={(e) => setTeacherSubjectId(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                               >
                                 <option value="">اختر المادة</option>
                                 {subjects.map(sub => (
@@ -2198,7 +2205,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <input
                                 value={teacherAvatar}
                                 onChange={(e) => setTeacherAvatar(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 placeholder="https://..."
                               />
                             </div>
@@ -2206,7 +2213,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
                           <button
                             disabled={loading}
-                            className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                            className="w-full py-5 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-100"
                           >
                             {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
                             {editingId ? "حفظ التعديلات" : "إضافة المدرس"}
@@ -2249,14 +2256,14 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 required
                                 value={reviewSubName}
                                 onChange={(e) => setReviewSubName(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 placeholder="ادخل اسم مادة المراجعة..."
                               />
                             </div>
 
                             <button
                               disabled={loading}
-                              className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-slate-800 disabled:opacity-50"
+                              className="w-full py-5 bg-slate-900 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-slate-800 disabled:opacity-50"
                             >
                               {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
                               {editingId ? "حفظ التعديلات" : "إنشاء مادة مراجعة"}
@@ -2295,7 +2302,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   required
                                   value={reviewMatTitle}
                                   onChange={(e) => setReviewMatTitle(e.target.value)}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="العنوان..."
                                 />
                               </div>
@@ -2304,7 +2311,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 <select
                                   value={reviewMatType}
                                   onChange={(e) => setReviewMatType(e.target.value as "PDF" | "Video")}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 >
                                   <option value="PDF">ملف PDF</option>
                                   <option value="Video">محاضرة فيديو</option>
@@ -2318,14 +2325,14 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 required
                                 value={reviewMatUrl}
                                 onChange={(e) => setReviewMatUrl(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 placeholder="https://..."
                               />
                             </div>
 
                             <button
                               disabled={loading}
-                              className="w-full py-5 bg-purple-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 disabled:opacity-50 shadow-xl shadow-purple-100"
+                              className="w-full py-5 bg-purple-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 disabled:opacity-50 shadow-sm shadow-purple-100"
                             >
                               {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
                               {editingId ? "حفظ التعديلات" : "إضافة إلى المراجعة"}
@@ -2362,7 +2369,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 required
                                 value={quizQuestion}
                                 onChange={(e) => setQuizQuestion(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-24"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-24"
                                 placeholder="اكتب السؤال هنا..."
                               />
                             </div>
@@ -2402,13 +2409,13 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   max="15"
                                   value={quizDifficulty}
                                   onChange={(e) => setQuizDifficulty(Number(e.target.value))}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 />
                             </div>
 
                             <button
                               disabled={loading}
-                              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                              className="w-full py-5 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-100"
                             >
                               {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
                               {editingId ? "حفظ التعديلات" : "إضافة السؤال للعبة"}
@@ -2425,7 +2432,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   required
                                   value={newsTitle}
                                   onChange={(e) => setNewsTitle(e.target.value)}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="مثال: تنويه هام بخصوص الامتحانات"
                                 />
                               </div>
@@ -2434,7 +2441,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 <input
                                   value={newsCategory}
                                   onChange={(e) => setNewsCategory(e.target.value)}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                   placeholder="مثال: عاجل، تنويه، هام"
                                 />
                               </div>
@@ -2445,7 +2452,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <input
                                 value={newsImage}
                                 onChange={(e) => setNewsImage(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 placeholder="https://..."
                               />
                             </div>
@@ -2456,14 +2463,14 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 required
                                 value={newsContent}
                                 onChange={(e) => setNewsContent(e.target.value)}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
                                 placeholder="اكتب تفاصيل الخبر هنا..."
                               />
                             </div>
 
                             <button
                               disabled={loading}
-                              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-xl shadow-blue-100"
+                              className="w-full py-5 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-100"
                             >
                               {loading ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
                               {editingId ? "حفظ التعديلات" : "إضافة الخبر"}
@@ -2541,7 +2548,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                             <label className="block text-sm font-black text-slate-700 mb-4 font-black bg-amber-100/50 p-2 rounded-lg inline-block">
                               3. اربط البطاقة بالفصول (تعدد اختيار)
                             </label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-3xl bg-slate-50 custom-scrollbar text-right">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border border-slate-100 rounded-xl bg-slate-50 custom-scrollbar text-right">
                               {chapters
                                 .filter(
                                   (c) =>
@@ -2579,7 +2586,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <textarea
                                 value={bulkInput}
                                 onChange={(e) => setBulkInput(e.target.value)}
-                                className="w-full p-6 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
+                                className="w-full p-6 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[200px]"
                                 placeholder={
                                   "السؤال الأول | الجواب الأول\nالسؤال الثاني | الجواب الثاني"
                                 }
@@ -2597,7 +2604,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setFlashcardQuestion(e.target.value)
                                   }
                                   required={!isBulkMode}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 />
                               </div>
                               <div>
@@ -2610,7 +2617,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     setFlashcardAnswer(e.target.value)
                                   }
                                   required={!isBulkMode}
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
                                 />
                               </div>
                             </div>
@@ -2625,7 +2632,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   setFlashcardQuestion("");
                                   setFlashcardAnswer("");
                                 }}
-                                className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black flex items-center justify-center gap-2"
+                                className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-xl font-black flex items-center justify-center gap-2"
                               >
                                 إلغاء
                               </button>
@@ -2634,7 +2641,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               disabled={
                                 loading || selectedChapterIds.length === 0
                               }
-                              className="flex-[2] py-5 bg-purple-600 text-white rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 disabled:opacity-50 shadow-xl shadow-purple-100"
+                              className="flex-[2] py-5 bg-purple-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-purple-700 disabled:opacity-50 shadow-sm shadow-purple-100"
                             >
                               {loading ? (
                                 <Loader2 className="animate-spin" size={24} />
@@ -2661,7 +2668,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                 activeTab !== "classes" && (
                   <div className="lg:col-span-5 space-y-6">
                     <div className="sticky top-[110px]">
-                      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                      <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                           <h4 className="font-black text-slate-900 border-r-4 border-blue-500 pr-3">
                             الموجودات الحالية
@@ -2723,19 +2730,19 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                         {m.question}
                                       </span>
                                     </div>
-                                    <div
-                                      onClick={(e) => {
-                                        e.stopPropagation();
+                                    <button
+ type="button"
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
                                         handleDelete(
                                           "ministerial_questions",
                                           m.id,
                                           fetchMinisterialQuestions,
                                         );
-                                      }}
-                                      className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all shrink-0"
-                                    >
-                                      <Trash2 size={16} />
-                                    </div>
+                                       }}
+ className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all shrink-0 z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
+>
+ <Trash2 size={16} className="pointer-events-none" />
+</button>
                                   </div>
                                   <div className="mt-2 flex items-center gap-4 text-[10px] font-black uppercase">
                                     <span className="bg-white group-hover:bg-blue-700 group-hover:text-white text-slate-500 px-2 py-0.5 rounded border border-slate-100 group-hover:border-blue-500 transition-colors">
@@ -2857,21 +2864,21 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   <HelpCircle size={18} className="group-hover:text-white text-amber-500" />
                                   <span className="font-bold truncate max-w-[200px]">{q.question}</span>
                                 </div>
-                                <div
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                <button
+ type="button"
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
                                     handleDelete("quiz_questions", q.id, fetchQuizQuestions);
-                                  }}
-                                  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
-                                >
-                                  <Trash2 size={16} />
-                                </div>
+                                   }}
+ className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
+>
+ <Trash2 size={16} className="pointer-events-none" />
+</button>
                               </button>
                             ))}
 
                           {activeTab === "teachers" &&
                             teachers.map((t) => (
-                              <button
+                              <div
                                 key={t.id}
                                 onClick={() => {
                                   setEditingId(t.id);
@@ -2880,7 +2887,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   setTeacherAvatar(t.avatar || "");
                                   setIsBulkMode(false);
                                 }}
-                                className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
+                                className="w-full flex cursor-pointer items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
                               >
                                 <div className="flex items-center gap-3">
                                   {t.avatar ? (
@@ -2895,16 +2902,18 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     </span>
                                   </div>
                                 </div>
-                                <div
+                                <button
+                                  type="button"
                                   onClick={(e) => {
+                                    e.preventDefault();
                                     e.stopPropagation();
                                     handleDelete("teachers", t.id, fetchTeachers);
                                   }}
-                                  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
+                                  className="p-3 bg-red-50 hover:bg-red-500 rounded-xl text-red-500 hover:text-white transition-all z-10"
                                 >
-                                  <Trash2 size={16} />
-                                </div>
-                              </button>
+                                  <Trash2 size={18} className="pointer-events-none" />
+                                </button>
+                              </div>
                             ))}
 
                           {activeTab === "subjects" &&
@@ -2926,19 +2935,19 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   />
                                   <span className="font-bold">{s.name}</span>
                                 </div>
-                                <div
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                <button
+ type="button"
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
                                     handleDelete(
                                       "subjects",
                                       s.id,
                                       fetchSubjects,
                                     );
-                                  }}
-                                  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
-                                >
-                                  <Trash2 size={16} />
-                                </div>
+                                   }}
+ className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
+>
+ <Trash2 size={16} className="pointer-events-none" />
+</button>
                               </button>
                             ))}
 
@@ -2961,19 +2970,19 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   />
                                   <span className="font-bold">{c.name}</span>
                                 </div>
-                                <div
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                <button
+ type="button"
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
                                     handleDelete(
                                       "chapters",
                                       c.id,
                                       fetchChapters,
                                     );
-                                  }}
-                                  className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
-                                >
-                                  <Trash2 size={16} />
-                                </div>
+                                   }}
+ className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
+>
+ <Trash2 size={16} className="pointer-events-none" />
+</button>
                               </button>
                             ))}
 
@@ -3016,19 +3025,19 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                         {m.title}
                                       </span>
                                     </div>
-                                    <div
-                                      onClick={(e) => {
-                                        e.stopPropagation();
+                                    <button
+ type="button"
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
                                         handleDelete(
                                           "materials",
                                           m.id,
                                           fetchMaterials,
                                         );
-                                      }}
-                                      className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
-                                    >
-                                      <Trash2 size={16} />
-                                    </div>
+                                       }}
+ className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
+>
+ <Trash2 size={16} className="pointer-events-none" />
+</button>
                                   </div>
                                   <div className="mt-2 flex items-center gap-4 text-[10px] font-black uppercase">
                                     <span className="bg-white group-hover:bg-blue-700 group-hover:text-white text-slate-500 px-2 py-0.5 rounded border border-slate-100 group-hover:border-blue-500 transition-colors">
@@ -3074,19 +3083,19 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       {f.question}
                                     </span>
                                   </div>
-                                  <div
-                                    onClick={(e) => {
-                                      e.stopPropagation();
+                                  <button
+ type="button"
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
                                       handleDelete(
                                         "flashcards",
                                         f.id,
                                         fetchFlashcards,
                                       );
-                                    }}
-                                    className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all"
-                                  >
-                                    <Trash2 size={16} />
-                                  </div>
+                                     }}
+ className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
+>
+ <Trash2 size={16} className="pointer-events-none" />
+</button>
                                 </div>
                                 <p className="mt-2 text-[10px] opacity-60 italic truncate w-full">
                                   {f.answer}
@@ -3106,7 +3115,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   setNewsCategory(item.category || "عام");
                                   setIsBulkMode(false);
                                 }}
-                                className="w-full flex flex-col p-4 bg-white rounded-3xl group hover:border-blue-600 transition-all border border-slate-100 text-right shadow-sm"
+                                className="w-full flex flex-col p-4 bg-white rounded-xl group hover:border-blue-600 transition-all border border-slate-100 text-right shadow-sm"
                               >
                                 {item.imageUrl && (
                                   <div className="w-full h-32 rounded-2xl overflow-hidden mb-4 bg-slate-100">
@@ -3118,15 +3127,15 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{item.category}</span>
                                     <h4 className="font-bold text-slate-900 group-hover:text-blue-600">{item.title}</h4>
                                   </div>
-                                  <div
-                                    onClick={(e) => {
-                                      e.stopPropagation();
+                                  <button
+ type="button"
+ onClick={(e) => { e.preventDefault(); e.stopPropagation(); 
                                       handleDelete("news", item.id, fetchNews);
-                                    }}
-                                    className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-all"
-                                  >
-                                    <Trash2 size={16} />
-                                  </div>
+                                     }}
+ className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
+>
+ <Trash2 size={16} className="pointer-events-none" />
+</button>
                                 </div>
                                 <p className="mt-2 text-xs text-slate-500 line-clamp-2">{item.content}</p>
                               </button>
@@ -3162,7 +3171,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 md:bottom-10 left-1/2 md:left-10 -translate-x-1/2 md:translate-x-0 px-8 py-4 bg-emerald-600 text-white rounded-3xl flex items-center gap-3 shadow-2xl shadow-emerald-200 z-[100] w-[90%] md:w-auto text-center justify-center"
+            className="fixed bottom-6 md:bottom-10 left-1/2 md:left-10 -translate-x-1/2 md:translate-x-0 px-8 py-4 bg-emerald-600 text-white rounded-xl flex items-center gap-3 shadow-md shadow-emerald-200 z-[100] w-[90%] md:w-auto text-center justify-center"
           >
             <CheckCircle2 size={24} />
             <span className="font-black">{success}</span>
@@ -3173,11 +3182,48 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 md:bottom-10 left-1/2 md:left-10 -translate-x-1/2 md:translate-x-0 px-8 py-4 bg-red-600 text-white rounded-3xl flex items-center gap-3 shadow-2xl shadow-red-200 z-[100] w-[90%] md:w-auto text-center justify-center"
+            className="fixed bottom-6 md:bottom-10 left-1/2 md:left-10 -translate-x-1/2 md:translate-x-0 px-8 py-4 bg-red-600 text-white rounded-xl flex items-center gap-3 shadow-md shadow-red-200 z-[100] w-[90%] md:w-auto text-center justify-center"
           >
             <AlertCircle size={24} />
             <span className="font-black">{error}</span>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-xl p-6 w-full max-w-md shadow-md"
+              dir="rtl"
+            >
+              <div className="flex items-center gap-3 mb-4 text-red-600">
+                <AlertCircle size={28} />
+                <h3 className="text-xl font-bold">تأكيد الحذف</h3>
+              </div>
+              <p className="text-slate-600 font-semibold mb-8 text-right">
+                هل أنت متأكد من الحذف؟ لا يمكن التراجع عن هذا الإجراء.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="px-6 py-2.5 rounded-xl font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={executeDelete}
+                  className="px-6 py-2.5 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-colors"
+                >
+                  حذف
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

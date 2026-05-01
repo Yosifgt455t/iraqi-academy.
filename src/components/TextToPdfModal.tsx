@@ -12,7 +12,7 @@ export default function TextToPdfModal({ onClose }: Props) {
   const [text, setText] = useState('');
   const [pdfName, setPdfName] = useState('نص_جديد');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [fontSize, setFontSize] = useState(14);
+  const [fontSize, setFontSize] = useState(24);
   const printRef = useRef<HTMLDivElement>(null);
 
   const generatePdf = async () => {
@@ -53,7 +53,7 @@ export default function TextToPdfModal({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-md overflow-hidden">
       {/* Hidden element for rendering */}
       <div className="fixed left-[-9999px] top-0">
         <div 
@@ -77,7 +77,7 @@ export default function TextToPdfModal({ onClose }: Props) {
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-md overflow-hidden"
       >
         {/* Header */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-emerald-50/50">
@@ -124,10 +124,10 @@ export default function TextToPdfModal({ onClose }: Props) {
                   onChange={(e) => setFontSize(Number(e.target.value))}
                   className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none"
                 >
-                  <option value={10}>صغير</option>
-                  <option value={14}>متوسط</option>
-                  <option value={18}>كبير</option>
-                  <option value={24}>كبير جداً</option>
+                  <option value={14}>صغير</option>
+                  <option value={18}>متوسط</option>
+                  <option value={24}>كبير</option>
+                  <option value={32}>كبير جداً</option>
                 </select>
               </div>
             </div>
@@ -146,7 +146,7 @@ export default function TextToPdfModal({ onClose }: Props) {
           <button
             onClick={generatePdf}
             disabled={!text.trim() || isGenerating}
-            className="w-full h-14 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 disabled:bg-slate-300 disabled:shadow-none transition-all"
+            className="w-full h-14 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-sm shadow-emerald-500/20 hover:bg-emerald-700 disabled:bg-slate-300 disabled:shadow-none transition-all"
           >
             {isGenerating ? (
               <>

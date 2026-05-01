@@ -167,7 +167,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-md overflow-hidden">
       {/* Hidden element for PDF rendering */}
       <div className="fixed left-[-9999px] top-0 overflow-hidden" style={{ width: '794px' }}>
         <div 
@@ -218,13 +218,13 @@ export default function ExamBuilderModal({ onClose }: Props) {
                 lineHeight: '1.4'
               }}
             >
-              <div className="space-y-0 text-[16.5px]">
+              <div className="space-y-0 text-[20px]">
                 {questions.map((q, idx) => (
                   <React.Fragment key={idx}>
                     <div className="py-0.5 space-y-1.5 shrink-0">
                       {/* Section Title */}
                       {q.sectionTitle && (
-                        <div className="font-bold text-[17px] italic mt-1 mb-0.5">
+                        <div className="font-bold text-[22px] italic mt-1 mb-0.5">
                           {q.sectionTitle}
                         </div>
                       )}
@@ -233,15 +233,15 @@ export default function ExamBuilderModal({ onClose }: Props) {
                       {q.text && (
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-start gap-4">
-                            <span className="text-lg font-bold shrink-0">
+                            <span className="text-[22px] font-bold shrink-0">
                               {q.customLabel ? q.customLabel : `س${idx + 1}/`}
                             </span>
-                            <p className="leading-[1.4] flex-1 font-semibold whitespace-pre-line">
+                            <p className="leading-[1.5] flex-1 font-semibold whitespace-pre-line text-[20px]">
                               {q.text}
                             </p>
                           </div>
                           {q.marks && (
-                            <div className="font-bold italic whitespace-nowrap ml-4 text-[17px] shrink-0">
+                            <div className="font-bold italic whitespace-nowrap ml-4 text-[20px] shrink-0">
                               {q.marks}
                             </div>
                           )}
@@ -282,14 +282,14 @@ export default function ExamBuilderModal({ onClose }: Props) {
                           {q.branches.map((branch, bIdx) => (
                             <div key={bIdx} className="flex items-start gap-4">
                               {!q.text && bIdx === 0 && (
-                                <span className="text-base font-bold shrink-0">
+                                <span className="text-[22px] font-bold shrink-0">
                                   {q.customLabel ? q.customLabel : `س${idx + 1}/`}
                                 </span>
                               )}
-                              <span className={!q.text && bIdx === 0 ? "text-[16.5px] font-bold shrink-0 mr-2" : "text-[16.5px] font-bold shrink-0"}>
+                              <span className={!q.text && bIdx === 0 ? "text-[20px] font-bold shrink-0 mr-2" : "text-[20px] font-bold shrink-0"}>
                                 {`${arabicLabels[bIdx] || 'أ'}/`}
                               </span>
-                              <p className="text-[16.5px] leading-[1.3] flex-1 font-semibold">
+                              <p className="text-[20px] leading-[1.5] flex-1 font-semibold">
                                 {branch || '......................................................................................................................'}
                               </p>
                             </div>
@@ -299,10 +299,10 @@ export default function ExamBuilderModal({ onClose }: Props) {
                         /* No main text and no branches - Empty line */
                         !q.text && (
                           <div className="flex items-start gap-4">
-                            <span className="text-base font-bold shrink-0">
+                            <span className="text-[22px] font-bold shrink-0">
                               {q.customLabel ? q.customLabel : `س${idx + 1}/`}
                             </span>
-                            <p className="text-[16.5px] leading-[1.3] flex-1 font-semibold">
+                            <p className="text-[20px] leading-[1.5] flex-1 font-semibold">
                               ......................................................................................................................
                             </p>
                           </div>
@@ -343,7 +343,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-3xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden relative"
+        className="bg-white rounded-xl w-full max-w-5xl h-[90vh] flex flex-col shadow-md overflow-hidden relative"
       >
         {/* Modal Header */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-blue-50/50 shrink-0">

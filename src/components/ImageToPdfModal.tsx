@@ -83,11 +83,11 @@ export default function ImageToPdfModal({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-md overflow-hidden">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden shadow-blue-500/10"
+        className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-md overflow-hidden shadow-blue-500/10"
       >
         {/* Header */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-blue-50/50">
@@ -130,7 +130,7 @@ export default function ImageToPdfModal({ onClose }: Props) {
           {images.length === 0 ? (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full aspect-video border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center gap-4 hover:bg-blue-50 hover:border-blue-300 transition-all group"
+              className="w-full aspect-video border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-4 hover:bg-blue-50 hover:border-blue-300 transition-all group"
             >
               <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner">
                 <ImagePlus size={32} />
@@ -192,7 +192,7 @@ export default function ImageToPdfModal({ onClose }: Props) {
           <button
             onClick={generatePdf}
             disabled={images.length === 0 || isGenerating}
-            className="w-full h-14 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20 hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none transition-all"
+            className="w-full h-14 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-sm shadow-blue-500/20 hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none transition-all"
           >
             {isGenerating ? (
               <>

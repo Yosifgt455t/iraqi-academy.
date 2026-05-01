@@ -52,7 +52,6 @@ import LeaderboardView from './LeaderboardView';
 import MultiplayerQuiz from './MultiplayerQuiz';
 
 import ActivitiesMenu from './ActivitiesMenu';
-import { AdSense } from './AdSense';
 
 import { useClasses } from '../hooks/useClasses';
 
@@ -234,9 +233,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <AdSense />
-        </div>
         {view === 'admin' ? (
           <AdminDashboard user={user} onBack={() => setView('home')} />
         ) : view === 'activities' ? (
@@ -257,54 +253,53 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
           <LeaderboardView />
         ) : !currentSubject ? (
           <div className="space-y-8">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden group">
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl shrink-0 bg-white/10">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 md:p-8 relative overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center gap-6">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200 dark:border-slate-700">
                   <img 
-                    src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata?.full_name)}&background=ffffff&color=2563eb`} 
+                    src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata?.full_name)}&background=f1f5f9&color=0f172a`} 
                     alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div>
-                   <div className="flex items-center gap-2 mb-1">
-                     <span className="text-xs font-black bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest">المستوى {userProfile?.level || 1}</span>
+                   <div className="flex items-center gap-2 mb-2">
+                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">المستوى {userProfile?.level || 1}</span>
                    </div>
-                  <h2 className="text-3xl font-black mb-2 leading-tight">أهلاً بك يا {user.user_metadata?.full_name?.split(' ')[0] || 'بطل'}!</h2>
-                  <p className="opacity-90 font-medium">اختر المادة التي تود دراستها اليوم وابدأ رحلة النجاح.</p>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">أهلاً بك يا {user.user_metadata?.full_name?.split(' ')[0] || 'بطل'}</h2>
+                  <p className="text-slate-500 dark:text-slate-400 font-medium">اختر المادة التي تود دراستها اليوم وابدأ رحلة النجاح.</p>
                 </div>
               </div>
-              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={() => setView('activities')}
-                className="premium-card md:col-span-2 flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-1 transition-transform relative overflow-hidden"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 md:col-span-2 flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-1 transition-transform relative overflow-hidden"
               >
                 <div className="absolute left-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity">
                   <Crown size={120} className="translate-y-8 -translate-x-8" />
                 </div>
-                <div className="w-12 h-12 bg-[#F9FAFB] dark:bg-slate-800 rounded-2xl flex items-center justify-center text-[#71717A] dark:text-slate-400 mb-4 group-hover:text-amber-500 transition-colors relative z-10">
+                <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-500 dark:text-slate-400 mb-4 group-hover:text-amber-500 transition-colors relative z-10 border border-slate-100 dark:border-slate-700">
                   <Gamepad2 size={24} />
                 </div>
                 <div className="relative z-10">
-                  <h3 className="font-black text-slate-900 dark:text-white text-lg">الأنشطة والفعاليات</h3>
-                  <p className="text-xs text-[#71717A] dark:text-slate-400 font-medium mt-1">العب وتعلم مع زملائك، اكتشف المتصدرين، وراجع معلوماتك</p>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-lg">الأنشطة والفعاليات</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">العب وتعلم مع زملائك، اكتشف المتصدرين، وراجع معلوماتك</p>
                 </div>
               </button>
 
               {currentIsAdmin && (
                 <button
                   onClick={() => setView('admin')}
-                  className="premium-card md:col-span-2 flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-1 transition-transform border-[#3B82F6]"
+                  className="bg-white dark:bg-slate-900 border border-blue-500 rounded-xl p-6 md:col-span-2 flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-1 transition-transform"
                 >
-                  <div className="w-12 h-12 bg-[#3B82F6] rounded-2xl flex items-center justify-center text-white mb-4">
+                  <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white mb-4">
                     <ShieldCheck size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-slate-900 dark:text-white text-lg">لوحة الإدارة</h3>
-                    <p className="text-xs text-[#3B82F6] font-medium mt-1">إعدادات المنصة</p>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-lg">لوحة الإدارة</h3>
+                    <p className="text-xs text-blue-500 font-medium mt-1">إعدادات المنصة</p>
                   </div>
                 </button>
               )}
@@ -326,7 +321,7 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-all group overflow-hidden relative text-right"
+                      className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-all group overflow-hidden relative text-right"
                     >
                       {news.imageUrl && (
                         <div className="md:w-32 h-32 rounded-2xl overflow-hidden shrink-0">
@@ -355,7 +350,7 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white dark:bg-slate-900 rounded-3xl border border-blue-100 dark:border-slate-800 shadow-sm overflow-hidden"
+                className="bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-slate-800 shadow-sm overflow-hidden"
               >
                 <div className="bg-blue-50 dark:bg-slate-800/50 px-6 py-4 border-b border-blue-100 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-bold">
@@ -394,15 +389,11 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
         )}
       </main>
 
-      <div className="max-w-4xl mx-auto px-4 pb-16">
-        <AdSense />
-      </div>
-
       {/* Floating Home Button */}
       {(currentSubject || currentChapter) && (
         <button
           onClick={reset}
-          className="fixed bottom-8 left-8 w-14 h-14 bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 rounded-full shadow-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-center hover:scale-110 transition-transform z-50"
+          className="fixed bottom-8 left-8 w-14 h-14 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 hover:-translate-y-1 transition-all z-50 shadow-lg"
         >
           <Home size={24} />
         </button>
@@ -410,7 +401,7 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
       {/* Floating Tools Button */}
       <button
         onClick={() => setShowToolsModal(true)}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group"
+        className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center hover:-translate-y-1 transition-all z-50 group shadow-lg"
       >
         <LayoutGrid size={24} />
         <span className="absolute right-full mr-3 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">

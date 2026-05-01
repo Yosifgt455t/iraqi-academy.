@@ -90,12 +90,12 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl overflow-hidden" dir="rtl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-md overflow-hidden" dir="rtl">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden relative"
+            className="bg-white rounded-xl w-full max-w-md shadow-md overflow-hidden relative"
           >
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -114,7 +114,7 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
               {/* Profile Pic Section */}
               <div className="flex flex-col items-center gap-4">
                 <div className="relative group cursor-pointer" onClick={() => user.id !== 'guest_user' && fileInputRef.current?.click()}>
-                  <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-white shadow-xl">
+                  <div className="w-24 h-24 rounded-xl overflow-hidden border-4 border-white shadow-sm">
                     <img 
                       src={avatarUrl || user?.photoURL || user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || user.displayName || user.user_metadata?.full_name || 'User')}&background=2563eb&color=fff`} 
                       alt="Profile"
@@ -207,7 +207,7 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
                   initial={{ opacity: 0, y: 50 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 50 }}
-                  className="absolute bottom-6 left-6 right-6 bg-emerald-600 text-white p-3 rounded-xl text-center text-sm font-bold shadow-xl"
+                  className="absolute bottom-6 left-6 right-6 bg-emerald-600 text-white p-3 rounded-xl text-center text-sm font-bold shadow-sm"
                 >
                   تم حفظ التغييرات بنجاح ✨
                 </motion.div>
