@@ -118,7 +118,8 @@ export default function ExamBuilderModal({ onClose }: Props) {
       const contentHeight = element.scrollHeight;
       
       const a4Height = 1123;
-      const newTotalHeight = Math.max(contentHeight, a4Height);
+      const targetMinHeight = isEn ? a4Height * 2 : a4Height;
+      const newTotalHeight = Math.max(contentHeight, targetMinHeight);
       
       // Temporarily fix height so footer sticks to bottom
       element.style.minHeight = `${newTotalHeight}px`;
@@ -140,17 +141,20 @@ export default function ExamBuilderModal({ onClose }: Props) {
       const pageHeight = pdf.internal.pageSize.getHeight();
       
       const imgProps = pdf.getImageProperties(imgData);
-      let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      let finalWidth = pdfWidth;
+      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
-      if (imgHeight > pageHeight) {
-        const ratio = pageHeight / imgHeight;
-        finalWidth = pdfWidth * ratio;
-        imgHeight = pageHeight;
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft >= 1) {
+        position = position - pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
-      
-      const xOffset = (pdfWidth - finalWidth) / 2;
-      pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, imgHeight);
       
       pdf.save(isEn ? `Exam_${formData.subject || 'Questions'}.pdf` : `اسئلة_${formData.subject || 'امتحان'}.pdf`);
       onClose();
