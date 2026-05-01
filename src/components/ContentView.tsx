@@ -7,6 +7,7 @@ import { Type } from "@google/genai";
 import { FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye, GraduationCap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
+import { AdSense } from './AdSense';
 
 const Player = ReactPlayer as any;
 
@@ -351,6 +352,9 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
 
   return (
     <div className="space-y-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <AdSense />
+      </div>
       {/* Chapter Progress Header */}
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center gap-6">
         <div className="relative w-20 h-20 flex-shrink-0">

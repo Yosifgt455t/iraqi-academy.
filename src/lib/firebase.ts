@@ -6,9 +6,9 @@ import firebaseConfig from '../../firebase-applet-config.json';
 console.log("Firebase initializing with Project ID:", firebaseConfig.projectId);
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with long polling to bypass potential network restrictions
+// Initialize Firestore with auto-detected polling
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true
+  experimentalAutoDetectLongPolling: true
 }, firebaseConfig.firestoreDatabaseId);
 
 console.log("Firestore initialized with DB ID:", firebaseConfig.firestoreDatabaseId);
@@ -99,6 +99,8 @@ async function testConnection() {
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.error("Please check your Firebase configuration or network connection. Firestore is currently offline.");
+    } else if (error instanceof Error && error.message.includes('Missing or insufficient permissions')) {
+      console.log("Firestore connection successful (permissions denied, but reachable).");
     } else {
       console.error("Firestore test connection error:", error);
     }

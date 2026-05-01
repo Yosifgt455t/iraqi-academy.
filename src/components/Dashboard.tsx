@@ -52,6 +52,7 @@ import LeaderboardView from './LeaderboardView';
 import MultiplayerQuiz from './MultiplayerQuiz';
 
 import ActivitiesMenu from './ActivitiesMenu';
+import { AdSense } from './AdSense';
 
 import { useClasses } from '../hooks/useClasses';
 
@@ -233,6 +234,9 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <AdSense />
+        </div>
         {view === 'admin' ? (
           <AdminDashboard user={user} onBack={() => setView('home')} />
         ) : view === 'activities' ? (
@@ -389,6 +393,10 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
           />
         )}
       </main>
+
+      <div className="max-w-4xl mx-auto px-4 pb-16">
+        <AdSense />
+      </div>
 
       {/* Floating Home Button */}
       {(currentSubject || currentChapter) && (
