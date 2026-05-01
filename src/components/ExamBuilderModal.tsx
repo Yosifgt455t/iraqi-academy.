@@ -218,12 +218,6 @@ export default function ExamBuilderModal({ onClose }: Props) {
                 lineHeight: '1.4'
               }}
             >
-              <div className="text-center mb-2">
-                <h1 className="text-lg font-bold underline inline-block px-4">
-                  الأسئلة الامتحانية
-                </h1>
-              </div>
-
               <div className="space-y-0 text-[16.5px]">
                 {questions.map((q, idx) => (
                   <React.Fragment key={idx}>

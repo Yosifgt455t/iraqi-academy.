@@ -48,25 +48,25 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
         justifyContent: 'flex-start'
       }}
     >
-      <div className="text-left font-bold text-lg mb-2">Note: Answer all the questions.</div>
+      <div className="text-left font-bold text-[24px] mb-4">Note: Answer all the questions.</div>
 
-      <div className="space-y-0 text-[19px]">
+      <div className="space-y-0 text-[24px]">
         {/* Page 1 Wrapper */}
         <div style={{ minHeight: '940px' }} className="flex flex-col">
           {/* Q1: Reading Comprehension */}
-          <div className="py-2 space-y-3">
-          <div className="flex items-center justify-between mt-4 mb-2">
-            <span className="font-bold text-[20px] italic">Reading Comprehension:</span>
-            <span className="font-bold italic text-[19px] shrink-0">(20 Marks)</span>
+          <div className="py-4 space-y-5">
+          <div className="flex items-center justify-between mt-4 mb-4">
+            <span className="font-bold text-[28px] italic">Reading Comprehension:</span>
+            <span className="font-bold italic text-[24px] shrink-0">(20 Marks)</span>
           </div>
-          <div className="flex items-start gap-4 mb-2">
-            <span className="text-xl font-bold shrink-0">Q1. A/</span>
-            <p className="leading-[1.4] flex-1 font-semibold">Read this text carefully then answer the questions:</p>
+          <div className="flex items-start gap-4 mb-4">
+            <span className="text-[28px] font-bold shrink-0">Q1. A/</span>
+            <p className="leading-[1.6] flex-1 font-semibold">Read this text carefully then answer the questions:</p>
           </div>
           <div className="mx-10 border p-4 mb-4 rounded italic font-medium leading-[1.6]" style={{ borderColor: '#94a3b8' }}>
             {exam.q1.unseenPassage || '......................................................................'}
           </div>
-          <div className="ml-12 space-y-3">
+          <div className="ml-12 space-y-5">
             {exam.q1.questions.map((q, i) => (
               <div key={i} className="flex gap-4">
                 <span className="font-bold shrink-0">{i + 1}.</span>
@@ -77,16 +77,16 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
         </div>
 
         {/* Q2: Textbook Passages */}
-        <div className="py-2 space-y-3">
-          <div className="flex items-center justify-between mt-4 mb-2">
-            <span className="font-bold text-[20px] italic">Textbook Passages:</span>
-            <span className="font-bold italic text-[19px] shrink-0">(10 Marks)</span>
+        <div className="py-4 space-y-5">
+          <div className="flex items-center justify-between mt-4 mb-4">
+            <span className="font-bold text-[28px] italic">Textbook Passages:</span>
+            <span className="font-bold italic text-[24px] shrink-0">(10 Marks)</span>
           </div>
-          <div className="flex items-start gap-4 mb-2">
-            <span className="text-xl font-bold shrink-0">Q2.</span>
-            <p className="leading-[1.4] flex-1 font-semibold">Answer or complete the following sentences using information from your textbook:</p>
+          <div className="flex items-start gap-4 mb-4">
+            <span className="text-[28px] font-bold shrink-0">Q2.</span>
+            <p className="leading-[1.6] flex-1 font-semibold">Answer or complete the following sentences using information from your textbook:</p>
           </div>
-          <div className="ml-12 space-y-3">
+          <div className="ml-12 space-y-5">
             {exam.q2.questions.map((q, i) => (
               <div key={i} className="flex gap-4">
                 <span className="font-bold shrink-0">{i + 1}.</span>
@@ -97,18 +97,18 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
         </div>
 
         {/* Q3: Grammar */}
-        <div className="py-2 space-y-3">
-          <div className="flex items-center justify-between mt-4 mb-2">
-            <span className="font-bold text-[20px] italic">Grammar and Functions:</span>
-            <span className="font-bold italic text-[19px] shrink-0">(30 Marks)</span>
+        <div className="py-4 space-y-5">
+          <div className="flex items-center justify-between mt-4 mb-4">
+            <span className="font-bold text-[28px] italic">Grammar and Functions:</span>
+            <span className="font-bold italic text-[24px] shrink-0">(30 Marks)</span>
           </div>
           {exam.q3.isTwoBranches ? (
             <>
-              <div className="flex items-start gap-4 mb-2">
-                <span className="text-xl font-bold shrink-0">Q3. A/</span>
-                <p className="leading-[1.4] flex-1 font-semibold">Re-write the following sentences, follow the instructions between brackets.</p>
+              <div className="flex items-start gap-4 mb-4">
+                <span className="text-[28px] font-bold shrink-0">Q3. A/</span>
+                <p className="leading-[1.6] flex-1 font-semibold">Re-write the following sentences, follow the instructions between brackets.</p>
               </div>
-              <div className="ml-12 space-y-3 mb-4">
+              <div className="ml-12 space-y-5 mb-4">
                 {exam.q3.branchA.questions.map((q, i) => (
                   <div key={i} className="flex gap-4">
                     <span className="font-bold shrink-0">{i + 1}.</span>
@@ -116,13 +116,13 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
                   </div>
                 ))}
               </div>
-              <div className="flex items-start gap-4 mb-2">
-                <span className="text-xl font-bold shrink-0">B/</span>
-                <p className="leading-[1.4] flex-1 font-semibold">
+              <div className="flex items-start gap-4 mb-4">
+                <span className="text-[28px] font-bold shrink-0">B/</span>
+                <p className="leading-[1.6] flex-1 font-semibold">
                   {exam.q3.branchB.type === 'brackets' ? 'Choose the correct word between brackets:' : 'Do as required:'}
                 </p>
               </div>
-              <div className="ml-12 space-y-3">
+              <div className="ml-12 space-y-5">
                 {exam.q3.branchB.questions.map((q, i) => (
                   <div key={i} className="flex gap-4">
                     <span className="font-bold shrink-0">{i + 1}.</span>
@@ -133,11 +133,11 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
             </>
           ) : (
             <>
-              <div className="flex items-start gap-4 mb-2">
-                <span className="text-xl font-bold shrink-0">Q3.</span>
-                <p className="leading-[1.4] flex-1 font-semibold">Re-write the following sentences, follow the instructions between brackets.</p>
+              <div className="flex items-start gap-4 mb-4">
+                <span className="text-[28px] font-bold shrink-0">Q3.</span>
+                <p className="leading-[1.6] flex-1 font-semibold">Re-write the following sentences, follow the instructions between brackets.</p>
               </div>
-              <div className="ml-12 space-y-3">
+              <div className="ml-12 space-y-5">
                 {exam.q3.branchA.questions.map((q, i) => (
                   <div key={i} className="flex gap-4">
                     <span className="font-bold shrink-0">{i + 1}.</span>
@@ -151,13 +151,13 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
         </div>
 
         {/* Q4: Vocab */}
-        <div className="py-2 space-y-3">
-          <div className="flex items-center justify-between mt-4 mb-2">
-            <span className="font-bold text-[20px] italic">Vocabulary and Spelling:</span>
-            <span className="font-bold italic text-[19px] shrink-0">(20 Marks)</span>
+        <div className="py-4 space-y-5">
+          <div className="flex items-center justify-between mt-4 mb-4">
+            <span className="font-bold text-[28px] italic">Vocabulary and Spelling:</span>
+            <span className="font-bold italic text-[24px] shrink-0">(20 Marks)</span>
           </div>
-          <div className="flex items-start gap-4 mb-2">
-            <span className="text-xl font-bold shrink-0">Q4.</span>
+          <div className="flex items-start gap-4 mb-4">
+            <span className="text-[28px] font-bold shrink-0">Q4.</span>
           </div>
           {exam.q4.branches.map((br, bIdx) => {
             const label = englishLabels[bIdx] + '/';
@@ -165,14 +165,14 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
               <div key={br.id} className="mb-4">
                 {br.type === 'fill_in' && (
                   <>
-                    <div className="flex items-start gap-4 mb-2">
-                      <span className="text-xl font-bold shrink-0 ml-4">{label}</span>
-                      <p className="leading-[1.4] flex-1 font-semibold text-[19px]">Complete each sentence with the suitable word from the box:</p>
+                    <div className="flex items-start gap-4 mb-4">
+                      <span className="text-[28px] font-bold shrink-0 ml-4">{label}</span>
+                      <p className="leading-[1.6] flex-1 font-semibold text-[24px]">Complete each sentence with the suitable word from the box:</p>
                     </div>
-                    <div className="border-[2px] rounded-lg p-3 mx-8 mb-4 text-center font-bold text-xl tracking-wider" style={{ borderColor: '#000000' }}>
+                    <div className="border-[2px] rounded-lg p-3 mx-8 mb-4 text-center font-bold text-[28px] tracking-wider" style={{ borderColor: '#000000' }}>
                       {br.words?.split(',').map(w => w.trim()).filter(Boolean).join('   ,   ') || '......'}
                     </div>
-                    <div className="ml-12 space-y-3">
+                    <div className="ml-12 space-y-5">
                       {br.questions?.map((q, i) => (
                         <div key={i} className="flex gap-4">
                           <span className="font-bold shrink-0">{i + 1}.</span>
@@ -184,23 +184,23 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
                 )}
                 {br.type === 'matching' && (
                   <>
-                    <div className="flex items-start gap-4 mb-2">
-                      <span className="text-xl font-bold shrink-0 ml-4">{label}</span>
-                      <p className="leading-[1.4] flex-1 font-semibold text-[19px]">Match the words in List A with List B:</p>
+                    <div className="flex items-start gap-4 mb-4">
+                      <span className="text-[28px] font-bold shrink-0 ml-4">{label}</span>
+                      <p className="leading-[1.6] flex-1 font-semibold text-[24px]">Match the words in List A with List B:</p>
                     </div>
                     <div className="flex gap-8 justify-center mb-4 px-12">
                       <div className="min-w-[200px] flex-1">
-                        <p className="font-bold mb-2 text-left italic">List A :</p>
+                        <p className="font-bold mb-4 text-left italic">List A :</p>
                         {(br.list1 || '').split('\n').filter(Boolean).map((item, i) => (
-                          <div key={i} className="mb-2 flex gap-2 font-semibold">
+                          <div key={i} className="mb-4 flex gap-2 font-semibold">
                             <span className="w-8 shrink-0 text-left">{i + 1}.</span> <span>{item}</span>
                           </div>
                         ))}
                       </div>
                       <div className="min-w-[200px] flex-1">
-                        <p className="font-bold mb-2 text-left italic">List B :</p>
+                        <p className="font-bold mb-4 text-left italic">List B :</p>
                         {(br.list2 || '').split('\n').filter(Boolean).map((item, i) => (
-                          <div key={i} className="mb-2 flex gap-2 font-semibold">
+                          <div key={i} className="mb-4 flex gap-2 font-semibold">
                             <span className="w-8 shrink-0 text-left">{englishLabels[i].toLowerCase() + '.'}</span> <span>{item}</span>
                           </div>
                         ))}
@@ -210,11 +210,11 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
                 )}
                 {br.type === 'spelling' && (
                   <>
-                    <div className="flex items-start gap-4 mb-2">
-                      <span className="text-xl font-bold shrink-0 ml-4">{label}</span>
-                      <p className="leading-[1.4] flex-1 font-semibold text-[19px]">Complete the following with correctly spelt words:</p>
+                    <div className="flex items-start gap-4 mb-4">
+                      <span className="text-[28px] font-bold shrink-0 ml-4">{label}</span>
+                      <p className="leading-[1.6] flex-1 font-semibold text-[24px]">Complete the following with correctly spelt words:</p>
                     </div>
-                    <div className="ml-12 space-y-3">
+                    <div className="ml-12 space-y-5">
                       {br.questions?.map((q, i) => (
                         <div key={i} className="flex gap-4">
                           <span className="font-bold shrink-0">{i + 1}.</span>
@@ -226,11 +226,11 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
                 )}
                 {br.type === 'punctuation' && (
                   <>
-                    <div className="flex items-start gap-4 mb-2">
-                      <span className="text-xl font-bold shrink-0 ml-4">{label}</span>
-                      <p className="leading-[1.4] flex-1 font-semibold text-[19px]">Re-write the following using correct punctuation:</p>
+                    <div className="flex items-start gap-4 mb-4">
+                      <span className="text-[28px] font-bold shrink-0 ml-4">{label}</span>
+                      <p className="leading-[1.6] flex-1 font-semibold text-[24px]">Re-write the following using correct punctuation:</p>
                     </div>
-                    <div className="ml-12 space-y-3">
+                    <div className="ml-12 space-y-5">
                       {br.questions?.map((q, i) => (
                         <div key={i} className="flex gap-4">
                           <span className="font-bold shrink-0">{i + 1}.</span>
@@ -246,16 +246,16 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
         </div>
 
         {/* Q5: Literature */}
-        <div className="py-2 space-y-3">
-          <div className="flex items-center justify-between mt-4 mb-2">
-            <span className="font-bold text-[20px] italic">Literature Focus:</span>
-            <span className="font-bold italic text-[19px] shrink-0">(10 Marks)</span>
+        <div className="py-4 space-y-5">
+          <div className="flex items-center justify-between mt-4 mb-4">
+            <span className="font-bold text-[28px] italic">Literature Focus:</span>
+            <span className="font-bold italic text-[24px] shrink-0">(10 Marks)</span>
           </div>
-          <div className="flex items-start gap-4 mb-2">
-            <span className="text-xl font-bold shrink-0">Q5.</span>
-            <p className="leading-[1.4] flex-1 font-semibold">{exam.q5.title || 'Answer or complete the following questions:'}</p>
+          <div className="flex items-start gap-4 mb-4">
+            <span className="text-[28px] font-bold shrink-0">Q5.</span>
+            <p className="leading-[1.6] flex-1 font-semibold">{exam.q5.title || 'Answer or complete the following questions:'}</p>
           </div>
-          <div className="ml-12 space-y-3">
+          <div className="ml-12 space-y-5">
             {exam.q5.questions.map((q, i) => (
               <div key={i} className="flex gap-4">
                 <span className="font-bold shrink-0">{i + 1}.</span>
@@ -266,23 +266,23 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
         </div>
 
         {/* Q6: Writing */}
-        <div className="py-2 space-y-3">
-          <div className="flex items-center justify-between mt-4 mb-2">
-            <span className="font-bold text-[20px] italic">Writing:</span>
-            <span className="font-bold italic text-[19px] shrink-0">(20 Marks)</span>
+        <div className="py-4 space-y-5">
+          <div className="flex items-center justify-between mt-4 mb-4">
+            <span className="font-bold text-[28px] italic">Writing:</span>
+            <span className="font-bold italic text-[24px] shrink-0">(20 Marks)</span>
           </div>
-          <div className="flex items-start gap-4 mb-2">
-            <span className="text-xl font-bold shrink-0">Q6.</span>
+          <div className="flex items-start gap-4 mb-4">
+            <span className="text-[28px] font-bold shrink-0">Q6.</span>
             {exam.q6.prompts.length > 1 ? (
-              <p className="leading-[1.4] flex-1 font-semibold">Choose either A or B.</p>
+              <p className="leading-[1.6] flex-1 font-semibold">Choose either A or B.</p>
             ) : (
-              <p className="leading-[1.4] flex-1 font-semibold">Write an essay on the following topic:</p>
+              <p className="leading-[1.6] flex-1 font-semibold">Write an essay on the following topic:</p>
             )}
           </div>
-          <div className="ml-12 space-y-3 mt-2">
+          <div className="ml-12 space-y-5 mt-2">
             {exam.q6.prompts.map((p, i) => (
               <div key={i} className="flex items-start gap-4">
-                <span className="font-bold shrink-0 text-[19px]">{englishLabels[i]}/</span>
+                <span className="font-bold shrink-0 text-[24px]">{englishLabels[i]}/</span>
                 <p className="flex-1 font-semibold">{p}</p>
               </div>
             ))}
