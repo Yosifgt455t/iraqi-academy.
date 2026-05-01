@@ -63,7 +63,7 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
             <span className="text-xl font-bold shrink-0">Q1. A/</span>
             <p className="leading-[1.4] flex-1 font-semibold">Read this text carefully then answer the questions:</p>
           </div>
-          <div className="mx-10 border border-slate-400 p-4 mb-4 rounded italic font-medium leading-[1.6]">
+          <div className="mx-10 border p-4 mb-4 rounded italic font-medium leading-[1.6]" style={{ borderColor: '#94a3b8' }}>
             {exam.q1.unseenPassage || '......................................................................'}
           </div>
           <div className="ml-12 space-y-3">
@@ -169,7 +169,7 @@ export function EnglishExamPdf({ exam }: { exam: EnglishExamData }) {
                       <span className="text-xl font-bold shrink-0 ml-4">{label}</span>
                       <p className="leading-[1.4] flex-1 font-semibold text-[19px]">Complete each sentence with the suitable word from the box:</p>
                     </div>
-                    <div className="border-[2px] border-black rounded-lg p-3 mx-8 mb-4 text-center font-bold text-xl tracking-wider shadow-sm">
+                    <div className="border-[2px] rounded-lg p-3 mx-8 mb-4 text-center font-bold text-xl tracking-wider" style={{ borderColor: '#000000' }}>
                       {br.words?.split(',').map(w => w.trim()).filter(Boolean).join('   ,   ') || '......'}
                     </div>
                     <div className="ml-12 space-y-3">

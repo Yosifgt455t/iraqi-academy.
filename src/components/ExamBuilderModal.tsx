@@ -118,13 +118,11 @@ export default function ExamBuilderModal({ onClose }: Props) {
       const contentHeight = element.scrollHeight;
       
       const a4Height = 1123;
-      const totalPages = isEn ? 2 : 1;
-      const newTotalHeight = totalPages * a4Height;
+      const newTotalHeight = Math.max(contentHeight, a4Height);
       
-      // Temporarily fix height to exact multiple of A4 so footer sticks to bottom of last page
+      // Temporarily fix height so footer sticks to bottom
       element.style.minHeight = `${newTotalHeight}px`;
       element.style.height = `${newTotalHeight}px`;
-      element.style.overflow = 'hidden';
 
       const canvas = await html2canvas(element, {
         scale: 2,
@@ -135,7 +133,6 @@ export default function ExamBuilderModal({ onClose }: Props) {
       // restore original heights
       element.style.height = originalContainerHeight;
       element.style.minHeight = originalMinHeight;
-      element.style.overflow = 'visible';
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -143,17 +140,17 @@ export default function ExamBuilderModal({ onClose }: Props) {
       const pageHeight = pdf.internal.pageSize.getHeight();
       
       const imgProps = pdf.getImageProperties(imgData);
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      let imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      let finalWidth = pdfWidth;
       
-      const targetPages = isEn ? 2 : 1;
-      
-      for (let i = 0; i < targetPages; i++) {
-        if (i > 0) {
-          pdf.addPage();
-        }
-        const position = -(i * pageHeight);
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      if (imgHeight > pageHeight) {
+        const ratio = pageHeight / imgHeight;
+        finalWidth = pdfWidth * ratio;
+        imgHeight = pageHeight;
       }
+      
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, imgHeight);
       
       pdf.save(isEn ? `Exam_${formData.subject || 'Questions'}.pdf` : `اسئلة_${formData.subject || 'امتحان'}.pdf`);
       onClose();
@@ -172,8 +169,10 @@ export default function ExamBuilderModal({ onClose }: Props) {
         <div 
           ref={printRef}
           id="print-container"
-          className={`bg-white px-[40px] py-[30px] text-black ${isEn ? 'text-left' : 'text-right'} flex flex-col items-stretch relative`}
+          className={`px-[40px] py-[30px] ${isEn ? 'text-left' : 'text-right'} flex flex-col items-stretch relative`}
           style={{ 
+            backgroundColor: '#ffffff',
+            color: '#000000',
             width: '794px', 
             minHeight: '1123px',
             direction: isEn ? 'ltr' : 'rtl',
@@ -181,7 +180,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
           }}
         >
           {/* PDF Header Section */}
-          <div className="border-b-2 border-black pb-1 mb-2 shrink-0" dir={isEn ? "ltr" : "rtl"}>
+          <div className="border-b-2 pb-1 mb-2 shrink-0" dir={isEn ? "ltr" : "rtl"} style={{ borderColor: '#000000' }}>
             <div className="flex justify-between items-start text-xs font-bold">
               <div className={isEn ? "text-left space-y-0.5" : "text-right space-y-0.5"}>
                 <p>{isEn ? 'Subject:' : 'المادة:'} {formData.subject}</p>
@@ -253,7 +252,7 @@ export default function ExamBuilderModal({ onClose }: Props) {
 
                       {/* Specific Types Rendering */}
                       {q.type === 'fill_in' && q.fillInWords && (
-                        <div className="border-[2px] border-black rounded-lg p-2 mx-8 mb-3 text-center font-bold text-lg tracking-wider shadow-sm" dir="ltr">
+                        <div className="border-[2px] rounded-lg p-2 mx-8 mb-3 text-center font-bold text-lg tracking-wider" dir="ltr" style={{ borderColor: '#000000' }}>
                           {q.fillInWords.split(',').map(w => w.trim()).filter(Boolean).join('   ,   ')}
                         </div>
                       )}
