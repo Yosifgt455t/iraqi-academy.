@@ -6,9 +6,9 @@ import firebaseConfig from '../../firebase-applet-config.json';
 console.log("Firebase initializing with Project ID:", firebaseConfig.projectId);
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with auto-detected polling
+// Initialize Firestore with force long polling to bypass network restrictions
 export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true
+  experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
 
 console.log("Firestore initialized with DB ID:", firebaseConfig.firestoreDatabaseId);

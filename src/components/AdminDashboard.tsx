@@ -199,6 +199,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   // Filtering states for forms
   const [formGradeFilter, setFormGradeFilter] = useState<Grade | "">("");
   const [formSubjectFilter, setFormSubjectFilter] = useState<string | "">("");
+  const [listTeacherFilter, setListTeacherFilter] = useState<string>("");
 
   const filteredSubjectsForForms = useMemo(() => {
     return subjects.filter(
@@ -2673,7 +2674,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                   <div className="lg:col-span-5 space-y-6">
                     <div className="sticky top-[110px]">
                       <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center justify-between mb-4">
                           <h4 className="font-black text-slate-900 border-r-4 border-blue-500 pr-3">
                             الموجودات الحالية
                           </h4>
@@ -2701,6 +2702,24 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       : flashcards.length}
                           </span>
                         </div>
+
+                        {activeTab === "materials" && (
+                          <div className="mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <label className="block text-xs font-black text-slate-500 mb-2">تصفية حسب المدرس</label>
+                            <select
+                              value={listTeacherFilter}
+                              onChange={(e) => setListTeacherFilter(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors"
+                            >
+                              <option value="">الكل (بدون تصفية)</option>
+                              {teachers.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name} - {t.subject}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
 
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                           {activeTab === "ministerial" &&
@@ -2980,6 +2999,10 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
                           {activeTab === "materials" &&
                             [...materials]
+                              .filter((m) => {
+                                if (!listTeacherFilter) return true;
+                                return (m as any).teacherId === listTeacherFilter;
+                              })
                               .sort(
                                 (a, b) =>
                                   (a.order_index ?? Number.MAX_SAFE_INTEGER) -
