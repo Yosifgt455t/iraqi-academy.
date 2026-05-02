@@ -12,7 +12,8 @@ import {
   ExternalLink, 
   Layers,
   ChevronLeft,
-  BookOpen
+  BookOpen,
+  X
 } from 'lucide-react';
 
 interface Props {
@@ -26,6 +27,23 @@ export default function ReviewSection({ grade, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<ReviewSubject | null>(null);
+  const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
+
+  const getPdfSource = (url: string | null | undefined) => {
+    if (!url) return undefined;
+    if (url.startsWith('data:')) return url;
+    if (url.includes('firebasestorage.googleapis.com')) return url;
+    
+    // Handle Google Drive links
+    if (url.includes('drive.google.com')) {
+      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://drive.google.com/file/d/${match[1]}/preview`;
+      }
+    }
+    
+    return url;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -188,15 +206,25 @@ export default function ReviewSection({ grade, onBack }: Props) {
                     </div>
                   </div>
                   
-                  <a
-                    href={mat.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-all shadow-sm"
-                  >
-                    <span>فتح</span>
-                    <ExternalLink size={16} />
-                  </a>
+                  {mat.type === 'PDF' ? (
+                    <button
+                      onClick={() => setSelectedPdf(mat.url)}
+                      className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-all shadow-sm"
+                    >
+                      <span>عرض الملف</span>
+                      <FileText size={16} />
+                    </button>
+                  ) : (
+                    <a
+                      href={mat.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-all shadow-sm"
+                    >
+                      <span>فتح</span>
+                      <ExternalLink size={16} />
+                    </a>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -211,6 +239,53 @@ export default function ReviewSection({ grade, onBack }: Props) {
           </div>
         )}
       </div>
+
+      {/* PDF Viewer Modal */}
+      <AnimatePresence>
+        {selectedPdf && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden w-full h-full max-h-[100dvh] shadow-md flex flex-col"
+            >
+              <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-bold text-slate-900 dark:text-white">عرض المراجعة المركزة</h3>
+                <div className="flex items-center gap-2">
+                  <a 
+                    href={selectedPdf} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all flex items-center gap-2 text-sm"
+                  >
+                    <ExternalLink size={18} />
+                    فتح في نافذة جديدة
+                  </a>
+                  <button
+                    onClick={() => setSelectedPdf(null)}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 bg-slate-100 dark:bg-slate-950 overflow-hidden">
+                <iframe
+                  src={getPdfSource(selectedPdf)}
+                  className="w-full h-full border-none"
+                  title="PDF Viewer"
+                ></iframe>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
