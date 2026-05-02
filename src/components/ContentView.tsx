@@ -597,25 +597,15 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               <>
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-indigo-50 p-6 rounded-xl border border-indigo-100">
                   <div className="text-right">
-                    <h3 className="text-xl font-bold text-indigo-900">الأسئلة الوزارية ({ministerialQuestions.length})</h3>
-                    <p className="text-indigo-600 text-sm">تدرب على الأسئلة التي وردت في الامتحانات الوزارية لسنوات سابقة</p>
+                    <h3 className="text-xl font-bold text-indigo-900">المراجع والأسئلة الوزارية ({ministerialQuestions.length})</h3>
+                    <p className="text-indigo-600 text-sm">تصفح الأسئلة التي وردت في الامتحانات الوزارية لسنوات سابقة</p>
                   </div>
-                  <button 
-                    onClick={() => {
-                      setIsTestMode(true);
-                      setRevealedAnswers({});
-                      setCardIndex(0);
-                    }}
-                    className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-sm shadow-indigo-200 hover:bg-indigo-700 transition-all hover:scale-105"
-                  >
-                    <BrainCircuit size={20} />
-                    <span>امتحني بالأسئلة</span>
-                  </button>
                 </div>
 
-                {!isTestMode ? (
-                  <div className="space-y-4">
-                    {ministerialQuestions.map((q, idx) => (
+                <div className="space-y-4">
+                  {ministerialQuestions.map((q, idx) => {
+                    const QType = q.type || 'PDF';
+                    return (
                       <div key={q.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
                         <div className="p-5 flex flex-col gap-4">
                           <div className="flex items-start justify-between gap-4">
@@ -624,205 +614,42 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                                 {idx + 1}
                               </div>
                               <div className="space-y-1">
-                                <p className="text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg inline-block	">
-                                  {q.year}
-                                </p>
+                                {q.year && (
+                                  <p className="text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg inline-block">
+                                    {q.year}
+                                  </p>
+                                )}
                                 <h4 className="font-bold text-slate-800 leading-relaxed text-lg">
-                                  {q.question}
+                                  {q.title || q.question}
                                 </h4>
+                                <p className="text-xs text-slate-500 mt-1">{QType === 'PDF' ? 'ملف PDF قابل للتحميل' : 'فيديو'}</p>
                               </div>
                             </div>
-                          </div>
-
-                          <div className="pt-2 border-t border-slate-50 flex flex-col gap-3">
-                            {!revealedAnswers[q.id] ? (
-                              <button 
-                                onClick={() => setRevealedAnswers(prev => ({ ...prev, [q.id]: true }))}
-                                className="flex items-center gap-2 text-blue-600 font-bold hover:gap-3 transition-all text-sm w-fit mr-auto sm:mr-0 ml-auto"
-                              >
-                                <span>عرض الجواب النموذجي</span>
-                                <ChevronLeft size={16} />
-                              </button>
-                            ) : (
-                              <motion.div 
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-2"
-                              >
-                                <div className="flex items-center gap-2 text-emerald-700 font-black text-sm">
-                                  <CheckCircle2 size={16} />
-                                  <span>الجواب النموذجي:</span>
-                                </div>
-                                <p className="text-slate-700 leading-relaxed font-medium">
-                                  {q.answer}
-                                </p>
-                                <button 
-                                  onClick={() => setRevealedAnswers(prev => ({ ...prev, [q.id]: false }))}
-                                  className="text-emerald-700 text-xs font-bold underline mt-2"
+                            <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
+                              {QType === 'PDF' ? (
+                                <button
+                                  onClick={() => setSelectedPdf(q.url)}
+                                  className="p-3 bg-indigo-50 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded-xl transition-all font-bold flex items-center justify-center gap-2"
+                                  title="فتح الملف"
                                 >
-                                  إخفاء الجواب
+                                  <ExternalLink size={20} />
                                 </button>
-                              </motion.div>
-                            )}
+                              ) : (
+                                <button
+                                  onClick={() => openVideoModal({ ...q, type: 'Video' } as any)}
+                                  className="p-3 bg-red-50 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-xl transition-all font-bold flex items-center justify-center gap-2"
+                                  title="تشغيل الفيديو"
+                                >
+                                  <Play size={20} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="max-w-2xl mx-auto space-y-8">
-                    <div className="flex items-center justify-between">
-                       <button 
-                        onClick={() => setIsTestMode(false)}
-                        className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-900 transition-colors"
-                       >
-                         <ChevronRight size={20} />
-                         <span>إنهاء الاختبار</span>
-                       </button>
-                       <div className="text-sm font-black text-slate-400">
-                         السؤال {cardIndex + 1} من {ministerialQuestions.length}
-                       </div>
-                    </div>
-
-                    <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-md space-y-8 min-h-[400px] flex flex-col">
-                       <div className="space-y-4 flex-1">
-                          <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-xs font-black">وزاري - {ministerialQuestions[cardIndex].year}</span>
-                          <h3 className="text-2xl font-black text-slate-900 leading-tight">
-                            {ministerialQuestions[cardIndex].question}
-                          </h3>
-                       </div>
-
-                       <div className="space-y-6">
-                          {!evaluationResult && !revealedAnswers[ministerialQuestions[cardIndex].id] && (
-                            <div className="space-y-4">
-                              <textarea
-                                value={studentAnswer}
-                                onChange={(e) => setStudentAnswer(e.target.value)}
-                                placeholder="اكتب إجابتك هنا..."
-                                rows={4}
-                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 resize-none font-medium"
-                              />
-                              <div className="flex gap-3">
-                                <button
-                                  onClick={() => handleEvaluateAnswer(ministerialQuestions[cardIndex].question, ministerialQuestions[cardIndex].answer)}
-                                  disabled={isEvaluationLoading || !studentAnswer.trim()}
-                                  className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                  {isEvaluationLoading ? (
-                                    <><Loader2 className="animate-spin" size={20} /> جاري التقييم... </>
-                                  ) : (
-                                    <><Sparkles size={20} /> قارن إجابتي بالذكاء الاصطناعي</>
-                                  )}
-                                </button>
-                                <button
-                                  onClick={() => setRevealedAnswers(prev => ({ ...prev, [ministerialQuestions[cardIndex].id]: true }))}
-                                  className="w-14 h-14 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center flex-shrink-0"
-                                  title="أظهر الجواب"
-                                >
-                                  <Eye size={22} />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          {evaluationResult && !revealedAnswers[ministerialQuestions[cardIndex].id] && (
-                            <motion.div 
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="bg-blue-50 p-6 rounded-xl border border-blue-100 space-y-4"
-                            >
-                               <div className="flex items-center justify-between">
-                                 <div className="flex items-center gap-2 text-blue-700 font-black">
-                                   <Sparkles size={20} />
-                                   <span>تقييم الذكاء الاصطناعي</span>
-                                 </div>
-                                 <div className="text-xl font-black text-blue-700 bg-white px-3 py-1 rounded-xl shadow-sm">
-                                   {evaluationResult.score}
-                                 </div>
-                               </div>
-                               <p className="text-slate-700 leading-relaxed font-medium bg-white p-4 rounded-2xl border border-blue-50">
-                                 {evaluationResult.feedback}
-                               </p>
-                               <button 
-                                 onClick={() => setRevealedAnswers(prev => ({ ...prev, [ministerialQuestions[cardIndex].id]: true }))}
-                                 className="w-full py-3 bg-white text-blue-600 rounded-xl font-bold border border-blue-200 hover:bg-blue-50 transition-all text-sm mt-2"
-                               >
-                                 مقارنة مع الجواب النموذجي
-                               </button>
-                               <button 
-                                 onClick={() => setEvaluationResult(null)}
-                                 className="w-full py-3 bg-transparent text-slate-500 hover:text-slate-700 rounded-xl font-bold transition-all text-sm"
-                               >
-                                 تعديل الإجابة وإعادة المحاولة
-                               </button>
-                            </motion.div>
-                          )}
-
-                          {revealedAnswers[ministerialQuestions[cardIndex].id] && (
-                            <motion.div 
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="bg-emerald-50 p-6 rounded-xl border-2 border-emerald-100 space-y-3"
-                            >
-                               <div className="flex items-center gap-2 text-emerald-700 font-black">
-                                 <CheckCircle2 size={20} />
-                                 <span>الجواب النموذجي</span>
-                               </div>
-                               <p className="text-slate-800 text-lg leading-relaxed font-bold">
-                                 {ministerialQuestions[cardIndex].answer}
-                               </p>
-                               <button 
-                                 onClick={() => {
-                                   setRevealedAnswers(prev => ({ ...prev, [ministerialQuestions[cardIndex].id]: false }));
-                                   setEvaluationResult(null);
-                                 }}
-                                 className="text-emerald-700 text-sm font-bold underline mt-4 block w-fit"
-                               >
-                                 إخفاء الجواب وإعادة المحاولة
-                               </button>
-                            </motion.div>
-                          )}
-
-                          <div className="flex items-center justify-between gap-4 pt-4">
-                             <button
-                               disabled={cardIndex === 0}
-                               onClick={() => {
-                                 setCardIndex(idx => idx - 1);
-                                 setStudentAnswer('');
-                                 setEvaluationResult(null);
-                               }}
-                               className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold disabled:opacity-30 transition-all flex items-center justify-center gap-2"
-                             >
-                                <ChevronRight size={20} />
-                                <span>السابق</span>
-                             </button>
-                             
-                             {cardIndex < ministerialQuestions.length - 1 ? (
-                               <button
-                                 onClick={() => {
-                                   setCardIndex(idx => idx + 1);
-                                   setStudentAnswer('');
-                                   setEvaluationResult(null);
-                                 }}
-                                 className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
-                               >
-                                  <span>التالي</span>
-                                  <ChevronLeft size={20} />
-                               </button>
-                             ) : (
-                               <button
-                                 onClick={() => setIsTestMode(false)}
-                                 className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
-                               >
-                                  <span>إنهاء</span>
-                                  <CheckCircle size={20} />
-                               </button>
-                             )}
-                          </div>
-                       </div>
-                    </div>
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
               </>
             ) : (
               <motion.div 
@@ -830,12 +657,12 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-200 space-y-4"
               >
-                <div className="w-16 h-16 bg-purple-50 text-purple-500 rounded-full flex items-center justify-center mx-auto">
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto">
                   <Award size={32} />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-xl font-bold text-slate-900">سيتم إضافة الأسئلة الوزارية قريباً</h3>
-                  <p className="text-slate-500 text-sm">نحن نجمع لك كافة الأسئلة الوزارية للسنوات السابقة مع حلولها النموذجية.</p>
+                  <h3 className="text-xl font-bold text-slate-900">سيتم إضافة المراجع الوزارية قريباً</h3>
+                  <p className="text-slate-500 text-sm">نحن نجمع لك كافة الأسئلة والمراجع الوزارية هنا.</p>
                 </div>
               </motion.div>
             )}

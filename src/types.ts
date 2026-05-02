@@ -95,9 +95,12 @@ export interface Flashcard {
 export interface MinisterialQuestion {
   id: string;
   chapterIds?: string[];
-  question: string;
-  answer: string;
-  year: string;
+  question?: string;
+  answer?: string;
+  year?: string;
+  title?: string;
+  url?: string;
+  type?: string;
   order_index?: number;
 }
 

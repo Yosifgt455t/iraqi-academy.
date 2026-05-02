@@ -162,9 +162,9 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [flashcardQuestion, setFlashcardQuestion] = useState("");
   const [flashcardAnswer, setFlashcardAnswer] = useState("");
 
-  const [minQuestText, setMinQuestText] = useState("");
-  const [minQuestAnswer, setMinQuestAnswer] = useState("");
-  const [minQuestYear, setMinQuestYear] = useState("");
+  const [minQuestTitle, setMinQuestTitle] = useState("");
+  const [minQuestUrl, setMinQuestUrl] = useState("");
+  const [minQuestFile, setMinQuestFile] = useState<File | null>(null);
 
   const [minQuestOrderIndex, setMinQuestOrderIndex] = useState<number>(0);
 
@@ -755,48 +755,70 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const parts = line.split("|").map((s) => s.trim());
-          if (parts.length >= 3) {
-            const [q, a, y] = parts;
+          if (parts.length >= 2) {
+            const [t, u, typeStr] = parts;
+            let finalType = "PDF";
+            if (typeStr && (typeStr.includes("video") || typeStr.includes("فيديو"))) {
+              finalType = "Video";
+            }
             await addDoc(collection(db, "ministerial_questions"), {
-              question: q,
-              answer: a,
-              year: y,
+              title: t,
+              url: u,
+              type: finalType,
               chapterIds: selectedChapterIds,
               order_index: minQuestOrderIndex + i,
             });
           }
         }
-        showToast("success", `تمت إضافة ${lines.length} أسئلة بنجاح`);
+        showToast("success", `تمت إضافة ${lines.length} ملفات بنجاح`);
         setBulkInput("");
       } else {
         if (editingId) {
+          let finalUrl = minQuestUrl;
+          if (minQuestFile) {
+            finalUrl = await uploadFile(minQuestFile);
+          }
+          let finalType = "PDF";
+          if (finalUrl && (finalUrl.includes("youtu") || finalUrl.includes("video"))) {
+            finalType = "Video";
+          }
           await updateDoc(doc(db, "ministerial_questions", editingId), {
-            question: minQuestText,
-            answer: minQuestAnswer,
-            year: minQuestYear,
+            title: minQuestTitle,
+            url: finalUrl,
+            type: finalType,
             chapterIds: selectedChapterIds,
             order_index: minQuestOrderIndex,
           });
-          showToast("success", "تم تعديل السؤال بنجاح");
+          showToast("success", "تم تعديل المرجع الوزاري بنجاح");
         } else {
+          let finalUrl = minQuestUrl;
+          if (minQuestFile) {
+            finalUrl = await uploadFile(minQuestFile);
+          }
+          let finalType = "PDF";
+          if (finalUrl && (finalUrl.includes("youtu") || finalUrl.includes("video"))) {
+            finalType = "Video";
+          }
           await addDoc(collection(db, "ministerial_questions"), {
-            question: minQuestText,
-            answer: minQuestAnswer,
-            year: minQuestYear,
+            title: minQuestTitle,
+            url: finalUrl,
+            type: finalType,
             chapterIds: selectedChapterIds,
             order_index: minQuestOrderIndex,
           });
-          showToast("success", "تمت إضافة السؤال بنجاح");
+          showToast("success", "تمت إضافة المرجع الوزاري بنجاح");
         }
-        setMinQuestText("");
-        setMinQuestAnswer("");
-        setMinQuestYear("");
+        setMinQuestTitle("");
+        setMinQuestUrl("");
+        setMinQuestFile(null);
+        setUploadProgress(0);
       }
       setMinQuestOrderIndex(0);
       setEditingId(null);
       fetchMinisterialQuestions();
-    } catch (err) {
-      showToast("error", "فشل الإجراء");
+    } catch (err: any) {
+      console.error("Error adding ministerial material:", err);
+      showToast("error", err?.message || "فشل الإجراء");
     } finally {
       setLoading(false);
     }
@@ -2311,46 +2333,66 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               </div>
                               <div className="space-y-4">
                                 <label className="block text-sm font-black text-slate-700">
-                                  نص السؤال الوزاري
-                                </label>
-                                <textarea
-                                  required={!isBulkMode}
-                                  value={minQuestText}
-                                  onChange={(e) =>
-                                    setMinQuestText(e.target.value)
-                                  }
-                                  placeholder="اكتب السؤال هنا..."
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[100px]"
-                                />
-                              </div>
-                              <div className="space-y-4">
-                                <label className="block text-sm font-black text-slate-700">
-                                  السنة والدور
+                                  عنوان المرجع (الرابط) - مثلاً: أسئلة 2023 الدور الأول
                                 </label>
                                 <input
                                   type="text"
                                   required={!isBulkMode}
-                                  value={minQuestYear}
+                                  value={minQuestTitle}
                                   onChange={(e) =>
-                                    setMinQuestYear(e.target.value)
+                                    setMinQuestTitle(e.target.value)
                                   }
-                                  placeholder="مثال: 2023 الدور الأول"
+                                  placeholder="اكتب العنوان هنا..."
                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 />
                               </div>
                               <div className="space-y-4">
                                 <label className="block text-sm font-black text-slate-700">
-                                  الجواب النموذجي
+                                  رابط ملف (PDF أو فيديو)
                                 </label>
-                                <textarea
-                                  required={!isBulkMode}
-                                  value={minQuestAnswer}
+                                <input
+                                  type="url"
+                                  value={minQuestUrl}
                                   onChange={(e) =>
-                                    setMinQuestAnswer(e.target.value)
+                                    setMinQuestUrl(e.target.value)
                                   }
-                                  placeholder="اكتب الجواب هنا..."
-                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold h-32"
+                                  placeholder="https://..."
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold text-left"
+                                  dir="ltr"
                                 />
+                              </div>
+                              <div className="space-y-4 relative">
+                                <label className="block text-sm font-black text-slate-700">
+                                  أو ارفع ملف PDF مباشرة
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type="file"
+                                    accept="application/pdf,.pdf"
+                                    onChange={(e) => {
+                                      if (e.target.files && e.target.files[0]) {
+                                        setMinQuestFile(e.target.files[0]);
+                                      }
+                                    }}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                  />
+                                  <div className="w-full p-5 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center gap-3 text-slate-500 font-bold transition-all hover:bg-slate-100 hover:border-slate-400">
+                                    <FileText size={24} className="text-slate-400" />
+                                    <span>
+                                      {minQuestFile
+                                        ? minQuestFile.name
+                                        : "اضغط هنا لاختيار ملف أو اسحب الملف وأفلته"}
+                                    </span>
+                                  </div>
+                                </div>
+                                {uploadProgress > 0 && uploadProgress < 100 && (
+                                  <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+                                    <div
+                                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${uploadProgress}%` }}
+                                    ></div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
@@ -2361,9 +2403,9 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 type="button"
                                 onClick={() => {
                                   setEditingId(null);
-                                  setMinQuestText("");
-                                  setMinQuestAnswer("");
-                                  setMinQuestYear("");
+                                  setMinQuestTitle("");
+                                  setMinQuestUrl("");
+                                  setMinQuestFile(null);
                                   setMinQuestOrderIndex(0);
                                 }}
                                 className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-xl font-black flex items-center justify-center gap-2"
@@ -2972,9 +3014,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   key={m.id}
                                   onClick={() => {
                                     setEditingId(m.id);
-                                    setMinQuestText(m.question);
-                                    setMinQuestAnswer(m.answer);
-                                    setMinQuestYear(m.year);
+                                    setMinQuestTitle(m.title || m.question || "");
+                                    setMinQuestUrl(m.url || "");
                                     setMinQuestOrderIndex(m.order_index || 0);
                                     setSelectedChapterIds(m.chapterIds || []);
                                     setIsBulkMode(false);
@@ -2988,7 +3029,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                         className="group-hover:text-white text-amber-500 shrink-0"
                                       />
                                       <span className="font-bold truncate">
-                                        {m.question}
+                                        {m.title || m.question}
                                       </span>
                                     </div>
                                     <div
