@@ -38,6 +38,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-image: radial-gradient(#d1d5db 1px, transparent 1px);
   background-size: 24px 24px;
+  overflow-x: hidden;
 }
 
 .dark body {

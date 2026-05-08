@@ -136,8 +136,8 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
                     </>
                   )}
                 </div>
-                <div className="text-center">
-                  <h3 className="font-bold text-lg text-slate-900">{name}</h3>
+                <div className="text-center min-w-0">
+                  <h3 className="font-bold text-lg text-slate-900 truncate">{name}</h3>
                   <p className="text-xs text-slate-400 font-mono tracking-wider">{user.id === 'guest_user' ? 'حساب زائر' : 'حساب رسمي'}</p>
                 </div>
               </div>
@@ -152,7 +152,7 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-bold"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-bold min-w-0"
                   />
                 </div>
 
@@ -165,7 +165,8 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
                       type="email"
                       disabled
                       value={user.email || 'غير متاح'}
-                      className="w-full bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-400 font-mono"
+                      className="w-full bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-400 font-mono min-w-0"
+                      title={user.email || 'غير متاح'}
                     />
                   </div>
                 )}

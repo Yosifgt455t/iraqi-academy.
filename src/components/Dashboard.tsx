@@ -292,17 +292,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
                 )}
               </AnimatePresence>
             </div>
-
-            <button
-              onClick={() => setShowAccountSettings(true)}
-              className="w-12 h-12 rounded-xl overflow-hidden border-2 border-black dark:border-white hover:-translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] active:translate-y-0 active:shadow-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] flex-shrink-0"
-            >
-              <img 
-                src={user?.photoURL || user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.user_metadata?.full_name || 'User')}&background=0f172a&color=fff`} 
-                alt="Profile"
-                className="w-full h-full object-cover bg-slate-100 dark:bg-slate-800"
-              />
-            </button>
           </div>
         </div>
       </header>

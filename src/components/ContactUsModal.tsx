@@ -48,9 +48,9 @@ export default function ContactUsModal({ isOpen, onClose }: Props) {
                   <div className="w-12 h-12 neo-bg-blue border-2 border-black rounded-lg flex items-center justify-center text-black shrink-0">
                     <MessageCircle size={28} strokeWidth={2.5} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="font-black text-lg">تيليجرام</h4>
-                    <p className="font-bold opacity-80">yosifhkem@</p>
+                    <p className="font-bold opacity-80 truncate" dir="ltr">@yosifhkem</p>
                   </div>
                 </a>
                 
@@ -58,9 +58,9 @@ export default function ContactUsModal({ isOpen, onClose }: Props) {
                   <div className="w-12 h-12 neo-bg-pink border-2 border-black rounded-lg flex items-center justify-center text-black shrink-0">
                     <div className="w-6 h-6 border-2 border-black rounded-md flex items-center justify-center relative"><div className="w-2 h-2 bg-black rounded-full"></div><div className="w-1 h-1 bg-black rounded-full absolute top-0.5 right-0.5"></div></div>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="font-black text-lg">انستغرام</h4>
-                    <p className="font-bold opacity-80">yosifhkem@</p>
+                    <p className="font-bold opacity-80 truncate" dir="ltr">@yosifhkem</p>
                   </div>
                 </a>
 
@@ -68,9 +68,9 @@ export default function ContactUsModal({ isOpen, onClose }: Props) {
                   <div className="w-12 h-12 neo-bg-teal border-2 border-black rounded-lg flex items-center justify-center text-black shrink-0">
                     <Mail size={28} strokeWidth={2.5} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="font-black text-lg">البريد الإلكتروني</h4>
-                    <p className="font-bold opacity-80">yosifhkem009@gmail.com</p>
+                    <p className="font-bold opacity-80 text-sm sm:text-base break-all" dir="ltr">yosifhkem009@gmail.com</p>
                   </div>
                 </div>
 
@@ -78,7 +78,7 @@ export default function ContactUsModal({ isOpen, onClose }: Props) {
                   <div className="w-12 h-12 neo-bg-green border-2 border-black rounded-lg flex items-center justify-center text-black shrink-0">
                     <MapPin size={28} strokeWidth={2.5} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="font-black text-lg">العنوان</h4>
                     <p className="font-bold opacity-80">العراق</p>
                   </div>

@@ -9,7 +9,7 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore with force long polling to bypass network restrictions
 export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true,
+  experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
 
 export const storage = getStorage(app);
