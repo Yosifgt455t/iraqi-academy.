@@ -37,7 +37,7 @@ import {
   where,
   orderBy,
 } from "firebase/firestore";
-import { db, auth, setMaintenanceMode, storage } from "../lib/firebase";
+import { db, auth, setMaintenanceMode, subscribeToFeatures, updateFeatures, storage } from "../lib/firebase";
 import { onSnapshot } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -131,6 +131,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [news, setNews] = useState<any[]>([]);
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
+  const [appFeatures, setAppFeatures] = useState({ hideMinisterial: false, hideFlashcards: false });
 
   const ADMIN_EMAIL = "jwjwjwjueue@gmail.com";
   const isSuperAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
@@ -279,7 +280,25 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
   useEffect(() => {
     fetchMaintenanceStatus();
+    const unsubFeatures = subscribeToFeatures((features) => {
+      setAppFeatures(features);
+    });
+    return () => unsubFeatures();
   }, []);
+
+  const handleToggleFeature = async (feature: keyof typeof appFeatures) => {
+    if (!isSuperAdmin) return;
+    setLoading(true);
+    try {
+      const newFeatures = { ...appFeatures, [feature]: !appFeatures[feature] };
+      await updateFeatures(newFeatures);
+      showToast("success", "تم تحديث الإعدادات بنجاح");
+    } catch (err) {
+      showToast("error", "فشل تحديث الإعدادات");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Fetch base dependencies needed across multiple tabs
@@ -1050,64 +1069,66 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
   return (
     <div
-      className="min-h-screen bg-[#FDFDFD] font-['Inter'] selection:bg-blue-100 selection:text-blue-900"
+      className="min-h-screen bg-slate-50 dark:bg-black font-sans selection:bg-yellow-300 selection:text-black"
       dir="rtl"
     >
       {/* Mobile Header */}
-      <header className="lg:hidden bg-white border-b border-slate-100 p-4 sticky top-0 z-30 flex items-center justify-between">
+      <header className="lg:hidden bg-white dark:bg-black border-b-4 border-black dark:border-white p-4 sticky top-0 z-40 flex items-center justify-between shadow-[0_4px_0_0_rgba(0,0,0,1)] dark:shadow-[0_4px_0_0_rgba(255,255,255,1)]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
-            <Database size={16} />
+          <div className="w-10 h-10 neo-bg-blue border-2 border-black rounded-lg flex items-center justify-center text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <Database size={20} strokeWidth={2.5} />
           </div>
-          <h2 className="font-black text-slate-900 text-sm">لوحة الإدارة</h2>
+          <h2 className="font-black text-black dark:text-white text-lg">لوحة الإدارة</h2>
         </div>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+          className="p-2 transition-all active:translate-y-1 active:shadow-none bg-white border-2 border-black rounded-xl text-black hover:neo-bg-yellow shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
         >
           {isMobileMenuOpen ? (
-            <Plus className="rotate-45" size={24} />
+            <Plus className="rotate-45" size={24} strokeWidth={2.5} />
           ) : (
-            <div className="space-y-1.5">
-              <div className="w-6 h-0.5 bg-current rounded-full" />
-              <div className="w-4 h-0.5 bg-current rounded-full" />
-              <div className="w-6 h-0.5 bg-current rounded-full" />
+            <div className="space-y-1.5 flex flex-col items-center justify-center h-[24px]">
+              <div className="w-6 h-1 bg-black rounded-full" />
+              <div className="w-4 h-1 bg-black rounded-full" />
+              <div className="w-6 h-1 bg-black rounded-full" />
             </div>
           )}
         </button>
       </header>
 
       {/* Sidebar Navigation */}
-      <div className="flex flex-col lg:flex-row min-h-screen">
+      <div className="flex flex-col lg:flex-row min-h-screen relative z-10 w-full max-w-[1600px] xl:mx-auto xl:border-x-4 border-black dark:border-white bg-white dark:bg-black">
         <aside
           className={`
           ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
-          lg:w-72 bg-white border-l border-slate-100 p-6 flex flex-col gap-8 fixed lg:sticky top-[65px] lg:top-0 right-0 h-[calc(100vh-65px)] lg:h-screen w-full lg:z-20 z-40 transition-transform duration-300 ease-in-out overflow-y-auto
+          lg:w-80 bg-white dark:bg-black xl:border-l-0 border-l-4 border-black dark:border-white flex flex-col gap-8 fixed lg:sticky top-[76px] lg:top-0 right-0 h-[calc(100vh-76px)] lg:h-screen w-full lg:z-20 z-40 transition-transform duration-300 ease-in-out
         `}
         >
-          <div className="hidden lg:flex items-center gap-3 px-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-100">
-              <Database size={20} />
-            </div>
-            <div>
-              <h2 className="font-black text-slate-900 text-lg leading-tight">
-                لوحة الإدارة
-              </h2>
-              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
-                Master Panel v2
-              </p>
+          <div className="hidden lg:flex flex-col p-6 border-b-4 border-black dark:border-white">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 neo-bg-teal border-2 border-black rounded-xl flex items-center justify-center text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <Database size={28} strokeWidth={2.5} />
+              </div>
+              <div>
+                <h2 className="font-black text-black dark:text-white text-2xl leading-tight">
+                  لوحة الإدارة
+                </h2>
+                <p className="text-xs font-black text-black mt-1 bg-yellow-300 px-2 py-0.5 rounded border-2 border-black w-fit uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  Admin Panel
+                </p>
+              </div>
             </div>
           </div>
 
-          <nav className="flex flex-col gap-2">
+          <nav className="flex flex-col gap-3 px-6 pb-6 overflow-y-auto custom-scrollbar flex-1 pt-6 lg:pt-0">
             <button
               onClick={() => {
                 onBack();
                 setIsMobileMenuOpen(false);
               }}
-              className="flex items-center gap-3 px-4 py-4 rounded-2xl text-blue-600 hover:bg-blue-50 transition-all duration-300 font-black text-sm mb-2"
+              className="flex items-center gap-3 px-4 py-4 rounded-xl border-2 border-black bg-white hover:neo-bg-yellow transition-all duration-300 font-black text-sm mb-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none"
             >
-              <ArrowRight size={20} />
+              <ArrowRight size={24} strokeWidth={2.5} />
               العودة للمنصة الرئيسية
             </button>
             {[
@@ -1155,52 +1176,49 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                   setEditingId(null);
                   setIsMobileMenuOpen(false);
                 }}
-                className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-300 font-black text-sm group ${
+                className={`flex items-center justify-between px-4 py-4 rounded-xl border-2 border-black transition-all duration-300 font-black text-base group ${
                   activeTab === item.id
-                    ? "bg-blue-600 text-white shadow-sm shadow-blue-100 translate-x-1"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                    ? "neo-bg-pink text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1"
+                    : "bg-white text-black hover:neo-bg-yellow hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 active:translate-y-0 active:shadow-none"
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <item.icon
-                    size={20}
-                    className={
-                      activeTab === item.id
-                        ? "text-white"
-                        : "text-slate-400 group-hover:text-slate-900"
-                    }
+                    size={24}
+                    className="text-black"
+                    strokeWidth={2.5}
                   />
                   {item.label}
                 </div>
-                {activeTab === item.id && <ChevronLeft size={16} />}
+                {activeTab === item.id && <ChevronLeft size={20} strokeWidth={2.5} />}
               </button>
             ))}
           </nav>
 
-          <div className="mt-auto pt-6 border-t border-slate-100">
-            <div className="flex items-center gap-3 px-3 mb-6">
-              <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 font-black text-xs">
+          <div className="mt-auto p-6 border-t-4 border-black dark:border-white shrink-0">
+            <div className="flex items-center gap-3 px-3 mb-6 bg-white dark:bg-[#1a1a1a] neo-border p-3 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+              <div className="w-12 h-12 neo-bg-blue border-2 border-black rounded-lg flex items-center justify-center text-black font-black text-xl">
                 {user?.email?.[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-slate-900 truncate">
+                <p className="text-sm font-black text-black dark:text-white truncate">
                   {user?.email}
                 </p>
-                <p className="text-[10px] text-slate-400 font-bold">المسؤول</p>
+                <p className="text-[10px] font-black text-black bg-emerald-300 px-2 rounded border border-black w-fit mt-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">المسؤول</p>
               </div>
             </div>
             <button
               onClick={() => signOut(auth)}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-sm hover:bg-red-100 transition-colors"
+              className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-white border-4 border-black text-red-600 rounded-xl font-black text-lg hover:neo-bg-red hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 active:translate-y-0 active:shadow-none"
             >
-              <LogOut size={18} />
+              <LogOut size={24} strokeWidth={2.5} />
               تسجيل الخروج
             </button>
           </div>
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 lg:p-10">
+        <main className="flex-1 p-4 lg:p-10 lg:h-screen overflow-y-auto custom-scrollbar">
           <div className="max-w-5xl mx-auto space-y-8 md:space-y-10">
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
@@ -1249,17 +1267,17 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                 }
               >
                 {activeTab === "database" ? (
-                  <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm shadow-slate-100/50">
+                  <div className="bg-white p-8 rounded-xl neo-border">
                     <div className="space-y-6">
-                      <div className="p-6 bg-blue-50 rounded-xl border border-blue-100 flex items-center gap-4">
-                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
-                          <Database size={28} />
+                      <div className="p-6 neo-bg-teal rounded-xl border-4 border-black flex items-center gap-4">
+                        <div className="w-14 h-14 bg-white rounded-xl flex border-2 border-black items-center justify-center text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                          <Database size={28} strokeWidth={2.5} />
                         </div>
                         <div>
-                          <h3 className="font-black text-blue-900 text-lg">
+                          <h3 className="font-black text-black text-lg">
                             النسخ الاحتياطي السحابي
                           </h3>
-                          <p className="text-blue-700/70 text-sm font-medium leading-relaxed">
+                          <p className="text-black/80 font-bold text-sm leading-relaxed">
                             تتم مزامنة جميع البيانات تلقائياً مع خوادم Firebase
                             بشكل لحظي.
                           </p>
@@ -1267,36 +1285,36 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="p-6 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                          <h4 className="text-[10px] text-slate-400 font-black mb-1 uppercase">
+                        <div className="p-6 bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center">
+                          <h4 className="text-[12px] text-black font-black mb-1 uppercase bg-yellow-300 w-fit mx-auto px-2 border-2 border-black rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                             إجمالي المواد
                           </h4>
-                          <p className="text-3xl font-black text-slate-900">
+                          <p className="text-4xl mt-3 font-black text-black">
                             {subjects.length}
                           </p>
                         </div>
-                        <div className="p-6 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                          <h4 className="text-[10px] text-slate-400 font-black mb-1 uppercase">
+                        <div className="p-6 bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center">
+                          <h4 className="text-[12px] text-black font-black mb-1 uppercase bg-emerald-300 w-fit mx-auto px-2 border-2 border-black rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                             إجمالي المحاضرات
                           </h4>
-                          <p className="text-3xl font-black text-slate-900">
+                          <p className="text-4xl mt-3 font-black text-black">
                             {materials.length}
                           </p>
                         </div>
                       </div>
 
-                      <div className="p-6 rounded-xl bg-slate-900 text-white space-y-4">
+                      <div className="p-6 rounded-xl bg-black border-4 border-black text-white space-y-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.2)]">
                         <div className="flex items-center gap-3">
-                          <ShieldAlert className="text-amber-400" />
-                          <h4 className="font-black">منطقة حساسة</h4>
+                          <ShieldAlert className="text-yellow-400" />
+                          <h4 className="font-black text-xl">منطقة حساسة</h4>
                         </div>
-                        <p className="text-slate-400 text-sm leading-relaxed">
+                        <p className="text-white/80 font-bold text-sm leading-relaxed">
                           هذا القسم مخصص لمراقبة سلامة البيانات ونزاهتها. لا تقم
                           بتغيير الإعدادات إلا إذا كنت تعرف ما تفعله.
                         </p>
                         <button
                           disabled
-                          className="w-full py-4 bg-slate-800 rounded-2xl font-black text-sm opacity-50 cursor-not-allowed"
+                          className="w-full py-4 neo-bg-red text-white border-2 border-white rounded-xl font-black text-lg opacity-50 cursor-not-allowed"
                         >
                           بدء تصدير البيانات (JSON)
                         </button>
@@ -1305,16 +1323,16 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                   </div>
                 ) : activeTab === "settings" ? (
                   <div className="space-y-8">
-                    <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm shadow-slate-100/50 overflow-hidden relative">
+                    <div className="bg-white p-8 rounded-xl neo-border overflow-hidden relative">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-slate-900 mb-1">
-                            <Wrench className="text-amber-600" size={24} />
-                            <h3 className="text-xl font-black">
+                          <div className="flex items-center gap-2 text-black mb-1">
+                            <Wrench className="text-black" size={28} strokeWidth={2.5} />
+                            <h3 className="text-2xl font-black">
                               وضع صيانة المنصة
                             </h3>
                           </div>
-                          <p className="text-slate-500 font-medium leading-relaxed max-w-lg">
+                          <p className="text-black/70 font-bold leading-relaxed max-w-lg">
                             عند تفعيل هذا الوضع، ستتوقف المنصة عن العمل لجميع
                             المستخدمين والزوار، ولن يتمكن من الدخول سوى المدير
                             الرئيسي.
@@ -1323,10 +1341,10 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
                         <div className="flex items-center gap-4">
                           <span
-                            className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-tighter ${
+                            className={`px-4 py-2 rounded-xl border-2 border-black text-sm font-black uppercase tracking-tighter shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
                               isMaintenanceActive
-                                ? "bg-red-100 text-red-600"
-                                : "bg-emerald-100 text-emerald-600"
+                                ? "neo-bg-red text-white"
+                                : "neo-bg-teal text-black"
                             }`}
                           >
                             {isMaintenanceActive ? "نشط الآن" : "متوقف"}
@@ -1334,42 +1352,91 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                           <button
                             onClick={handleToggleMaintenance}
                             disabled={loading || !isSuperAdmin}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                            className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none border-4 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
                               isMaintenanceActive
-                                ? "bg-blue-600"
-                                : "bg-slate-200"
+                                ? "neo-bg-blue"
+                                : "bg-white"
                             } ${!isSuperAdmin ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
                             <span
-                              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                              className={`inline-block h-6 w-6 transform rounded-full border-2 border-black transition-transform shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] ${
                                 isMaintenanceActive
-                                  ? "-translate-x-8"
-                                  : "-translate-x-1"
+                                  ? "-translate-x-[44px] bg-white"
+                                  : "-translate-x-1 bg-black"
                               }`}
                             />
                           </button>
                         </div>
                       </div>
+                      
+                      <div className="mt-8 pt-8 border-t-2 border-black/10">
+                        <h4 className="font-black text-black text-xl mb-6 flex items-center gap-2">
+                          <LayoutGrid className="text-black" size={24} strokeWidth={2.5} />
+                          التحكم بالأقسام
+                        </h4>
+                        
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between gap-4 p-4 bg-white border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                            <div>
+                              <h5 className="font-black text-lg text-black">إخفاء قسم الأسئلة الوزارية</h5>
+                              <p className="text-sm font-bold text-black/60">لن يظهر قسم الأسئلة الوزارية للطلاب</p>
+                            </div>
+                            <button
+                              onClick={() => handleToggleFeature('hideMinisterial')}
+                              disabled={loading || !isSuperAdmin}
+                              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none border-2 border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] ${
+                                appFeatures.hideMinisterial ? "neo-bg-red" : "bg-white"
+                              } ${!isSuperAdmin ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                              <span
+                                className={`inline-block h-5 w-5 transform rounded-full border-2 border-black transition-transform ${
+                                  appFeatures.hideMinisterial ? "-translate-x-7 bg-white" : "-translate-x-1 bg-black"
+                                }`}
+                              />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-4 p-4 bg-white border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                            <div>
+                              <h5 className="font-black text-lg text-black">إخفاء قسم قلب البطاقات</h5>
+                              <p className="text-sm font-bold text-black/60">لن يظهر قسم قلب البطاقات للطلاب</p>
+                            </div>
+                            <button
+                              onClick={() => handleToggleFeature('hideFlashcards')}
+                              disabled={loading || !isSuperAdmin}
+                              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none border-2 border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] ${
+                                appFeatures.hideFlashcards ? "neo-bg-red" : "bg-white"
+                              } ${!isSuperAdmin ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                              <span
+                                className={`inline-block h-5 w-5 transform rounded-full border-2 border-black transition-transform ${
+                                  appFeatures.hideFlashcards ? "-translate-x-7 bg-white" : "-translate-x-1 bg-black"
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
                       {!isSuperAdmin && (
-                        <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600">
-                          <ShieldAlert size={20} />
-                          <p className="text-sm font-bold">
+                        <div className="mt-8 p-4 neo-bg-red text-white border-4 border-black rounded-xl flex items-center gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                          <ShieldAlert size={24} strokeWidth={2.5} />
+                          <p className="text-base font-black">
                             هذه الإعدادات متاحة فقط للمطور الرئيسي.
                           </p>
                         </div>
                       )}
-                      <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-slate-50 rounded-full blur-3xl opacity-50" />
                     </div>
 
-                    <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-2xl text-blue-600 shadow-sm">
-                        <LayoutGrid size={24} />
+                    <div className="neo-bg-yellow p-6 rounded-xl border-4 border-black flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                      <div className="p-3 bg-white rounded-xl border-2 border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <LayoutGrid size={28} strokeWidth={2.5} />
                       </div>
                       <div>
-                        <h4 className="font-black text-blue-900">
+                        <h4 className="font-black text-black text-xl">
                           إشعار النظام
                         </h4>
-                        <p className="text-blue-700 text-sm font-medium leading-relaxed">
+                        <p className="text-black/80 text-sm font-bold leading-relaxed mt-1">
                           يرجى الحذر عند استخدام هذه الميزات. تأكد من إيقاف وضع
                           الصيانة بعد انتهاء أعمالك.
                         </p>
@@ -1377,25 +1444,25 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                     </div>
 
                     {isSuperAdmin && (
-                      <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm shadow-slate-100/50 space-y-6">
-                        <div className="flex items-center gap-3 border-r-4 border-purple-500 pr-3">
-                          <ShieldAlert className="text-purple-600" size={24} />
-                          <h3 className="text-xl font-black text-slate-900">
+                      <div className="bg-white p-8 rounded-xl neo-border space-y-8">
+                        <div className="flex items-center gap-3 border-r-[6px] border-black pr-4">
+                          <ShieldAlert className="text-black" size={28} strokeWidth={2.5} />
+                          <h3 className="text-2xl font-black text-black">
                             إدارة فريق العمل
                           </h3>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex flex-col md:flex-row gap-4">
                           <input
                             value={newAdminEmail}
                             onChange={(e) => setNewAdminEmail(e.target.value)}
-                            className="flex-1 p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-purple-100 font-bold"
+                            className="flex-1 p-5 bg-white border-4 border-black rounded-xl outline-none focus:neo-bg-yellow font-black text-base shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                             placeholder="إيميل المسؤول الجديد..."
                           />
                           <button
                             onClick={handleAddAdmin}
                             disabled={loading || !newAdminEmail}
-                            className="px-8 bg-purple-600 text-white rounded-xl font-black hover:bg-purple-700 transition-all disabled:opacity-50"
+                            className="px-8 py-5 neo-bg-pink border-4 border-black text-black rounded-xl font-black text-xl active:translate-y-1 hover:-translate-y-1 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50"
                           >
                             {loading ? (
                               <Loader2 className="animate-spin" />
@@ -1405,21 +1472,21 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                           </button>
                         </div>
 
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">
+                        <div className="space-y-4 pt-4">
+                          <h4 className="text-sm font-black text-black bg-blue-300 w-fit px-3 py-1 border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                             المدراء الحاليون
                           </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {adminEmails.map((email) => (
                               <div
                                 key={email}
-                                className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100"
+                                className="flex items-center justify-between p-4 bg-white rounded-xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                               >
                                 <div className="flex items-center gap-3 min-w-0">
-                                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-purple-600 font-black text-xs">
+                                  <div className="w-10 h-10 rounded-xl border-2 border-black neo-bg-teal flex items-center justify-center text-black font-black text-lg">
                                     {email[0].toUpperCase()}
                                   </div>
-                                  <span className="text-sm font-bold text-slate-700 truncate">
+                                  <span className="text-sm font-bold text-black truncate">
                                     {email}
                                   </span>
                                 </div>
@@ -1430,10 +1497,10 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                       handleRemoveAdmin(email);
                                     }}
                                     disabled={loading}
-                                    className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all active:scale-95 touch-manipulation ${
+                                    className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-0 active:shadow-none hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
                                       confirmDeleteEmail === email
-                                        ? "bg-red-600 text-white animate-pulse"
-                                        : "text-red-500 hover:bg-red-50 bg-red-50/50"
+                                        ? "neo-bg-red text-white animate-pulse"
+                                        : "text-black hover:neo-bg-red hover:text-white"
                                     }`}
                                     title={
                                       confirmDeleteEmail === email
@@ -1442,9 +1509,9 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                     }
                                   >
                                     {confirmDeleteEmail === email ? (
-                                      <ShieldAlert size={20} />
+                                      <ShieldAlert size={20} strokeWidth={2.5} />
                                     ) : (
-                                      <Trash2 size={20} />
+                                      <Trash2 size={20} strokeWidth={2.5} />
                                     )}
                                   </button>
                                 )}
@@ -1461,10 +1528,10 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                       key={activeTab}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm shadow-slate-100/50"
+                      className="bg-white p-8 rounded-xl neo-border"
                     >
                       <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-xl font-black text-slate-900 border-r-4 border-blue-500 pr-3">
+                        <h3 className="text-2xl font-black text-black border-r-[6px] border-black pr-4">
                           {editingId ? "تعديل البيانات" : "إضافة بيانات جديدة"}
                         </h3>
                         <div className="flex gap-2">
@@ -1476,7 +1543,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 setParsedYoutubeLessons([]);
                                 setYoutubePlaylistUrl("");
                               }}
-                              className={`px-4 py-2 rounded-xl font-black text-xs transition-colors ${isYoutubeMode ? "bg-red-600 text-white" : "bg-red-50 text-red-600 hover:bg-red-100"}`}
+                              className={`px-4 py-2 rounded-xl font-black text-xs transition-colors border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 active:translate-y-0 active:shadow-none hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${isYoutubeMode ? "neo-bg-red text-white" : "bg-white text-black"}`}
                             >
                               إضافة من يوتيوب (AI)
                             </button>
@@ -1484,7 +1551,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                           {!isYoutubeMode && (
                             <button
                               onClick={() => setIsBulkMode(!isBulkMode)}
-                              className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl font-black text-xs hover:bg-slate-100 transition-colors"
+                              className="px-4 py-2 neo-bg-teal text-black rounded-xl font-black text-xs border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
                             >
                               {isBulkMode ? "الوضع العادي" : "وضع الإضافة الجماعية"}
                             </button>
@@ -1493,9 +1560,9 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                       </div>
 
                       {activeTab === "classes" && (
-                        <div className="space-y-6">
-                          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                            <h3 className="font-black text-slate-800 text-lg mb-4">
+                        <div className="space-y-8">
+                          <div className="bg-white p-8 rounded-xl neo-border">
+                            <h3 className="font-black text-black text-2xl mb-6 flex items-center gap-2">
                               إضافة صف جديد
                             </h3>
                             <div className="grid gap-4 md:grid-cols-2">
@@ -1542,7 +1609,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 <input
                                   id="gradeDesc"
                                   placeholder="مثال: مرحلة وزارية"
-                                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-bold"
+                                  className="w-full bg-white border-2 border-black rounded-xl px-4 py-3 outline-none focus:neo-bg-yellow font-bold text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors"
                                 />
                               </div>
                             </div>
@@ -1593,21 +1660,21 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   ) as HTMLInputElement
                                 ).value = "";
                               }}
-                              className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm shadow-blue-100"
+                              className="mt-6 px-8 py-4 neo-bg-blue border-4 border-black text-black rounded-xl font-black text-lg flex items-center justify-center gap-3 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                             >
-                              <Plus size={20} />
+                              <Plus size={24} strokeWidth={2.5} />
                               إضافة الصف
                             </button>
                           </div>
 
                           <div className="space-y-6">
-                            <h3 className="font-black text-slate-800 text-xl">
+                            <h3 className="font-black text-black text-2xl">
                               الصفوف الحالية (إدارة الظهور)
                             </h3>
                             {stages.map((stage) => (
                               <div
                                 key={stage.id}
-                                className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden ${stage.isHidden ? "opacity-75 grayscale" : ""}`}
+                                className={`bg-white p-6 rounded-xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden ${stage.isHidden ? "opacity-75 grayscale" : ""}`}
                               >
                                 <div
                                   className={`absolute top-0 right-0 w-2 h-full bg-${stage.color}-500`}

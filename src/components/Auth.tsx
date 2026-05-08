@@ -50,23 +50,23 @@ export default function Auth({ onGuest }: Props) {
             className="text-center space-y-8"
           >
             <div className="flex justify-center">
-              <div className="w-24 h-24 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-                <Sparkles className="text-white w-12 h-12" />
+              <div className="w-24 h-24 neo-bg-blue border-2 border-black dark:border-white rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                <Sparkles className="text-black w-12 h-12" />
               </div>
             </div>
             <div className="space-y-4">
-              <h1 className="text-4xl font-bold text-slate-900 tracking-tight">أهلاً بك في عراقي أكاديمي</h1>
-              <p className="text-lg text-slate-600 leading-relaxed">
+              <h1 className="text-4xl font-black text-black dark:text-white tracking-tight">أهلاً بك في عراقي أكاديمي</h1>
+              <p className="text-lg text-black/80 dark:text-white/80 font-bold leading-relaxed">
                 منصتك التعليمية الأولى للتفوق والنجاح في كافة المراحل الدراسية.
               </p>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 pt-4">
               <button
                 onClick={nextStep}
-                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+                className="w-full py-4 neo-bg-teal border-2 border-black dark:border-white text-black rounded-xl font-black text-xl flex items-center justify-center gap-2 hover:-translate-y-1 transition-all shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
               >
                 ابدأ الآن
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-6 h-6" strokeWidth={3} />
               </button>
             </div>
           </motion.div>
@@ -82,29 +82,29 @@ export default function Auth({ onGuest }: Props) {
             className="text-center space-y-8"
           >
             <div className="flex justify-center">
-              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center">
-                <BookOpen className="text-emerald-600 w-10 h-10" />
+              <div className="w-20 h-20 neo-bg-green border-2 border-black dark:border-white rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                <BookOpen className="text-black w-10 h-10" />
               </div>
             </div>
             <div className="space-y-4">
-              <h2 className="text-3xl font-bold text-slate-900">فكرة التطبيق</h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
+              <h2 className="text-3xl font-black text-black dark:text-white">فكرة التطبيق</h2>
+              <p className="text-lg text-black/80 dark:text-white/80 font-bold leading-relaxed">
                 نهدف إلى تبسيط المناهج العراقية من خلال تنظيم المحاضرات، الملازم، والاختبارات الذكية في مكان واحد، لتوفير وقتك وجهدك.
               </p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 pt-4">
               <button
                 onClick={prevStep}
-                className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                className="flex-1 py-4 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white rounded-xl font-black text-lg hover:-translate-y-1 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
               >
                 رجوع
               </button>
               <button
                 onClick={nextStep}
-                className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+                className="flex-[2] py-4 neo-bg-teal border-2 border-black dark:border-white text-black rounded-xl font-black text-lg flex items-center justify-center gap-2 hover:-translate-y-1 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
               >
                 التالي
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-5 h-5" strokeWidth={3} />
               </button>
             </div>
           </motion.div>
@@ -120,12 +120,12 @@ export default function Auth({ onGuest }: Props) {
             className="text-center space-y-8"
           >
             <div className="flex justify-center">
-              <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center">
-                <Target className="text-amber-600 w-10 h-10" />
+              <div className="w-20 h-20 neo-bg-yellow border-2 border-black dark:border-white rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                <Target className="text-black w-10 h-10" />
               </div>
             </div>
             <div className="space-y-4">
-              <h2 className="text-3xl font-bold text-slate-900">لماذا تختارنا؟</h2>
+              <h2 className="text-3xl font-black text-black dark:text-white">لماذا تختارنا؟</h2>
               <div className="grid grid-cols-1 gap-4 text-right">
                 {[
                   'تنظيم دقيق لكل فصل دراسي',
@@ -133,26 +133,26 @@ export default function Auth({ onGuest }: Props) {
                   'تتبع تقدمك في كل مادة',
                   'وصول سريع لأفضل الملازم'
                 ].map((feature, i) => (
-                  <div key={i} className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
-                    <CheckCircle2 className="text-emerald-500 w-5 h-5 flex-shrink-0" />
-                    <span className="text-slate-700 font-medium">{feature}</span>
+                  <div key={i} className="flex items-center gap-4 p-4 bg-white dark:bg-black border-2 border-black dark:border-white rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                    <CheckCircle2 className="text-emerald-500 w-6 h-6 flex-shrink-0" strokeWidth={3} />
+                    <span className="text-black dark:text-white font-black">{feature}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 pt-4">
               <button
                 onClick={prevStep}
-                className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                className="flex-1 py-4 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white rounded-xl font-black text-lg hover:-translate-y-1 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
               >
                 رجوع
               </button>
               <button
                 onClick={nextStep}
-                className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+                className="flex-[2] py-4 neo-bg-pink border-2 border-black dark:border-white text-black rounded-xl font-black text-lg flex items-center justify-center gap-2 hover:-translate-y-1 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
               >
                 انضم إلينا
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-5 h-5" strokeWidth={3} />
               </button>
             </div>
           </motion.div>
@@ -168,17 +168,17 @@ export default function Auth({ onGuest }: Props) {
             className="space-y-6"
           >
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-slate-900">
+              <h2 className="text-4xl font-black text-black dark:text-white">
                 تسجيل الدخول
               </h2>
-              <p className="mt-2 text-slate-600">
+              <p className="mt-2 text-black/80 dark:text-white/80 font-bold">
                 مرحباً بعودتك يا بطل
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 pt-4">
               {error && (
-                <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">
+                <div className="text-black font-bold text-sm neo-bg-red p-4 border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   {error}
                 </div>
               )}
@@ -186,13 +186,13 @@ export default function Auth({ onGuest }: Props) {
               <button
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full flex items-center justify-center py-4 px-4 border border-slate-200 rounded-xl shadow-sm text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50 font-bold text-lg gap-3"
+                className="w-full flex items-center justify-center py-4 px-4 border-2 border-black dark:border-white rounded-xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] text-black dark:text-white bg-white dark:bg-black hover:neo-bg-yellow dark:hover:neo-bg-yellow hover:text-black transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 disabled:grayscale font-black text-xl gap-4 group"
               >
                 {loading ? (
-                  <Loader2 className="animate-spin h-6 w-6" />
+                  <Loader2 className="animate-spin h-8 w-8" />
                 ) : (
                   <>
-                    <svg className="w-6 h-6" viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
                       <path
                         fill="currentColor"
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -210,21 +210,15 @@ export default function Auth({ onGuest }: Props) {
                         d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                       />
                     </svg>
-                    <span>التسجيل بواسطة جوجل</span>
+                    <span>الدخول بواسطة جوجل</span>
                   </>
                 )}
               </button>
-
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-100"></div>
-                </div>
-              </div>
             </div>
             
             <button
               onClick={prevStep}
-              className="w-full py-2 text-slate-400 text-xs hover:text-slate-600 transition-colors"
+              className="w-full py-4 text-black/60 dark:text-white/60 font-bold text-sm hover:text-black dark:hover:text-white transition-colors mt-4"
             >
               رجوع للخطوات السابقة
             </button>
@@ -234,8 +228,8 @@ export default function Auth({ onGuest }: Props) {
   };
 
   return (
-    <div className="flex items-center justify-center p-4 font-sans" dir="rtl">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-md shadow-slate-200 border border-slate-100 overflow-hidden">
+    <div className="flex items-center justify-center p-4 font-sans min-h-screen dark:bg-[#1a1a1a]" dir="rtl">
+      <div className="w-full max-w-md bg-white dark:bg-black p-8 neo-border overflow-hidden">
         <AnimatePresence mode="wait">
           {renderStep()}
         </AnimatePresence>

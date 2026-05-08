@@ -185,81 +185,88 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8" dir="rtl">
-      <div className="max-w-2xl mx-auto space-y-8">
-        <header className="flex items-center gap-4">
+    <div className="min-h-screen bg-white dark:bg-black p-4 md:p-8" dir="rtl">
+      {/* Neo-brutalist background pattern */}
+      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
+
+      <div className="max-w-3xl mx-auto space-y-10 relative z-10">
+        <header className="flex flex-col sm:flex-row sm:items-center gap-6 bg-white dark:bg-black p-6 neo-border shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] neo-bg-blue">
           <button
             onClick={() => view === 'menu' ? onBack() : setView('menu')}
-            className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="p-3 bg-white border-2 border-black rounded-xl text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:neo-bg-yellow active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all self-start sm:self-center shrink-0"
           >
-            <ArrowRight size={24} />
+            <ArrowRight size={28} strokeWidth={2.5} />
           </button>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white">تحدي المليون - أونلاين</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">العب مع أصدقائك واختبر معلوماتك للوصول إلى المليون!</p>
+            <h1 className="text-4xl font-black text-black">تحدي المليون - أونلاين</h1>
+            <p className="text-black/80 font-bold mt-2 text-lg">العب مع أصدقائك واختبر معلوماتك للوصول إلى المليون!</p>
           </div>
         </header>
 
         {error && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl flex items-center gap-3 font-bold border border-red-100 dark:border-red-800">
-            <ShieldAlert size={20} />
+          <div className="p-4 bg-white border-4 border-black text-black rounded-2xl flex items-center gap-3 font-black text-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] neo-bg-red text-white">
+            <ShieldAlert size={28} />
             <span>{error}</span>
           </div>
         )}
 
         {view === 'menu' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <button
               onClick={() => setView('create')}
-              className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center gap-4 hover:border-blue-500 hover:shadow-md hover:-translate-y-1 transition-all group"
+              className="bg-white dark:bg-[#1a1a1a] p-8 rounded-2xl neo-border flex flex-col items-center justify-center gap-6 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-2 transition-all active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group"
             >
-              <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Users size={40} />
+              <div className="w-24 h-24 neo-bg-teal border-4 border-black dark:border-white text-black rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <Users size={48} strokeWidth={2.5} />
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">إنشاء غرفة</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-center text-sm">ابدأ تحدياً جديداً وادعُ أصدقاءك</p>
+              <div className="space-y-2 text-center">
+                 <h3 className="text-3xl font-black text-black dark:text-white">إنشاء غرفة</h3>
+                 <p className="text-black/80 dark:text-white/80 font-bold text-lg">ابدأ تحدياً جديداً وادعُ أصدقاءك</p>
+              </div>
             </button>
 
             <button
               onClick={() => setView('join')}
-              className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center gap-4 hover:border-emerald-500 hover:shadow-md hover:-translate-y-1 transition-all group"
+              className="bg-white dark:bg-[#1a1a1a] p-8 rounded-2xl neo-border flex flex-col items-center justify-center gap-6 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-2 transition-all active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group"
             >
-              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Play size={40} />
+              <div className="w-24 h-24 neo-bg-pink border-4 border-black dark:border-white text-black rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:-rotate-6 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <Play size={48} strokeWidth={2.5} />
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">الانضمام لغرفة</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-center text-sm">أدخل رمز الغرفة للبدء باللعب</p>
+              <div className="space-y-2 text-center">
+                 <h3 className="text-3xl font-black text-black dark:text-white">الانضمام لغرفة</h3>
+                 <p className="text-black/80 dark:text-white/80 font-bold text-lg">أدخل رمز الغرفة للبدء باللعب</p>
+              </div>
             </button>
           </div>
         )}
 
         {view === 'create' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">إعدادات الغرفة</h2>
-            <div className="space-y-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-black p-8 rounded-2xl neo-border shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)]">
+            <h2 className="text-3xl font-black text-black dark:text-white mb-8 border-b-4 border-black dark:border-white pb-4">إعدادات الغرفة</h2>
+            <div className="space-y-8">
               <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-2">أقصى عدد للاعبين (2 - 10)</label>
+                <label className="block text-black dark:text-white font-black mb-3 text-lg">أقصى عدد للاعبين (2 - 10)</label>
                 <input 
                   type="number" 
                   min="2" max="10" 
                   value={maxPlayers}
                   onChange={(e) => setMaxPlayers(parseInt(e.target.value) || 2)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/20 font-bold dark:text-white"
+                  className="w-full px-6 py-4 bg-white dark:bg-[#1a1a1a] neo-border font-black text-2xl dark:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] focus:neo-border outline-none transition-shadow"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-3">اختر المواد (مادتين كحد أقصى)</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <label className="block text-black dark:text-white font-black mb-4 text-lg">اختر المواد <span className="bg-amber-300 text-black px-2 py-1 rounded inline-block text-sm border-2 border-black ml-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">مادتين كحد أقصى</span></label>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                   <button
                     onClick={() => setSelectedSubjects([])}
-                    className={`p-3 rounded-2xl border transition-all text-sm font-bold flex items-center justify-center gap-2 ${
+                    className={`p-4 rounded-xl border-2 transition-all font-black flex items-center justify-center gap-2 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]  ${
                       selectedSubjects.length === 0 
-                        ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20' 
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
+                        ? 'neo-bg-yellow border-black text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-y-0' 
+                        : 'bg-white dark:bg-[#1a1a1a] border-black dark:border-white text-black dark:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]'
                     }`}
                   >
-                    مختلط (جميع المواد)
+                    مختلط
                   </button>
                   {subjects.map(sub => (
                     <button
@@ -271,11 +278,11 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
                           setSelectedSubjects(prev => [...prev, sub.id]);
                         }
                       }}
-                      className={`p-3 rounded-2xl border transition-all text-sm font-bold flex items-center justify-center gap-2 ${
+                      className={`p-4 rounded-xl border-2 transition-all font-black flex items-center justify-center gap-2 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
                         selectedSubjects.includes(sub.id)
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' 
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
-                      } ${!selectedSubjects.includes(sub.id) && selectedSubjects.length >= 2 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          ? 'neo-bg-teal border-black text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-y-0' 
+                          : 'bg-white dark:bg-[#1a1a1a] border-black dark:border-white text-black dark:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]'
+                      } ${!selectedSubjects.includes(sub.id) && selectedSubjects.length >= 2 ? 'opacity-50 cursor-not-allowed hover:translate-y-0 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : ''}`}
                     >
                       {sub.name}
                     </button>
@@ -286,58 +293,60 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
               <button 
                 onClick={handleCreateRoom}
                 disabled={loading}
-                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-5 neo-bg-yellow border-4 border-black text-black rounded-2xl font-black text-xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 transition-all flex items-center justify-center gap-3 mt-8"
               >
-                {loading ? <Loader2 className="animate-spin" /> : 'إنشاء الغرفة وبدء الدعوة'}
+                {loading ? <Loader2 className="animate-spin" size={28} /> : 'إنشاء الغرفة'}
               </button>
             </div>
           </motion.div>
         )}
 
         {view === 'join' && (
-          <motion.form onSubmit={handleJoinRoom} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">أدخل رمز الغرفة</h2>
-            <input 
-              type="text" 
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value)}
-              placeholder="مثال: A7B9F1"
-              className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-emerald-100 dark:focus:ring-emerald-900/20 font-black text-center text-2xl uppercase tracking-widest text-slate-900 dark:text-white"
-            />
+          <motion.form onSubmit={handleJoinRoom} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-black p-8 rounded-2xl neo-border shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] space-y-8 max-w-xl mx-auto">
+            <h2 className="text-3xl font-black text-black dark:text-white text-center">الانضمام لغرفة</h2>
+            <div className="space-y-4">
+              <label className="block text-black dark:text-white font-black text-lg text-center">أدخل رمز الغرفة</label>
+              <input 
+                type="text" 
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value)}
+                placeholder="A7B9F1"
+                className="w-full px-6 py-6 bg-white dark:bg-[#1a1a1a] neo-border font-black text-center text-4xl uppercase tracking-[0.5em] text-black dark:text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] focus:neo-border focus:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] outline-none transition-all placeholder:tracking-normal"
+              />
+            </div>
             <button 
               type="submit"
               disabled={loading || !roomCode}
-              className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-200 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-5 neo-bg-teal border-4 border-black text-black rounded-2xl font-black text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 transition-all flex items-center justify-center gap-3"
             >
-              {loading ? <Loader2 className="animate-spin" /> : 'انضمام الآن'}
+              {loading ? <Loader2 className="animate-spin" size={32} /> : 'انضمام الآن'}
             </button>
           </motion.form>
         )}
 
         {view === 'lobby' && roomData && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-100 dark:border-slate-800 shadow-md text-center space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-blue-900/20 rounded-full translate-x-12 -translate-y-12 blur-2xl"></div>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-black p-8 rounded-2xl neo-border shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] text-center space-y-10">
+            <h2 className="text-4xl font-black text-black dark:text-white border-b-4 border-black dark:border-white pb-6 inline-block">غرفة الانتظار</h2>
             
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white relative z-10">غرفة الانتظار</h2>
-            
-            <div className="bg-slate-50 dark:bg-slate-800 py-6 px-4 rounded-xl border border-slate-200 dark:border-slate-700 relative z-10 inline-block w-full">
-               <p className="text-slate-500 dark:text-slate-400 font-bold mb-2">رمز الغرفة (شارك هذا الرمز مع أصدقائك)</p>
-               <div className="flex items-center justify-center gap-4">
-                 <span className="text-4xl font-black tracking-widest text-blue-600 dark:text-blue-400">{roomCode}</span>
-                 <button onClick={copyCode} className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm hover:scale-110 transition-transform">
-                   {copied ? <CheckCircle2 className="text-emerald-500" /> : <Copy className="text-slate-400" />}
+            <div className="bg-white dark:bg-[#1a1a1a] p-8 rounded-2xl neo-border inline-block min-w-[300px] mx-auto shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] neo-bg-pink">
+               <p className="text-black font-black text-lg mb-4">رمز الغرفة للاصدقاء</p>
+               <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                 <span className="text-6xl font-black tracking-widest text-black bg-white border-4 border-black px-6 py-4 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">{roomCode}</span>
+                 <button onClick={copyCode} className="p-5 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all text-black">
+                   {copied ? <CheckCircle2 size={40} className="text-green-500" /> : <Copy size={40} />}
                  </button>
                </div>
             </div>
 
-            <div className="space-y-4 relative z-10">
-              <h3 className="font-bold text-slate-700 dark:text-slate-300">
+            <div className="space-y-6">
+              <h3 className="text-2xl font-black text-black dark:text-white flex items-center justify-center gap-3">
+                 <Users size={32} />
                  اللاعبون ({roomData.players?.length || 0} / {roomData.maxPlayers})
               </h3>
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-4">
                 {roomData.players?.map((p: any, i: number) => (
-                  <div key={i} className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-2xl font-bold">
-                    <Users size={16} />
+                  <div key={i} className="flex items-center gap-3 bg-white dark:bg-[#1a1a1a] text-black dark:text-white border-4 border-black dark:border-white px-6 py-3 rounded-2xl font-black text-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                    <span className="w-8 h-8 rounded-full bg-slate-200 border-2 border-black flex items-center justify-center text-sm">{i+1}</span>
                     {p.name}
                   </div>
                 ))}
@@ -348,13 +357,13 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
               <button 
                 onClick={startGame}
                 disabled={roomData.players?.length < 1}
-                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-200 disabled:opacity-50 mt-4 relative z-10"
+                className="w-full sm:w-auto px-16 py-6 neo-bg-yellow border-4 border-black text-black rounded-2xl font-black text-3xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 disabled:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all mx-auto inline-flex"
               >
                 بدء التحدي
               </button>
             ) : (
-              <div className="py-4 text-slate-500 dark:text-slate-400 font-bold flex flex-col items-center gap-2">
-                <Loader2 className="animate-spin" />
+              <div className="p-6 bg-slate-100 dark:bg-slate-800 border-4 border-black dark:border-white rounded-2xl font-black text-xl flex flex-col items-center gap-4 text-black dark:text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                <Loader2 className="animate-spin" size={40} />
                 بانتظار المضيف لبدء التحدي...
               </div>
             )}
@@ -362,33 +371,32 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
         )}
 
         {view === 'playing' && questions.length > 0 && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center bg-[#161b36] p-4 rounded-2xl shadow-sm border border-blue-900/50">
-               <span className="font-bold text-blue-200">السؤال {currentQuestionIdx + 1} من {questions.length}</span>
-               <span className="font-black text-amber-500 text-xl">{score} نقاط</span>
+          <div className="space-y-8">
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-white dark:bg-black p-6 rounded-2xl neo-border shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] gap-4 neo-bg-blue">
+               <span className="font-black text-2xl text-black">السؤال {currentQuestionIdx + 1} / {questions.length}</span>
+               <span className="font-black text-black bg-white border-4 border-black px-6 py-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-2xl">{score} نقاط</span>
             </div>
 
             <motion.div 
               key={currentQuestionIdx}
-              initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
-              className="bg-[#0a0b1e] p-8 rounded-xl border-2 border-white/10 shadow-md space-y-8 relative overflow-hidden"
+              initial={{ opacity: 0, x: -20, rotate: -2 }} animate={{ opacity: 1, x: 0, rotate: 0 }}
+              className="bg-white dark:bg-black p-10 py-16 rounded-3xl neo-border shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] space-y-12 text-center"
             >
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-10" />
-              <h3 className="text-2xl font-black text-white leading-relaxed text-center relative z-10">
+              <h3 className="text-4xl md:text-5xl font-black text-black dark:text-white leading-tight">
                 {questions[currentQuestionIdx]?.question}
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {questions[currentQuestionIdx]?.options?.map((opt: string, idx: number) => (
                   <button
                     key={idx}
                     onClick={() => submitAnswer(idx)}
-                    className="group relative p-6 bg-[#161b36] border-2 border-white/5 rounded-full font-bold text-lg text-white hover:border-amber-500 hover:bg-white/5 transition-all text-right overflow-hidden flex items-center"
+                    className="group relative p-6 bg-white dark:bg-[#1a1a1a] border-4 border-black dark:border-white rounded-2xl font-black text-2xl text-black dark:text-white hover:neo-bg-yellow hover:text-black dark:hover:text-black hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] transition-all active:translate-y-0 active:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] flex items-center"
                   >
-                    <span className="text-amber-500 font-bold ml-4">
-                      {['أ', 'ب', 'ج', 'د'][idx]}.
+                    <span className="w-12 h-12 rounded-xl bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-black ml-6 shrink-0 group-hover:bg-white group-hover:text-black group-hover:border-4 group-hover:border-black">
+                      {['أ', 'ب', 'ج', 'د'][idx]}
                     </span>
-                    {opt}
+                    <span className="text-right flex-1">{opt}</span>
                   </button>
                 ))}
               </div>
@@ -397,27 +405,29 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
         )}
 
         {view === 'results' && roomData && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-100 dark:border-slate-800 shadow-md text-center space-y-8">
-            <div className="w-24 h-24 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
-              <Trophy size={48} />
+          <motion.div initial={{ opacity: 0, scale: 0.9, rotate: 2 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} className="bg-white dark:bg-black p-10 rounded-3xl neo-border shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] text-center space-y-10">
+            <div className="w-32 h-32 neo-bg-yellow border-4 border-black text-black rounded-2xl flex items-center justify-center mx-auto shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rotate-3">
+              <Trophy size={64} strokeWidth={2.5} />
             </div>
             <div>
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2">النتائج النهائية</h2>
-              <p className="text-slate-500 dark:text-slate-400 font-medium">تم الانتهاء من جميع الأسئلة!</p>
+              <h2 className="text-5xl font-black text-black dark:text-white mb-4">النتائج النهائية</h2>
+              <p className="text-black/80 dark:text-white/80 font-bold text-xl">تم الانتهاء من جميع الأسئلة!</p>
             </div>
 
-            <div className="space-y-4 max-w-sm mx-auto">
+            <div className="space-y-6 max-w-md mx-auto">
               {[...roomData.players].sort((a,b) => b.score - a.score).map((p: any, i: number) => (
-                <div key={i} className="flex flex-col gap-3">
-                   <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                     <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                       {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '👤'}
+                <div key={i} className="flex flex-col gap-4">
+                   <div className="flex items-center justify-between p-6 bg-white dark:bg-[#1a1a1a] rounded-2xl neo-border shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                     <span className="font-black text-2xl text-black dark:text-white flex items-center gap-4">
+                       <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 border-2 border-black dark:border-white rounded-xl flex items-center justify-center text-2xl">
+                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i+1}
+                       </div>
                        {p.name}
                      </span>
-                     <span className="font-black text-blue-600 dark:text-blue-400">{p.score} نقطة</span>
+                     <span className="font-black text-3xl text-black dark:text-white">{p.score} نقطة</span>
                    </div>
                    {p.uid === (user.id || user.uid) && i === 0 && (
-                      <div className="bg-emerald-500 text-white p-3 rounded-2xl font-black shadow-lg animate-pulse">
+                      <div className="neo-bg-teal text-black border-4 border-black p-4 rounded-xl font-black text-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-bounce mt-2">
                          أنت بطل الغرفة!
                       </div>
                    )}
@@ -427,9 +437,9 @@ export default function MultiplayerQuiz({ user, userProfile, onBack }: Props) {
 
             <button
                onClick={() => setView('menu')}
-               className="px-8 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+               className="px-10 py-5 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-black text-2xl hover:-translate-y-1 transition-all shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] active:translate-y-0 active:shadow-none mt-8"
             >
-              العودة للقائمة الرئيسية
+              العودة للمنصة الرئيسية
             </button>
           </motion.div>
         )}

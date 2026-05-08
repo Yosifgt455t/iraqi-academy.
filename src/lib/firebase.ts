@@ -94,6 +94,40 @@ export const setMaintenanceMode = async (active: boolean) => {
   }
 };
 
+export interface AppFeatures {
+  hideMinisterial: boolean;
+  hideFlashcards: boolean;
+}
+
+export const subscribeToFeatures = (callback: (features: AppFeatures) => void) => {
+  const path = 'settings/features';
+  return onSnapshot(doc(db, 'settings', 'features'), (doc) => {
+    if (doc.exists()) {
+      const data = doc.data();
+      callback({
+        hideMinisterial: data.hideMinisterial === true,
+        hideFlashcards: data.hideFlashcards === true
+      });
+    } else {
+      callback({ hideMinisterial: false, hideFlashcards: false });
+    }
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, path);
+    callback({ hideMinisterial: false, hideFlashcards: false });
+  });
+};
+
+export const updateFeatures = async (features: Partial<AppFeatures>) => {
+  const docRef = doc(db, 'settings', 'features');
+  const docSnap = await getDoc(docRef);
+  
+  if (docSnap.exists()) {
+    await updateDoc(docRef, { ...features, updatedAt: new Date().toISOString() });
+  } else {
+    await setDoc(docRef, { ...features, updatedAt: new Date().toISOString() });
+  }
+};
+
 // Test connection to ensure firestore is reachable
 async function testConnection() {
   try {

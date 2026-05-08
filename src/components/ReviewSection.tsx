@@ -106,42 +106,42 @@ export default function ReviewSection({ grade, onBack }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8" dir="rtl">
+    <div className="min-h-screen p-4 md:p-8" dir="rtl">
       <div className="max-w-4xl mx-auto space-y-8">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <button
               onClick={selectedSubject ? handleBackToSubjects : onBack}
-              className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              className="p-3 bg-white dark:bg-black rounded-xl neo-border text-black dark:text-white flex-shrink-0 hover:neo-bg-pink hover:text-black transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]"
             >
               <ArrowRight size={24} />
             </button>
             <div>
-              <h1 className="text-3xl font-black text-slate-900 dark:text-white">
-                {selectedSubject ? selectedSubject.name : "المراجعة المركزة"}
+              <h1 className="text-3xl font-black text-black dark:text-white">
+                {selectedSubject ? selectedSubject.name : "المراجعة الشاملة"}
               </h1>
-              <p className="text-slate-500 dark:text-slate-400 font-medium">
+              <p className="text-black/80 dark:text-white/80 font-bold mt-1">
                 {selectedSubject ? `ملفات ومحاضرات ${selectedSubject.name}` : "ملخصات ومراجعات شاملة لضمان النجاح"}
               </p>
             </div>
           </div>
 
           <div className="relative">
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-black/50 dark:text-white/50" size={20} />
             <input
               type="text"
               placeholder={selectedSubject ? "ابحث عن ملف..." : "ابحث عن مادة..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full md:w-64 pr-12 pl-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/20 font-bold shadow-sm text-slate-900 dark:text-white"
+              className="w-full md:w-64 pr-12 pl-4 py-3 bg-white dark:bg-black border-2 border-black dark:border-white rounded-xl outline-none focus:neo-bg-yellow dark:focus:bg-black transition-colors font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40"
             />
           </div>
         </header>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="animate-spin text-blue-600" size={40} />
-            <p className="text-slate-500 dark:text-slate-400 font-black">جاري تحميل المحتوى...</p>
+            <Loader2 className="animate-spin text-black dark:text-white" size={40} />
+            <p className="text-black dark:text-white font-black">جاري تحميل المحتوى...</p>
           </div>
         ) : !selectedSubject ? (
           /* SUBJECTS GRID */
@@ -154,18 +154,18 @@ export default function ReviewSection({ grade, onBack }: Props) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
                   onClick={() => handleSubjectClick(sub)}
-                  className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/50 dark:shadow-none flex flex-col items-center gap-4 group hover:border-blue-200 dark:hover:border-blue-800 transition-all text-center"
+                  className="bg-white dark:bg-[#1a1a1a] p-6 neo-border flex flex-col items-center gap-4 group neo-hover text-center"
                 >
-                  <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-3 transition-transform shadow-inner">
+                  <div className="w-20 h-20 neo-bg-teal dark:neo-bg-pink border-2 border-black dark:border-white rounded-xl flex items-center justify-center text-black group-hover:scale-110 group-hover:rotate-3 transition-transform shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
                     <Layers size={40} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white mb-1">{sub.name}</h3>
-                    <p className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full font-black uppercase inline-block">
+                    <h3 className="text-xl font-black text-black dark:text-white mb-2">{sub.name}</h3>
+                    <p className="text-xs bg-white dark:bg-black text-black dark:text-white border-2 border-black dark:border-white px-3 py-1 rounded-full font-black uppercase inline-block neo-border-sm">
                       {materials.filter(m => m.reviewSubjectId === sub.id).length} مادة
                     </p>
                   </div>
-                  <div className="w-full pt-4 mt-auto border-t border-slate-50 dark:border-slate-800 flex items-center justify-center gap-2 text-slate-400 font-bold text-sm">
+                  <div className="w-full pt-4 mt-auto border-t-2 border-black/10 dark:border-white/10 flex items-center justify-center gap-2 text-black/50 dark:text-white/50 font-bold text-sm group-hover:text-black dark:group-hover:text-white transition-colors">
                     <span>عرض التفاصيل</span>
                     <ChevronLeft size={16} />
                   </div>
@@ -173,8 +173,8 @@ export default function ReviewSection({ grade, onBack }: Props) {
               ))}
             </AnimatePresence>
             {filteredSubjects.length === 0 && (
-              <div className="col-span-full text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <p className="text-slate-500 font-black">لا توجد مواد مراجعة متاحة حالياً</p>
+              <div className="col-span-full text-center py-20 bg-white dark:bg-black neo-border neo-bg-yellow dark:neo-bg-blue">
+                <p className="text-black dark:text-white font-black text-xl">لا توجد مواد مراجعة متاحة حالياً</p>
               </div>
             )}
           </div>
@@ -188,19 +188,19 @@ export default function ReviewSection({ grade, onBack }: Props) {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all"
+                  className="bg-white dark:bg-[#1a1a1a] p-5 neo-border flex items-center justify-between group hover:bg-slate-50 transition-all neo-hover"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${
+                  <div className="flex items-center gap-6">
+                    <div className={`w-14 h-14 rounded-xl border-2 border-black dark:border-white flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] ${
                       mat.type === 'PDF' 
-                        ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
-                        : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                        ? 'neo-bg-blue text-black' 
+                        : 'neo-bg-red text-black'
                     }`}>
                       {mat.type === 'PDF' ? <FileText size={28} /> : <Youtube size={28} />}
                     </div>
                     <div>
-                      <h3 className="font-black text-slate-900 dark:text-white">{mat.title}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
+                      <h3 className="font-black text-xl text-black dark:text-white">{mat.title}</h3>
+                      <p className="text-sm text-black/60 dark:text-white/60 font-bold mt-1">
                         {mat.type === 'PDF' ? 'ملف بصيغة PDF' : 'محاضرة فيديو'}
                       </p>
                     </div>
@@ -209,7 +209,7 @@ export default function ReviewSection({ grade, onBack }: Props) {
                   {mat.type === 'PDF' ? (
                     <button
                       onClick={() => setSelectedPdf(mat.url)}
-                      className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-all shadow-sm"
+                      className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-black text-black dark:text-white border-2 border-black dark:border-white rounded-xl font-black text-sm hover:neo-bg-teal hover:text-white dark:hover:neo-bg-teal transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]"
                     >
                       <span>عرض الملف</span>
                       <FileText size={16} />
@@ -219,7 +219,7 @@ export default function ReviewSection({ grade, onBack }: Props) {
                       href={mat.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-all shadow-sm"
+                      className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-black text-black dark:text-white border-2 border-black dark:border-white rounded-xl font-black text-sm hover:neo-bg-teal hover:text-white dark:hover:neo-bg-teal transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]"
                     >
                       <span>فتح</span>
                       <ExternalLink size={16} />
@@ -229,11 +229,11 @@ export default function ReviewSection({ grade, onBack }: Props) {
               ))}
             </AnimatePresence>
             {filteredMaterials.length === 0 && (
-              <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                 <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <BookOpen className="text-slate-300" size={40} />
+              <div className="text-center py-20 bg-white dark:bg-black neo-border neo-bg-yellow dark:neo-bg-blue">
+                 <div className="w-20 h-20 bg-white border-2 border-black dark:border-white text-black rounded-xl flex items-center justify-center mx-auto mb-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                    <BookOpen size={40} />
                   </div>
-                <p className="text-slate-500 font-black">لا توجد ملفات أو محاضرات في هذا القسم حالياً</p>
+                <p className="text-black dark:text-white font-black text-xl">لا توجد ملفات أو محاضرات في هذا القسم حالياً</p>
               </div>
             )}
           </div>
@@ -247,38 +247,38 @@ export default function ReviewSection({ grade, onBack }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden w-full h-full max-h-[100dvh] shadow-md flex flex-col"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-[#1a1a1a] neo-border overflow-hidden w-full h-full max-h-[90dvh] flex flex-col"
             >
-              <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
-                <h3 className="font-bold text-slate-900 dark:text-white">عرض المراجعة المركزة</h3>
-                <div className="flex items-center gap-2">
+              <div className="p-4 flex items-center justify-between border-b-4 border-black dark:border-white neo-bg-yellow dark:neo-bg-blue">
+                <h3 className="font-black text-black text-xl">عرض المراجعة الشاملة</h3>
+                <div className="flex items-center gap-4">
                   <a 
                     href={selectedPdf} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all flex items-center gap-2 text-sm"
+                    className="p-2 bg-white border-2 border-black text-black hover:neo-bg-pink rounded-xl transition-all flex items-center gap-2 text-sm font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                   >
                     <ExternalLink size={18} />
                     فتح في نافذة جديدة
                   </a>
                   <button
                     onClick={() => setSelectedPdf(null)}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full transition-colors"
+                    className="p-2 bg-white border-2 border-black text-black hover:neo-bg-red hover:text-white rounded-xl transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                   >
                     <X size={20} />
                   </button>
                 </div>
               </div>
-              <div className="flex-1 bg-slate-100 dark:bg-slate-950 overflow-hidden">
+              <div className="flex-1 bg-slate-100 dark:bg-black overflow-hidden relative">
                 <iframe
                   src={getPdfSource(selectedPdf)}
-                  className="w-full h-full border-none"
+                  className="w-full h-full border-none absolute inset-0"
                   title="PDF Viewer"
                 ></iframe>
               </div>

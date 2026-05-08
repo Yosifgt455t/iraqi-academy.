@@ -144,21 +144,21 @@ export default function MillionaireGame({ onBack }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0b1e] text-white font-['Inter'] relative overflow-hidden" dir="rtl">
-      {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900/20 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen bg-white dark:bg-black font-['Inter'] relative overflow-hidden text-black dark:text-white" dir="rtl">
+      {/* Neo-brutalist background pattern (optional) */}
+      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
 
       <div className="relative z-10 max-w-6xl mx-auto h-screen flex flex-col p-6">
         {/* Header */}
         <header className="flex items-center justify-between mb-8">
           <button
             onClick={onBack}
-            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors border border-white/10"
+            className="p-3 bg-white border-2 border-black rounded-xl text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:neo-bg-yellow active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             <ArrowRight size={24} />
           </button>
-          <div className="flex items-center gap-3">
-             <Trophy className="text-amber-400" size={32} />
+          <div className="flex items-center gap-4 bg-white dark:bg-black neo-border px-6 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+             <Trophy className="text-amber-500" size={32} />
              <h1 className="text-2xl font-black tracking-tighter">مسابقة المليون</h1>
           </div>
           <div className="w-12 h-12" /> {/* Spacer */}
@@ -168,45 +168,42 @@ export default function MillionaireGame({ onBack }: Props) {
           <motion.div 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex-1 flex flex-col items-center justify-center text-center space-y-8 max-w-2xl mx-auto w-full"
+            className="flex-1 flex flex-col items-center justify-center text-center space-y-10 max-w-3xl mx-auto w-full"
           >
-            <div className="relative">
-              <div className="absolute inset-0 bg-blue-500 rounded-full blur-3xl opacity-20 animate-pulse" />
-              <div className="w-32 h-32 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center shadow-md relative z-10 border-4 border-white/10">
-                <Trophy size={60} className="text-amber-300" />
-              </div>
+            <div className="w-32 h-32 bg-white border-4 border-black dark:border-white rounded-2xl flex items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] neo-bg-yellow rotate-3">
+              <Trophy size={64} className="text-black" strokeWidth={2.5} />
             </div>
             
-            <div className="space-y-2">
-              <h2 className="text-4xl font-black">مسابقة المليون</h2>
-              <p className="text-blue-200/60 font-medium">اختر المادة العلمية التي ترغب بمنافستها</p>
+            <div className="space-y-4 neo-border bg-white dark:bg-black p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] w-full">
+              <h2 className="text-5xl md:text-6xl font-black text-black dark:text-white">مسابقة المليون</h2>
+              <p className="font-bold text-xl text-black/80 dark:text-white/80">اختر المادة العلمية التي ترغب بمنافستها</p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
                <button
                 onClick={() => setSelectedSubjectId('mixed')}
-                className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center gap-3 text-lg font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
                   selectedSubjectId === 'mixed' 
-                    ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/20' 
-                    : 'bg-white/5 border-white/10 text-white/60 hover:border-white/30'
+                    ? 'neo-bg-pink border-black text-black' 
+                    : 'bg-white dark:bg-black border-black dark:border-white text-black dark:text-white hover:neo-bg-yellow hover:text-black'
                 }`}
                >
-                 <LayoutGrid size={24} />
-                 <span className="font-black text-sm">مختلط</span>
+                 <LayoutGrid size={32} />
+                 <span>مختلط</span>
                </button>
 
                {subjects.map(sub => (
                  <button
                   key={sub.id}
                   onClick={() => setSelectedSubjectId(sub.id)}
-                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                  className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center gap-3 text-lg font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
                     selectedSubjectId === sub.id 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20' 
-                      : 'bg-white/5 border-white/10 text-white/60 hover:border-white/30'
+                      ? 'neo-bg-teal border-black text-black' 
+                      : 'bg-white dark:bg-black border-black dark:border-white text-black dark:text-white hover:neo-bg-yellow hover:text-black'
                   }`}
                  >
-                   <HelpCircle size={24} />
-                   <span className="font-bold text-xs truncate w-full">{sub.name}</span>
+                   <HelpCircle size={32} />
+                   <span className="truncate w-full">{sub.name}</span>
                  </button>
                ))}
             </div>
@@ -214,9 +211,9 @@ export default function MillionaireGame({ onBack }: Props) {
             <button
               onClick={handleStart}
               disabled={loading}
-              className="w-full py-5 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl font-black text-xl shadow-sm shadow-amber-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              className="w-full py-6 mt-4 neo-bg-yellow border-4 border-black text-black rounded-2xl font-black text-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-2 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[12px_12px_0px_0px_rgba(255,255,255,1)] active:translate-y-0 active:shadow-none transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
-              {loading ? <Zap className="animate-spin" /> : null}
+              {loading ? <Zap className="animate-spin" /> : <Zap size={32} />}
               ابدأ المسابقة الآن
             </button>
           </motion.div>
@@ -225,17 +222,17 @@ export default function MillionaireGame({ onBack }: Props) {
         {gameState === 'playing' && currentQuestion && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 content-center">
             {/* Money Ladder - Desktop Only */}
-            <div className="hidden lg:flex lg:col-span-3 flex-col-reverse gap-1 justify-center">
+            <div className="hidden lg:flex lg:col-span-3 flex-col-reverse gap-2 justify-center bg-white dark:bg-[#1a1a1a] p-6 neo-border shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
                {MONEY_LADDER.map((amount, idx) => (
                  <div 
                   key={idx}
-                  className={`px-4 py-1.5 rounded-lg font-black text-xs flex justify-between transition-all ${
+                  className={`px-4 py-2 rounded-xl font-black text-sm flex justify-between transition-all border-2 border-transparent ${
                     currentLevel === idx 
-                      ? 'bg-amber-500 text-black scale-105 shadow-lg shadow-amber-500/20' 
+                      ? 'neo-bg-yellow border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] scale-105' 
                       : currentLevel > idx 
-                        ? 'text-amber-500/50' 
-                        : 'text-white/40'
-                  } ${idx % 5 === 4 ? 'border-b border-white/10 pb-2 mb-1' : ''}`}
+                        ? 'text-amber-600 dark:text-amber-500' 
+                        : 'text-black/40 dark:text-white/40'
+                  }`}
                  >
                    <span>{idx + 1}</span>
                    <span>₪ {amount}</span>
@@ -244,22 +241,21 @@ export default function MillionaireGame({ onBack }: Props) {
             </div>
 
             {/* Main Question Area */}
-            <div className="lg:col-span-9 flex flex-col gap-12">
+            <div className="lg:col-span-9 flex flex-col gap-10">
               {/* Question Box */}
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition" />
-                <div className="relative bg-[#161b36] p-10 rounded-xl border border-white/5 text-center shadow-md">
-                   <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-blue-600 rounded-full text-xs font-black uppercase tracking-widest border-2 border-[#0a0b1e]">
-                     سؤال المستوى {currentLevel + 1}
-                   </div>
-                   <h3 className="text-3xl font-black leading-snug">
+              <div className="relative mt-8">
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-6 py-2 neo-bg-teal border-2 border-black text-black rounded-xl font-black text-sm uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-20">
+                    سؤال المستوى {currentLevel + 1}
+                </div>
+                <div className="relative bg-white dark:bg-black p-10 pt-14 rounded-2xl neo-border text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)]">
+                   <h3 className="text-3xl lg:text-4xl font-black leading-snug text-black dark:text-white">
                      {currentQuestion.question}
                    </h3>
                 </div>
               </div>
 
               {/* Options Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {currentQuestion.options.map((option, idx) => {
                   const isSelected = selectedOption === idx;
                   const isCorrect = isAnswerRevealed && idx === currentQuestion.correctAnswer;
@@ -272,21 +268,21 @@ export default function MillionaireGame({ onBack }: Props) {
                       disabled={isAnswerRevealed || isDisabled}
                       onClick={() => handleOptionClick(idx)}
                       className={`
-                        group relative p-6 rounded-xl border-2 text-right transition-all duration-500
-                        ${isSelected && !isAnswerRevealed ? 'bg-amber-500/20 border-amber-500 text-amber-500' : ''}
-                        ${isCorrect ? 'bg-green-500/20 border-green-500 text-green-500' : ''}
-                        ${isWrong ? 'bg-red-500/20 border-red-500 text-red-500' : ''}
-                        ${!isSelected && !isCorrect && !isWrong ? 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20' : ''}
+                        group relative p-6 rounded-2xl border-4 text-right transition-all duration-300
+                        ${isSelected && !isAnswerRevealed ? 'neo-bg-yellow border-black text-black shadow-none translate-y-1' : ''}
+                        ${isCorrect ? 'bg-green-400 border-black text-black shadow-none translate-y-1' : ''}
+                        ${isWrong ? 'neo-bg-red border-black text-white shadow-none translate-y-1' : ''}
+                        ${!isSelected && !isCorrect && !isWrong ? 'bg-white dark:bg-[#1a1a1a] border-black dark:border-white text-black dark:text-white hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]' : ''}
                         ${isDisabled ? 'opacity-0 pointer-events-none' : 'opacity-100'}
                       `}
                     >
                       <div className="flex items-center gap-4">
-                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm border ${
-                          isSelected ? 'border-amber-500 bg-amber-500 text-black' : 'border-white/10 bg-white/5'
+                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg border-2 ${
+                          isSelected || isCorrect || isWrong ? 'border-black bg-white text-black' : 'border-black dark:border-white bg-slate-100 dark:bg-slate-800 text-black dark:text-white'
                         }`}>
                           {['أ', 'ب', 'ج', 'د'][idx]}
                         </span>
-                        <span className="text-xl font-bold">{option}</span>
+                        <span className="text-2xl font-bold">{option}</span>
                       </div>
                     </button>
                   );
@@ -294,42 +290,42 @@ export default function MillionaireGame({ onBack }: Props) {
               </div>
 
               {/* Lifelines */}
-              <div className="flex justify-center gap-6 mt-4">
+              <div className="flex justify-center gap-8 mt-6">
                 <button
                   onClick={useFiftyFifty}
                   disabled={!lifelines.fiftyFifty || isAnswerRevealed}
-                  className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all ${
+                  className={`w-20 h-20 rounded-2xl border-4 flex items-center justify-center transition-all ${
                     lifelines.fiftyFifty 
-                      ? 'border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white' 
-                      : 'border-white/5 text-white/20'
+                      ? 'bg-white border-black text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' 
+                      : 'bg-slate-200 border-slate-400 text-slate-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-600 shadow-none -translate-y-0'
                   }`}
                   title="حذف خيارين"
                 >
-                  <span className="font-black text-xs">50:50</span>
+                  <span className="font-black text-lg">50:50</span>
                 </button>
                 <button
                   disabled={!lifelines.audience || isAnswerRevealed}
                   onClick={() => setLifelines(p => ({ ...p, audience: false }))}
-                  className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all ${
+                  className={`w-20 h-20 rounded-2xl border-4 flex items-center justify-center transition-all ${
                     lifelines.audience 
-                      ? 'border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white' 
-                      : 'border-white/5 text-white/20'
+                      ? 'bg-white border-black text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' 
+                      : 'bg-slate-200 border-slate-400 text-slate-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-600 shadow-none -translate-y-0'
                   }`}
                   title="تصويت الجمهور"
                 >
-                  <Users size={24} />
+                  <Users size={32} />
                 </button>
                 <button
                   disabled={!lifelines.call || isAnswerRevealed}
                   onClick={() => setLifelines(p => ({ ...p, call: false }))}
-                  className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all ${
+                  className={`w-20 h-20 rounded-2xl border-4 flex items-center justify-center transition-all ${
                     lifelines.call 
-                      ? 'border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-white' 
-                      : 'border-white/5 text-white/20'
+                      ? 'bg-white border-black text-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' 
+                      : 'bg-slate-200 border-slate-400 text-slate-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-600 shadow-none -translate-y-0'
                   }`}
                   title="اتصال بصديق"
                 >
-                  <Phone size={24} />
+                  <Phone size={32} />
                 </button>
               </div>
             </div>
@@ -340,40 +336,40 @@ export default function MillionaireGame({ onBack }: Props) {
            <motion.div 
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex-1 flex flex-col items-center justify-center text-center space-y-8"
+            className="flex-1 flex flex-col items-center justify-center text-center space-y-10"
            >
-              <div className={`w-32 h-32 rounded-full flex items-center justify-center ${gameState === 'won' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                {gameState === 'won' ? <CheckCircle2 size={80} /> : <XCircle size={80} />}
+              <div className={`w-40 h-40 rounded-3xl border-4 border-black flex items-center justify-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] ${gameState === 'won' ? 'bg-green-400 text-black' : 'neo-bg-red text-white'}`}>
+                {gameState === 'won' ? <CheckCircle2 size={80} strokeWidth={2.5} /> : <XCircle size={80} strokeWidth={2.5} />}
               </div>
               
-              <div className="space-y-2">
-                <h2 className="text-5xl font-black">
-                  {gameState === 'won' ? 'تهانينا يا بطل!' : 'للأسف، تعوضها بالمرة القادمة'}
+              <div className="space-y-4 neo-border bg-white dark:bg-black p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                <h2 className="text-5xl md:text-6xl font-black text-black dark:text-white">
+                  {gameState === 'won' ? 'تهانينا يا بطل!' : 'حظ أوفر المرة القادمة'}
                 </h2>
-                <p className="text-white/60 font-medium text-lg">
+                <p className="text-black/80 dark:text-white/80 font-bold text-xl">
                   {gameState === 'won' 
                     ? 'لقد حصلت على المليون بنجاح واجتزت كل العقبات.' 
                     : 'كان سؤالاً صعباً، لا تستسلم وواصل الدراسة.'}
                 </p>
               </div>
 
-              <div className="bg-white/5 p-8 rounded-xl border border-white/10 w-full max-w-sm">
-                 <p className="text-white/40 font-black mb-2 uppercase tracking-tighter">المبلغ المحصل عليه</p>
-                 <p className="text-5xl font-black text-amber-400">
+              <div className="bg-white dark:bg-black p-8 rounded-2xl neo-border w-full max-w-sm shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)]">
+                 <p className="font-black mb-4 text-xl">المبلغ المحصل عليه</p>
+                 <p className="text-5xl md:text-6xl font-black text-amber-500 bg-amber-50 dark:bg-amber-900/30 py-4 rounded-xl border-4 border-black dark:border-white">
                    ₪ {gameState === 'won' ? '1,000,000' : (currentLevel > 0 ? MONEY_LADDER[currentLevel-1] : '0')}
                  </p>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-6">
                 <button
                   onClick={handleStart}
-                  className="px-10 py-4 bg-white text-slate-900 rounded-2xl font-black hover:bg-white/90 transition-all"
+                  className="px-10 py-5 neo-bg-yellow border-4 border-black text-black rounded-2xl font-black text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all"
                 >
                   حاول مرة أخرى
                 </button>
                 <button
                   onClick={onBack}
-                  className="px-10 py-4 bg-white/5 text-white rounded-2xl font-black border border-white/10 hover:bg-white/10 transition-all"
+                  className="px-10 py-5 bg-white border-4 border-black text-black rounded-2xl font-black text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all"
                 >
                   العودة للرئيسية
                 </button>

@@ -1,26 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-canvas-white: #F9FAFB;
-  --color-pure-surface: #FFFFFF;
-  --color-charcoal-ink: #18181B;
-  --color-steel-secondary: #71717A;
-  --color-muted-slate: #94A3B8;
-  --color-electric-blue: #3B82F6;
-  --color-deep-rose: #E11D48;
+  --color-canvas-white: #fdfbf7;
+  --color-pure-surface: #ffffff;
+  --color-neo-pink: #FF90E8;
+  --color-neo-yellow: #FFC900;
+  --color-neo-blue: #90A8ED;
+  --color-neo-teal: #23A094;
+  --color-neo-red: #FF6b6b;
+  --color-charcoal-ink: #111111;
+  --color-steel-secondary: #555555;
+  --color-muted-slate: #888888;
   
-  --font-sans: "Outfit", "Noto Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Readex Pro", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Tajawal", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --shadow-diffused: 0 20px 40px -15px rgba(0,0,0,0.05);
+  --shadow-neo: 4px 4px 0px 0px #111111;
+  --shadow-neo-hover: 6px 6px 0px 0px #111111;
+  --shadow-neo-sm: 2px 2px 0px 0px #111111;
 }
 
 :root {
-  --background: #F9FAFB;
-  --foreground: #18181B;
+  --background: #fdfbf7;
+  --foreground: #111111;
 }
 
 body {
@@ -30,30 +36,44 @@ body {
   direction: rtl;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .dark body {
-  background-color: #09090B;
-  color: #FAFAFA;
+  background-color: #111111;
+  color: #fdfbf7;
+  background-image: radial-gradient(#333 1px, transparent 1px);
 }
 
 /* Simple Card Style */
 .premium-card {
   background-color: var(--color-pure-surface);
-  border-radius: 1rem;
-  border: 1px solid rgba(226, 232, 240, 1);
+  border-radius: 12px;
+  border: 3px solid #111111;
   padding: 1.5rem;
+  box-shadow: var(--shadow-neo);
+  transition: all 0.2s ease;
+}
+.premium-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-neo-hover);
 }
 
 .dark .premium-card {
-  background-color: #1e293b;
-  border-color: rgba(51, 65, 85, 1);
+  background-color: #1a1a1a;
+  border-color: #fdfbf7;
+  box-shadow: 4px 4px 0px 0px #fdfbf7;
+}
+.dark .premium-card:hover {
+  box-shadow: 6px 6px 0px 0px #fdfbf7;
 }
 
 /* Base Typo */
 h1, h2, h3, h4, h5, h6 {
-  letter-spacing: -0.025em;
-  line-height: 1.1;
+  font-family: var(--font-display);
+  letter-spacing: 0em;
+  line-height: 1.2;
 }
 
 p {
@@ -62,7 +82,8 @@ p {
 
 /* Button Resets */
 button:active {
-  transform: translateY(1px) scale(0.98);
+  transform: translate(2px, 2px) !important;
+  box-shadow: none !important;
 }
 
 /* Tables */
@@ -71,37 +92,82 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   margin: 1rem 0;
-  border-radius: 1.5rem;
+  border-radius: 12px;
   overflow: hidden;
   background: white;
-  border: 1px solid rgba(226, 232, 240, 0.5);
+  border: 3px solid #111111;
+  box-shadow: var(--shadow-neo);
 }
-.dark table { background: #18181b; border-color: rgba(255,255,255,0.05); }
+.dark table { background: #1a1a1a; border-color: #fdfbf7; box-shadow: 4px 4px 0px 0px #fdfbf7; }
 
 th {
-  background-color: rgba(249, 250, 251, 1);
-  color: #18181B;
-  font-weight: 700;
+  background-color: var(--color-neo-yellow);
+  color: #111111;
+  font-weight: 800;
   text-align: right;
   padding: 1rem;
-  font-size: 0.8125rem;
-  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-family: var(--font-display);
+  border-bottom: 3px solid #111111;
+  border-left: 3px solid #111111;
 }
-.dark th { background-color: #09090b; color: #FAFAFA; }
+th:last-child { border-left: none; }
+.dark th { background-color: var(--color-neo-blue); }
 
 td {
   padding: 1rem;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  border-bottom: 3px solid #111111;
+  border-left: 3px solid #111111;
   font-size: 0.875rem;
-  color: #71717A;
+  color: #111111;
+  font-family: var(--font-sans);
+  font-weight: 500;
 }
-.dark td { border-color: rgba(255,255,255,0.05); color: #94a3b8; }
+td:last-child { border-left: none; }
+.dark td { border-color: #fdfbf7; color: #fdfbf7; }
 
 tr:last-child td { border-bottom: none; }
 
 /* Scrollbars */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(226,232,240,1); border-radius: 10px; }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; border-left: 2px solid #111; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #111; border-radius: 0px; }
+.dark .custom-scrollbar::-webkit-scrollbar-track { border-color: #fdfbf7; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #fdfbf7; }
+
+/* Custom utility classes */
+.neo-border {
+  border: 3px solid #111111;
+  box-shadow: var(--shadow-neo);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+.neo-border-sm {
+  border: 2px solid #111111;
+  box-shadow: var(--shadow-neo-sm);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.dark .neo-border {
+  border-color: #fdfbf7;
+  box-shadow: 4px 4px 0px 0px #fdfbf7;
+}
+.dark .neo-border-sm {
+  border-color: #fdfbf7;
+  box-shadow: 2px 2px 0px 0px #fdfbf7;
+}
+
+.neo-hover:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: var(--shadow-neo-hover);
+}
+.dark .neo-hover:hover {
+  box-shadow: 6px 6px 0px 0px #fdfbf7;
+}
+
+.neo-bg-yellow { background-color: var(--color-neo-yellow); }
+.neo-bg-pink { background-color: var(--color-neo-pink); }
+.neo-bg-blue { background-color: var(--color-neo-blue); }
+.neo-bg-teal { background-color: var(--color-neo-teal); }
+.neo-bg-red { background-color: var(--color-neo-red); }

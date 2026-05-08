@@ -12,66 +12,66 @@ export default function ActivitiesMenu({ onBack, onSelect }: Props) {
       <header className="flex items-center gap-4">
         <button
           onClick={onBack}
-          className="p-3 bg-white dark:bg-[#18181B] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          className="p-3 bg-white dark:bg-black rounded-xl neo-border text-black dark:text-white flex-shrink-0 hover:neo-bg-pink hover:text-black transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]"
         >
           <ArrowRight size={24} />
         </button>
         <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">الأنشطة والفعاليات</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">استكشف وتفاعل مع مجتمع عراقي أكاديمي</p>
+          <h1 className="text-3xl font-black text-black dark:text-white tracking-tight">الأنشطة والفعاليات</h1>
+          <p className="font-bold text-slate-700 dark:text-slate-300">استكشف وتفاعل مع مجتمع عراقي أكاديمي</p>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <button
           onClick={() => onSelect('community')}
-          className="premium-card flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-1 transition-transform relative overflow-hidden"
+          className="bg-white dark:bg-[#1a1a1a] neo-border p-6 flex flex-col items-start justify-between min-h-[160px] text-right neo-hover relative overflow-hidden group"
         >
-          <div className="w-14 h-14 bg-[#F9FAFB] dark:bg-slate-800 rounded-2xl flex items-center justify-center text-[#71717A] dark:text-slate-400 mb-4 group-hover:text-amber-500 transition-colors relative z-10">
+          <div className="w-14 h-14 neo-bg-teal border-2 border-black dark:border-white rounded-xl flex items-center justify-center text-black mb-4 group-hover:scale-110 transition-transform relative z-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
             <MessagesSquare size={28} />
           </div>
           <div className="relative z-10">
-            <h3 className="font-black text-slate-900 dark:text-white text-xl">المجتمع الأكاديمي</h3>
-            <p className="text-sm text-[#71717A] dark:text-slate-400 font-medium mt-1">ناقش الدروس وتواصل مع زملائك في بيئة دراسية تفاعلية</p>
+            <h3 className="font-black text-black dark:text-white text-2xl group-hover:text-amber-500 transition-colors">المجتمع الأكاديمي</h3>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-2">ناقش الدروس وتواصل مع زملائك في بيئة دراسية تفاعلية</p>
           </div>
         </button>
 
         <button
           onClick={() => onSelect('leaderboard')}
-          className="premium-card flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-1 transition-transform relative overflow-hidden"
+          className="bg-white dark:bg-[#1a1a1a] neo-border p-6 flex flex-col items-start justify-between min-h-[160px] text-right neo-hover relative overflow-hidden group"
         >
-          <div className="w-14 h-14 bg-[#F9FAFB] dark:bg-slate-800 rounded-2xl flex items-center justify-center text-[#71717A] dark:text-slate-400 mb-4 group-hover:text-amber-400 transition-colors relative z-10">
+          <div className="w-14 h-14 neo-bg-yellow border-2 border-black dark:border-white rounded-xl flex items-center justify-center text-black mb-4 group-hover:scale-110 transition-transform relative z-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
             <Crown size={28} />
           </div>
           <div className="relative z-10">
-            <h3 className="font-black text-slate-900 dark:text-white text-xl">لوحة المتصدرين</h3>
-            <p className="text-sm text-[#71717A] dark:text-slate-400 font-medium mt-1">تعرف على المتفوقين وتنافس للوصول إلى المراتب الأولى</p>
+            <h3 className="font-black text-black dark:text-white text-2xl group-hover:text-amber-500 transition-colors">لوحة المتصدرين</h3>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-2">تعرف على المتفوقين وتنافس للوصول إلى المراتب الأولى</p>
           </div>
         </button>
 
         <button
           onClick={() => onSelect('reviews')}
-          className="premium-card flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-1 transition-transform relative overflow-hidden"
+          className="bg-white dark:bg-[#1a1a1a] neo-border p-6 flex flex-col items-start justify-between min-h-[160px] text-right neo-hover relative overflow-hidden group"
         >
-          <div className="w-14 h-14 bg-[#F9FAFB] dark:bg-slate-800 rounded-2xl flex items-center justify-center text-[#71717A] dark:text-slate-400 mb-4 group-hover:text-blue-500 transition-colors relative z-10">
+          <div className="w-14 h-14 neo-bg-blue border-2 border-black dark:border-white rounded-xl flex items-center justify-center text-black mb-4 group-hover:scale-110 transition-transform relative z-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
             <BookOpen size={28} />
           </div>
           <div className="relative z-10">
-            <h3 className="font-black text-slate-900 dark:text-white text-xl">المراجعة الشاملة</h3>
-            <p className="text-sm text-[#71717A] dark:text-slate-400 font-medium mt-1">تصفح الملخصات والملازم الذهبية للتحضير للامتحانات</p>
+            <h3 className="font-black text-black dark:text-white text-2xl group-hover:text-amber-500 transition-colors">المراجعة الشاملة</h3>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-2">تصفح الملخصات والملازم الذهبية للتحضير للامتحانات</p>
           </div>
         </button>
 
         <button
           onClick={() => onSelect('quiz')}
-          className="premium-card flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-1 transition-transform relative overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500"
+          className="bg-white dark:bg-[#1a1a1a] neo-border p-6 flex flex-col items-start justify-between min-h-[160px] text-right neo-hover relative overflow-hidden group"
         >
-          <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4 group-hover:bg-emerald-500 group-hover:text-white transition-colors relative z-10">
+          <div className="w-14 h-14 neo-bg-pink border-2 border-black dark:border-white rounded-xl flex items-center justify-center text-black mb-4 group-hover:scale-110 transition-transform relative z-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
             <Trophy size={28} />
           </div>
           <div className="relative z-10">
-            <h3 className="font-black text-slate-900 dark:text-white text-xl">من سيربح المليون</h3>
-            <p className="text-sm text-[#71717A] dark:text-slate-400 font-medium mt-1">تحدى نفسك أو أصدقائك في مسابقة ثقافية وعلمية ممتعة</p>
+            <h3 className="font-black text-black dark:text-white text-2xl group-hover:text-amber-500 transition-colors">من سيربح المليون</h3>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-2">تحدى نفسك أو أصدقائك في مسابقة ثقافية وعلمية ممتعة</p>
           </div>
         </button>
       </div>

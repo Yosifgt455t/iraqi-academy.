@@ -98,51 +98,51 @@ export default function ChapterSelector({ subject, userId, onSelect, teacherId }
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-200 space-y-4"
+        className="text-center py-16 bg-white dark:bg-[#1a1a1a] neo-border space-y-4 neo-bg-pink"
       >
-        <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+        <div className="w-16 h-16 bg-white border-2 border-black dark:border-white text-black rounded-full flex items-center justify-center mx-auto shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
           <Sparkles size={32} />
         </div>
         <div className="space-y-1">
-          <h3 className="text-xl font-bold text-slate-900">سيتم إضافة الفصول قريباً</h3>
-          <p className="text-slate-500 text-sm">نحن نعمل على تجهيز المنهج الكامل لهذه المادة.</p>
+          <h3 className="text-2xl font-black text-black dark:text-white">سيتم إضافة الفصول قريباً</h3>
+          <p className="text-black/80 dark:text-white/80 font-bold">نحن نعمل على تجهيز المنهج الكامل لهذه المادة.</p>
         </div>
       </motion.div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold text-slate-900">فصول مادة {subject.name}</h2>
-        <p className="text-slate-500">اختر الفصل الذي تريد دراسته</p>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center gap-4 mb-4">
+        <h2 className="text-3xl font-black text-black dark:text-white">فصول مادة {subject.name}</h2>
+        <div className="h-1 flex-1 bg-black dark:bg-white rounded-full opacity-10"></div>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {chapters.map((chapter) => {
           const progress = getChapterProgress(chapter.id);
           return (
             <button
               key={chapter.id}
               onClick={() => onSelect(chapter)}
-              className="w-full flex flex-col p-5 bg-white rounded-xl border border-slate-100 shadow-sm hover:border-blue-500 hover:bg-blue-50/30 transition-all group text-right"
+              className="w-full flex flex-col p-5 bg-white dark:bg-[#1a1a1a] neo-border hover:bg-slate-50 transition-all group text-right neo-hover"
             >
-              <div className="flex items-center w-full mb-3">
-                <div className="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center ml-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors font-bold">
+              <div className="flex items-center w-full mb-4">
+                <div className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white rounded-xl flex items-center justify-center ml-4 group-hover:scale-110 transition-transform font-black text-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
                   {chapter.orderIndex}
                 </div>
-                <span className="flex-1 text-lg font-medium text-slate-800">{chapter.name}</span>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${progress === 100 ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                <span className="flex-1 text-2xl font-black text-black dark:text-white">{chapter.name}</span>
+                <div className="flex items-center gap-4">
+                  <span className={`text-sm font-black px-3 py-1 border-2 border-black dark:border-white neo-border-sm ${progress === 100 ? 'neo-bg-teal text-white' : 'neo-bg-yellow text-black'}`}>
                     {progress}%
                   </span>
-                  <ChevronLeft className="text-slate-300 group-hover:text-blue-500" />
+                  <ChevronLeft className="text-black dark:text-white opacity-20 group-hover:opacity-100 group-hover:-translate-x-2 transition-all" size={28} />
                 </div>
               </div>
-              <div className="w-full h-1.5 bg-slate-50 rounded-full overflow-hidden">
+              <div className="w-full h-3 border-2 border-black dark:border-white bg-slate-50 dark:bg-black rounded-full overflow-hidden inset-shadow">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
-                  className={`h-full rounded-full ${progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                  className={`h-full border-l-2 border-black dark:border-white ${progress === 100 ? 'neo-bg-teal' : 'neo-bg-pink'}`}
                 />
               </div>
             </button>

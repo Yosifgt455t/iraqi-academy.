@@ -181,22 +181,10 @@ export default function App() {
       </div>
       
       {/* Global Footer */}
-      <footer className="py-6 px-4 text-center border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm" dir="rtl">
+      <footer className="py-4 px-4 text-center border-t-4 border-black dark:border-white bg-[#FFB5A7] neo-border-t" dir="rtl">
         <div className="max-w-md mx-auto flex flex-col items-center gap-2">
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
-            تم تطويره بواسطة
-            <a 
-              href="https://www.instagram.com/yosifhkem?igsh=MWNtdmEzMm52dWp0bQ==" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mr-1.5 text-blue-600 dark:text-blue-400 hover:text-pink-600 dark:hover:text-pink-400 transition-all font-bold group"
-            >
-              يوسف حكيم
-              <Instagram size={18} className="group-hover:scale-110 transition-transform" />
-            </a>
-          </p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-sans tracking-wider uppercase">
-            © {new Date().getFullYear()} Iraqi Academy • All Rights Reserved
+          <p className="text-xs text-black/80 font-black font-mono tracking-wider uppercase">
+            © {new Date().getFullYear()} IRAQI ACADEMY • ALL RIGHTS RESERVED
           </p>
         </div>
       </footer>

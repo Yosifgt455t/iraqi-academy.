@@ -130,14 +130,14 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center py-20 px-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-6"
+        className="text-center py-20 px-6 bg-white dark:bg-black rounded-xl space-y-6 neo-border neo-bg-yellow dark:neo-bg-blue"
       >
-        <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+        <div className="w-20 h-20 bg-white border-4 border-black dark:border-white rounded-full flex items-center justify-center mx-auto shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] text-black">
           <Sparkles size={40} />
         </div>
         <div className="space-y-2">
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white">سيتم إضافة المواد قريباً</h3>
-          <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+          <h3 className="text-3xl font-black text-black dark:text-white">سيتم إضافة المواد قريباً</h3>
+          <p className="text-black/80 dark:text-white/80 max-w-md mx-auto font-bold text-lg">
             نحن نعمل حالياً على تجهيز أفضل المصادر التعليمية لهذا الصف الدراسي. ترقبونا قريباً!
           </p>
         </div>
@@ -146,9 +146,12 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-slate-900 dark:text-white text-center">اختر المادة الدراسية</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center gap-4 mb-4">
+        <h2 className="text-3xl font-black text-black dark:text-white">المواد الدراسية</h2>
+        <div className="h-1 flex-1 bg-black dark:bg-white rounded-full opacity-10"></div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {subjects.map((subject) => {
           const Icon = iconMap[subject.name] || Book;
           const progress = getSubjectProgress(subject.id);
@@ -156,29 +159,29 @@ export default function SubjectSelector({ grade, userId, onSelect }: Props) {
             <button
               key={subject.id}
               onClick={() => onSelect(subject)}
-              className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all duration-300 group text-right"
+              className="flex flex-col p-6 bg-white dark:bg-[#1a1a1a] neo-border hover:bg-slate-50 transition-all duration-200 group text-right neo-hover relative overflow-hidden"
             >
-              <div className="flex items-center w-full mb-4">
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl ml-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                  <Icon size={28} />
+              <div className="flex items-center w-full mb-6 relative z-10">
+                <div className="p-4 neo-bg-teal dark:neo-bg-pink border-2 border-black dark:border-white text-black dark:text-white rounded-xl ml-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] group-hover:scale-110 transition-transform">
+                  <Icon size={32} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">{subject.name}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">تصفح الفصول والمصادر</p>
+                  <h3 className="text-2xl font-black text-black dark:text-white">{subject.name}</h3>
+                  <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mt-1">تصفح الفصول والمصادر</p>
                 </div>
-                <ChevronLeft className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
+                <ChevronLeft className="text-black dark:text-white opacity-20 group-hover:opacity-100 group-hover:-translate-x-2 transition-all" size={28} />
               </div>
               
-              <div className="w-full space-y-2">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-blue-600 dark:text-blue-400">اكتملت بنسبة {progress}%</span>
-                  <span className="text-slate-400 dark:text-slate-500">التقدم الكلي</span>
+              <div className="w-full space-y-3 bg-slate-50 dark:bg-slate-900 border-2 border-black dark:border-white rounded-xl p-4 neo-border-sm relative z-10">
+                <div className="flex justify-between text-sm font-black">
+                  <span className="text-black dark:text-white">اكتملت بنسبة {progress}%</span>
+                  <span className="text-slate-500">التقدم الكلي</span>
                 </div>
-                <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-full h-3 border-2 border-black dark:border-white bg-white dark:bg-black rounded-full overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] inset-shadow">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
-                    className="h-full bg-blue-600 rounded-full"
+                    className="h-full neo-bg-yellow border-r-2 border-black dark:border-white"
                   />
                 </div>
               </div>

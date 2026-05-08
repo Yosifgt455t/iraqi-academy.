@@ -101,23 +101,23 @@ export default function GradeSelector({ userId, onComplete }: Props) {
   );
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden font-sans selection:bg-blue-100" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#1a1a1a] relative overflow-hidden font-sans selection:bg-pink-200" dir="rtl">
       {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-50 rounded-full blur-[120px] opacity-60" />
-        <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] bg-purple-50 rounded-full blur-[100px] opacity-50" />
-        <div className="absolute -bottom-[10%] left-[20%] w-[35%] h-[35%] bg-emerald-50 rounded-full blur-[110px] opacity-40" />
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden opacity-50 dark:opacity-10">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] neo-bg-blue rounded-full blur-[120px]" />
+        <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] neo-bg-pink rounded-full blur-[100px]" />
+        <div className="absolute -bottom-[10%] left-[20%] w-[35%] h-[35%] neo-bg-yellow rounded-full blur-[110px]" />
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-12 md:py-20 lg:py-24">
+      <div className="relative z-10 max-w-5xl mx-auto px-6 py-12 md:py-20 lg:py-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Header */}
         <div className="text-center space-y-6 mb-16">
           <motion.div 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-bold tracking-wide"
+            className="inline-flex items-center gap-2 px-4 py-2 neo-bg-yellow text-black border-2 border-black rounded-xl text-sm font-black tracking-wide shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:border-white dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]"
           >
-            <Sparkles size={16} />
+            <Sparkles size={18} />
             <span>ابدأ رحلتك التعليمية اليوم</span>
           </motion.div>
           
@@ -125,9 +125,9 @@ export default function GradeSelector({ userId, onComplete }: Props) {
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="text-4xl md:text-6xl font-black text-slate-900 leading-[1.1] tracking-tight"
+            className="text-4xl md:text-6xl font-black text-black dark:text-white leading-[1.2] tracking-tight"
           >
-            اختر <span className="text-blue-600">صفك الدراسي</span><br />
+            اختر <span className="bg-[#FFB5A7] text-black px-2 mt-2 inline-block border-2 border-black -rotate-2 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">صفك الدراسي</span><br />
             وانطلق نحو التميز
           </motion.h1>
           
@@ -135,7 +135,7 @@ export default function GradeSelector({ userId, onComplete }: Props) {
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto font-medium"
+            className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-bold mt-6"
           >
             نوفر لك أحدث الملازم، المحاضرات، والاختبارات الذكية لكل مرحلة دراسية.
           </motion.p>
@@ -143,7 +143,7 @@ export default function GradeSelector({ userId, onComplete }: Props) {
 
         {/* Stage Tabs */}
         <div className="flex justify-center mb-12 flex-wrap gap-2">
-          <div className="inline-flex p-1.5 bg-slate-100 rounded-xl gap-1 flex-wrap justify-center">
+          <div className="inline-flex p-2 bg-white dark:bg-black neo-border gap-2 flex-wrap justify-center border-2 border-black dark:border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
             {visibleStages.map((stage) => {
               const Icon = getIcon(stage.iconName);
               return (
@@ -153,22 +153,22 @@ export default function GradeSelector({ userId, onComplete }: Props) {
                   setActiveStage(stage.id);
                   setSelectedGrade(null);
                 }}
-                className={`relative px-6 py-3 rounded-2xl text-sm md:text-base font-black transition-all flex items-center gap-2 ${
+                className={`relative px-6 py-3 rounded-xl text-sm md:text-base font-black transition-all flex items-center gap-2 border-2 ${
                   activeStage === stage.id 
-                    ? 'text-white' 
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10 bg-white' 
+                    : 'border-transparent text-slate-500 hover:text-black hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 {activeStage === stage.id && (
                   <motion.div 
                     layoutId="activeTab"
-                    className={`absolute inset-0 rounded-2xl shadow-lg ring-4 ring-white/50 ${
-                      stage.color === 'blue' ? 'bg-blue-600' : 
-                      stage.color === 'purple' ? 'bg-purple-600' : 'bg-emerald-600'
-                    }`}
+                    className={`absolute inset-0 rounded-xl ${
+                      stage.color === 'blue' ? 'neo-bg-blue' : 
+                      stage.color === 'purple' ? 'neo-bg-pink' : 'neo-bg-teal'
+                    } opacity-20`}
                   />
                 )}
-                <span className="relative z-10"><Icon size={18} /></span>
+                <span className="relative z-10"><Icon size={20} /></span>
                 <span className="relative z-10">{stage.label}</span>
               </button>
             )})}
@@ -202,38 +202,40 @@ export default function GradeSelector({ userId, onComplete }: Props) {
                     disabled={!isAvailable || fetchingGrades}
                     className={`relative p-8 rounded-xl border-2 transition-all text-right group overflow-hidden ${
                       isSelected
-                        ? 'bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-200'
+                        ? 'bg-black border-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:bg-white dark:text-black dark:shadow-[4px_4px_0px_0px_#fdfbf7] dark:border-white'
                         : isAvailable
-                          ? 'bg-white border-slate-100 hover:border-blue-500 hover:shadow-sm hover:shadow-blue-50/50 cursor-pointer'
-                          : 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed'
+                          ? 'bg-white border-black text-black hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:bg-black dark:border-white dark:text-white dark:hover:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] cursor-pointer shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]'
+                          : 'bg-slate-100 border-slate-300 text-slate-400 opacity-60 cursor-not-allowed dark:bg-slate-800 dark:border-slate-700'
                     }`}
                   >
                     {/* Icon & Label */}
-                    <div className="flex flex-col h-full justify-between gap-8 h-[160px]">
+                    <div className="flex flex-col h-full justify-between gap-8 h-[160px] relative z-10">
                       <div className="flex justify-between items-start">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
-                          isSelected ? 'bg-white/10' : (isAvailable ? 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600' : 'bg-slate-200 text-slate-400')
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center transition-colors border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] ${
+                          isSelected ? 'bg-white/20 dark:bg-black/20 text-white dark:text-black' : (isAvailable ? 'bg-slate-50 text-black group-hover:neo-bg-yellow dark:group-hover:bg-yellow-400 dark:bg-black dark:text-white' : 'bg-slate-200 text-slate-400 dark:bg-slate-700')
                         }`}>
                           {grade.description && isAvailable ? <Star size={24} /> : <BookOpen size={24} />}
                         </div>
                         {isSelected && (
-                          <CheckCircle2 className="text-blue-400" size={24} />
+                          <div className="w-10 h-10 neo-bg-teal rounded-full border-2 border-black dark:border-white flex items-center justify-center text-black">
+                            <CheckCircle2 size={20} />
+                          </div>
                         )}
                         {!isAvailable && !fetchingGrades && (
-                          <span className="text-[10px] font-bold bg-slate-200 text-slate-500 px-2 py-1 rounded-lg">
+                          <span className="text-xs font-black bg-slate-200 text-slate-600 px-3 py-1 rounded-lg border-2 border-slate-300">
                             قريباً
                           </span>
                         )}
                       </div>
                       
                       <div>
-                        <h3 className={`text-xl md:text-2xl font-black mb-1 ${
-                          isSelected ? 'text-white' : 'text-slate-900'
+                        <h3 className={`text-xl md:text-2xl font-black mb-2 ${
+                          isSelected ? 'text-white dark:text-black' : 'text-black dark:text-white'
                         }`}>
                           {grade.label}
                         </h3>
                         <p className={`text-sm font-bold ${
-                          isSelected ? 'text-slate-400' : (isAvailable ? 'text-slate-400 group-hover:text-blue-400' : 'text-slate-400')
+                          isSelected ? 'text-slate-300 dark:text-slate-700' : (isAvailable ? 'text-slate-600 dark:text-slate-400 group-hover:text-black dark:group-hover:text-white' : 'text-slate-400')
                         }`}>
                           {!isAvailable ? (fetchingGrades ? 'جاري التحميل...' : 'قريباً') : (grade.description || 'اضغط للاختيار')}
                         </p>
@@ -242,10 +244,10 @@ export default function GradeSelector({ userId, onComplete }: Props) {
 
                     {/* Hover Accent */}
                     {isAvailable && (
-                      <div className={`absolute top-0 left-0 w-2 h-full transition-all ${
+                      <div className={`absolute top-0 right-0 w-2 h-full transition-all border-l-2 border-black dark:border-white ${
                         isSelected 
-                          ? 'bg-blue-500' 
-                          : 'bg-transparent group-hover:bg-blue-500/20'
+                          ? 'neo-bg-pink' 
+                          : 'bg-transparent group-hover:neo-bg-blue'
                       }`} />
                     )}
                   </motion.button>
@@ -265,24 +267,24 @@ export default function GradeSelector({ userId, onComplete }: Props) {
                 exit={{ opacity: 0, scale: 0.9, y: 10 }}
                 onClick={handleSelect}
                 disabled={loading}
-                className="w-full max-w-xs py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-md shadow-blue-200 transition-all active:scale-95 group"
+                className="w-full max-w-xs py-5 neo-bg-blue border-2 border-black dark:border-white text-black hover:-translate-y-1 rounded-xl font-black text-xl flex items-center justify-center gap-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] transition-all active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group"
               >
                 {loading ? (
                   <Loader2 className="animate-spin" />
                 ) : (
                   <>
                     <span>ابدأ الدراسة الآن</span>
-                    <ChevronLeft className="group-hover:-translate-x-2 transition-transform" />
+                    <ChevronLeft className="group-hover:-translate-x-2 transition-transform" strokeWidth={3} />
                   </>
                 )}
               </motion.button>
             )}
           </AnimatePresence>
           
-          <p className="text-slate-400 text-sm font-bold flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+          <p className="text-black/60 dark:text-white/60 text-sm font-black flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full neo-bg-pink border border-black dark:border-white" />
             سيتم إضافة باقي التخصصات والمراحل قريباً
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+            <span className="w-2 h-2 rounded-full neo-bg-teal border border-black dark:border-white" />
           </p>
         </div>
       </div>
