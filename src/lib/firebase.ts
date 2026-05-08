@@ -193,7 +193,47 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// XP and Streak Helpers
+export const updateDailyStreak = async (uid: string) => {
+  const userRef = doc(db, 'users', uid);
+  const userSnap = await getDoc(userRef);
+  
+  if (!userSnap.exists()) return;
+  const data = userSnap.data();
+
+  const today = new Date().toISOString().split('T')[0];
+  const lastUpdate = data.streak?.lastUpdate || '';
+  let newStreakCount = data.streak?.count || 0;
+
+  if (lastUpdate === '') {
+    newStreakCount = 1;
+  } else if (lastUpdate !== today) {
+    const lastDate = new Date(lastUpdate);
+    const todayDate = new Date(today);
+    const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      newStreakCount += 1;
+    } else if (diffDays > 1) {
+      newStreakCount = 1;
+    }
+  } else {
+    // Already updated today
+    return { newStreakCount };
+  }
+
+  await updateDoc(userRef, {
+    streak: {
+      count: newStreakCount,
+      lastUpdate: today
+    },
+    updatedAt: new Date().toISOString()
+  });
+
+  return { newStreakCount };
+};
+
+// XP Helpers
 export const awardXP = async (uid: string, amount: number) => {
   const userRef = doc(db, 'users', uid);
   const userSnap = await getDoc(userRef);
@@ -212,40 +252,13 @@ export const awardXP = async (uid: string, amount: number) => {
     newLevel = currentLevel + 1;
   }
 
-  // Streak Logic
-  const today = new Date().toISOString().split('T')[0];
-  const lastUpdate = data.streak?.lastUpdate || '';
-  let newStreakCount = data.streak?.count || 0;
-
-  if (lastUpdate === '') {
-    // First time
-    newStreakCount = 1;
-  } else if (lastUpdate !== today) {
-    const lastDate = new Date(lastUpdate);
-    const todayDate = new Date(today);
-    const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) {
-      // Consecutive day
-      newStreakCount += 1;
-    } else if (diffDays > 1) {
-      // Streak broken
-      newStreakCount = 1;
-    }
-  }
-
   await updateDoc(userRef, {
     xp: newXP,
     level: newLevel,
-    streak: {
-      count: newStreakCount,
-      lastUpdate: today
-    },
     updatedAt: new Date().toISOString()
   });
 
-  return { leveledUp: newLevel > currentLevel, newXP, newLevel, newStreakCount };
+  return { leveledUp: newLevel > currentLevel, newXP, newLevel };
 };
 
 // Utility for Logout

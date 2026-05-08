@@ -95,22 +95,22 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white rounded-xl w-full max-w-md shadow-md overflow-hidden relative"
+            className="bg-white rounded-xl w-full max-w-md shadow-md overflow-hidden relative flex flex-col max-h-[85vh]"
           >
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white">
                   <User size={20} />
                 </div>
-                <h2 className="text-xl font-bold text-slate-900">إعدادات الحساب</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900">إعدادات الحساب</h2>
               </div>
               <button onClick={onClose} className="p-2 hover:bg-white rounded-xl text-slate-400 transition-colors">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="p-6 space-y-8">
+            <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 overflow-y-auto custom-scrollbar flex-1">
               {/* Profile Pic Section */}
               <div className="flex flex-col items-center gap-4">
                 <div className="relative group cursor-pointer" onClick={() => user.id !== 'guest_user' && fileInputRef.current?.click()}>

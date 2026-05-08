@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { db, awardXP, subscribeToFeatures } from '../lib/firebase';
+import { db, awardXP, subscribeToFeatures, updateDailyStreak } from '../lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { Material, Flashcard, Chapter, Grade, MinisterialQuestion, Teacher } from '../types';
 import { getAIClient } from '../services/aiService';
@@ -125,6 +125,8 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
       });
       // Award 50 XP for completing a lesson
       await awardXP(userId, 50);
+      // Update streak for completing a full lesson
+      await updateDailyStreak(userId);
     } catch (err) {
       console.error('Error updating progress in Firestore:', err);
     }

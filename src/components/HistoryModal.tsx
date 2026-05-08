@@ -69,22 +69,22 @@ export default function HistoryModal({ isOpen, onClose, completedMaterialIds }: 
           className="bg-white dark:bg-black w-full max-w-lg rounded-2xl neo-border shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] overflow-hidden flex flex-col max-h-[85vh]"
           dir="rtl"
         >
-          <div className="p-6 border-b-4 border-black dark:border-white bg-[#FFB5A7] dark:bg-[#6D28D9] shrink-0 sticky top-0 z-10 flex items-center justify-between">
+          <div className="p-4 sm:p-6 border-b-4 border-black dark:border-white bg-[#FFB5A7] dark:bg-[#6D28D9] shrink-0 sticky top-0 z-10 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center text-black dark:text-white">
-                <History size={24} strokeWidth={2.5} />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white dark:bg-black border-2 border-black dark:border-white rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center text-black dark:text-white">
+                <History className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
               </div>
-              <h2 className="text-2xl font-black text-black dark:text-white">سجل المشاهدات</h2>
+              <h2 className="text-xl sm:text-2xl font-black text-black dark:text-white">سجل المشاهدات</h2>
             </div>
             <button 
               onClick={onClose}
               className="p-2 bg-white dark:bg-black border-2 border-black dark:border-white rounded-xl text-black dark:text-white hover:-translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none transition-all flex item-center"
             >
-              <X size={24} strokeWidth={2.5} />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
             </button>
           </div>
 
-          <div className="p-6 overflow-y-auto custom-scrollbar flex-1 relative bg-slate-50 dark:bg-slate-900">
+          <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 relative bg-slate-50 dark:bg-slate-900">
             <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
             
             {loading ? (
