@@ -42,7 +42,7 @@ import { onSnapshot } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { motion, AnimatePresence } from "framer-motion";
-import { getAdmins, addAdmin, removeAdmin } from "../services/adminService";
+import { extractTextFromPDF } from "../utils/pdfParser";
 import { Grade } from "../types";
 import { useClasses } from "../hooks/useClasses";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -148,6 +148,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
   const [chapterName, setChapterName] = useState("");
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+  const [chapterAiContext, setChapterAiContext] = useState("");
+  const [isExtractingPdf, setIsExtractingPdf] = useState(false);
 
   const [materialTitle, setMaterialTitle] = useState("");
   const [materialType, setMaterialType] = useState<
@@ -525,17 +527,20 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
           await updateDoc(doc(db, "chapters", editingId), {
             name: chapterName,
             subjectIds: selectedSubjectIds,
+            ...(chapterAiContext ? { aiContext: chapterAiContext } : {}),
           });
           showToast("success", "تم تعديل الفصل بنجاح");
         } else {
           await addDoc(collection(db, "chapters"), {
             name: chapterName,
             subjectIds: selectedSubjectIds,
+            ...(chapterAiContext ? { aiContext: chapterAiContext } : {}),
           });
           showToast("success", "تمت إضافة الفصل بنجاح");
         }
       }
       setChapterName("");
+      setChapterAiContext("");
       setEditingId(null);
       fetchChapters();
     } catch (err) {
@@ -1944,13 +1949,52 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 placeholder="الفصل الأول\nالفصل الثاني"
                               />
                             ) : (
-                              <input
-                                value={chapterName}
-                                onChange={(e) => setChapterName(e.target.value)}
-                                required={!isBulkMode}
-                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
-                                placeholder="مثال: الفصل الأول"
-                              />
+                              <div className="space-y-4">
+                                <input
+                                  value={chapterName}
+                                  onChange={(e) => setChapterName(e.target.value)}
+                                  required={!isBulkMode}
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
+                                  placeholder="مثال: الفصل الأول"
+                                />
+                                <div>
+                                  <label className="block text-sm font-black text-slate-700 mb-2">
+                                    المحتوى العلمي للذكاء الاصطناعي (اختياري)
+                                  </label>
+                                  <div className="flex gap-2 items-start mb-2">
+                                    <textarea
+                                      value={chapterAiContext}
+                                      onChange={(e) => setChapterAiContext(e.target.value)}
+                                      className="flex-1 p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold min-h-[120px] text-sm leading-relaxed"
+                                      placeholder="اكتب أو انسخ المحتوى العلمي هنا، أو ارفع ملف PDF ليقوم النظام باستخراجه تلقائياً..."
+                                    />
+                                    <label className={`cursor-pointer whitespace-nowrap p-4 border-2 border-black rounded-xl font-black transition-all ${isExtractingPdf ? 'bg-slate-200 text-slate-500' : 'bg-[#FFB5A7] hover:bg-[#ff9d8c] hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'}`}>
+                                      {isExtractingPdf ? "جاري الاستخراج..." : "استخراج من PDF"}
+                                      <input
+                                        type="file"
+                                        accept="application/pdf"
+                                        className="hidden"
+                                        disabled={isExtractingPdf}
+                                        onChange={async (e) => {
+                                          const file = e.target.files?.[0];
+                                          if (!file) return;
+                                          setIsExtractingPdf(true);
+                                          try {
+                                            const text = await extractTextFromPDF(file);
+                                            setChapterAiContext(prev => prev ? prev + '\n\n' + text : text);
+                                            showToast("success", "تم استخراج النص من الملف بنجاح");
+                                          } catch (error) {
+                                            showToast("error", "حدث خطأ أثناء استخراج النص من الملف");
+                                          } finally {
+                                            setIsExtractingPdf(false);
+                                            if (e.target) e.target.value = '';
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
 
@@ -3318,6 +3362,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 onClick={() => {
                                   setEditingId(c.id);
                                   setChapterName(c.name);
+                                  setChapterAiContext(c.aiContext || "");
                                   setSelectedSubjectIds(c.subjectIds || []);
                                   setIsBulkMode(false);
                                 }}

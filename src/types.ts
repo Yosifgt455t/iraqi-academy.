@@ -62,6 +62,7 @@ export interface Chapter {
   subjectIds?: string[]; // Support multiple subjects
   name: string;
   orderIndex?: number;
+  aiContext?: string; // Syllabus text for ChatGPT to use
 }
 
 export interface Material {
