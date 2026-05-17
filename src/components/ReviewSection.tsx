@@ -13,7 +13,8 @@ import {
   Layers,
   ChevronLeft,
   BookOpen,
-  X
+  X,
+  Play
 } from 'lucide-react';
 
 interface Props {
@@ -194,14 +195,14 @@ export default function ReviewSection({ grade, onBack }: Props) {
                     <div className={`w-14 h-14 rounded-xl border-2 border-black dark:border-white flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] ${
                       mat.type === 'PDF' 
                         ? 'neo-bg-blue text-black' 
-                        : 'neo-bg-red text-black'
+                        : (mat.type === 'VK' ? 'neo-bg-pink text-black' : 'neo-bg-red text-black')
                     }`}>
-                      {mat.type === 'PDF' ? <FileText size={28} /> : <Youtube size={28} />}
+                      {mat.type === 'PDF' ? <FileText size={28} /> : (mat.type === 'VK' ? <Play size={28} /> : <Youtube size={28} />)}
                     </div>
                     <div>
                       <h3 className="font-black text-xl text-black dark:text-white">{mat.title}</h3>
                       <p className="text-sm text-black/60 dark:text-white/60 font-bold mt-1">
-                        {mat.type === 'PDF' ? 'ملف بصيغة PDF' : 'محاضرة فيديو'}
+                        {mat.type === 'PDF' ? 'ملف بصيغة PDF' : (mat.type === 'VK' ? 'محاضرة فيديو VK' : 'محاضرة فيديو يوتيوب')}
                       </p>
                     </div>
                   </div>

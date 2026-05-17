@@ -99,21 +99,21 @@ service cloud.firestore {
     match /admins/{email} {
       // Allow any user to check if they are an admin via getDoc (id must be their email)
       allow get: if isSignedIn() && request.auth.token.email.lower() == email.lower();
-      // Only the Super Admin can list all admins or modify the list
-      allow list: if isSuperAdmin();
+      // Only Admins can list all admins or modify the list
+      allow list: if isAdmin();
       allow write: if isSuperAdmin();
     }
 
     // --- Exams Collection ---
     match /exams/{examId} {
       // Teachers can read their own exams
-      allow get: if isSignedIn() && existing().teacherId == request.auth.uid;
-      // Protected list query: must filter by teacherId
-      allow list: if isSignedIn() && resource.data.teacherId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
+      // Protected list query: must filter by teacherId unless admin
+      allow list: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
       
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && existing().teacherId == request.auth.uid;
-      allow delete: if isSignedIn() && existing().teacherId == request.auth.uid;
+      allow update: if isSignedIn() && (existing().teacherId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (existing().teacherId == request.auth.uid || isAdmin());
     }
 
     // --- Curriculum Collections (Public Read for Authenticated Users/Guests) ---
@@ -176,7 +176,6 @@ service cloud.firestore {
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
       
       allow create: if isSignedIn() &&
-        isValidId(chatId) == false && // addDoc generated ID
         incoming().userId == request.auth.uid &&
         incoming().createdAt is string;
 
@@ -185,7 +184,7 @@ service cloud.firestore {
         incoming().userId == existing().userId &&
         incoming().diff(existing()).affectedKeys().hasOnly(['messages', 'title', 'updatedAt']);
 
-      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
     }
 
     // --- Sources Collection ---
@@ -199,6 +198,14 @@ service cloud.firestore {
         incoming().type in ['pdf', 'link', 'text', 'youtube'];
 
       allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // --- Multiplayer Quiz Collections ---
+    match /multiplayer_rooms/{roomCode} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && (resource.data.hostId == request.auth.uid || isAdmin());
     }
   }
 }

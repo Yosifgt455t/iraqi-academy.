@@ -78,7 +78,7 @@
         "chapterId": { "type": "string" },
         "teacherId": { "type": "string" },
         "title": { "type": "string" },
-        "type": { "type": "string", "enum": ["PDF", "Video", "Ministerial"] },
+        "type": { "type": "string", "enum": ["PDF", "Video", "Ministerial", "VK"] },
         "url": { "type": "string" }
       },
       "required": ["chapterId", "title", "type", "url"]
@@ -221,6 +221,29 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["postId", "authorId", "content"]
+    },
+    "MultiplayerRoom": {
+      "title": "Multiplayer Quiz Room",
+      "description": "A live room for multiplayer quizzes.",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "playing", "finished"] },
+        "maxPlayers": { "type": "number" },
+        "players": { 
+          "type": "array", 
+          "items": { 
+             "type": "object",
+             "properties": {
+               "uid": { "type": "string" },
+               "name": { "type": "string" },
+               "score": { "type": "number" }
+             }
+          }
+        },
+        "questions": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -295,6 +318,10 @@
     "/review_materials/{materialId}": {
       "schema": "ReviewMaterial",
       "description": "Files/Videos inside a review subject."
+    },
+    "/multiplayer_rooms/{roomCode}": {
+      "schema": "MultiplayerRoom",
+      "description": "Active and finished multiplayer quiz sessions."
     }
   }
 }

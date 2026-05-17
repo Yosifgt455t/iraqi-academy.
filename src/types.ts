@@ -72,7 +72,7 @@ export interface Material {
   subjectId?: string;
   teacherId?: string;
   title: string;
-  type: 'PDF' | 'Video' | 'Ministerial';
+  type: 'PDF' | 'Video' | 'Ministerial' | 'VK';
   url: string;
   isUploaded?: boolean;
   order_index?: number;
@@ -117,7 +117,7 @@ export interface ReviewMaterial {
   id: string;
   reviewSubjectId: string;
   title: string;
-  type: 'PDF' | 'Video';
+  type: 'PDF' | 'Video' | 'VK';
   url: string;
   createdAt: string;
 }

@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 let currentApiKeyIndex = 0;
 
 export const getAIClient = () => {
-  const keysString = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '';
+  const keysString = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
   const keys = keysString.split(',').map(k => k.trim()).filter(k => k.length > 0);
   
   if (keys.length === 0) {

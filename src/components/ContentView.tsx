@@ -5,7 +5,7 @@ import { Material, Flashcard, Chapter, Grade, MinisterialQuestion, Teacher } fro
 import { getAIClient } from '../services/aiService';
 import { Type } from "@google/genai";
 import { Bot, FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye, GraduationCap } from 'lucide-react';
-import AIChatModal from './AIChatModal';
+
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
 
@@ -29,7 +29,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
   const [selectedVideo, setSelectedVideo] = useState<Material | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
   const [expandedMaterialId, setExpandedMaterialId] = useState<string | null>(null);
-  const [showAIChat, setShowAIChat] = useState(false);
+
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_completed'));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isModalPlaying, setIsModalPlaying] = useState(false);
@@ -169,31 +169,43 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
     return url;
   };
 
+  const getVkEmbedUrl = (url: string) => {
+    if (!url) return '';
+    // Format: https://m.vkvideo.ru/video-230336496_456239691
+    // or https://vk.com/video-230336496_456239691
+    const match = url.match(/video(-?\d+)_(\d+)/);
+    if (match) {
+      return `https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}&autoplay=1`;
+    }
+    return url;
+  };
+
   const VideoPlayer = ({ material, isPlaying, onReady }: { material: Material, isPlaying: boolean, onReady?: () => void }) => {
     const url = material.url || (material as any).content;
     const isYoutube = url.includes('youtube.com') || url.includes('youtu.be') || url.length === 11;
+    const isVk = url.includes('vkvideo.ru') || url.includes('vk.com/video');
 
-    // Trigger onReady for Youtube since it's a raw iframe
+    // Trigger onReady for Youtube and Vk since it's a raw iframe
     useEffect(() => {
-      if (isYoutube && onReady) {
+      if ((isYoutube || isVk) && onReady) {
         onReady();
       }
-    }, [isYoutube, onReady]);
+    }, [isYoutube, isVk, onReady]);
 
     // Use a timer to mark as completed since we can't easily track progress in a raw iframe without postMessage
     useEffect(() => {
-      if (isPlaying && isYoutube && !completedIds.includes(material.id)) {
+      if (isPlaying && (isYoutube || isVk) && !completedIds.includes(material.id)) {
         const timer = setTimeout(() => {
           markAsCompleted(material.id);
         }, 120000); // Mark as completed after 2 minutes of "watching"
         return () => clearTimeout(timer);
       }
-    }, [isPlaying, isYoutube, material.id]);
+    }, [isPlaying, isYoutube, isVk, material.id]);
 
-    if (isYoutube) {
+    if (isYoutube || isVk) {
       return (
         <iframe
-          src={isPlaying ? getYoutubeEmbedUrl(url) : null}
+          src={isPlaying ? (isYoutube ? getYoutubeEmbedUrl(url) : getVkEmbedUrl(url)) : undefined}
           className="w-full h-full border-none"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -420,21 +432,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
           <h2 className="text-2xl font-black text-black dark:text-white">تقدمك في {chapter.name}</h2>
           <p className="text-black/80 dark:text-white/80 font-bold text-sm mt-1">أكمل كافة المحاضرات والمصادر لإنهاء الفصل بنسبة 100%</p>
         </div>
-        <button 
-          onClick={() => setShowAIChat(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl font-black hover:neo-bg-yellow hover:text-black border-2 border-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10"
-        >
-            <Bot size={20} />
-            دردشة ذكية
-        </button>
       </div>
-
-      <AIChatModal 
-        isOpen={showAIChat}
-        onClose={() => setShowAIChat(false)}
-        chapterAiContext={(chapter as any).aiContext || ""}
-        chapterName={chapter.name}
-      />
 
       <div className="flex bg-white dark:bg-[#1a1a1a] p-2 neo-border-sm max-w-lg mx-auto overflow-x-auto custom-scrollbar">
         <button
@@ -532,7 +530,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             <h4 className={`font-black text-lg line-clamp-2 ${isCompleted ? 'line-through text-slate-500' : 'text-black dark:text-white'}`}>
                               {m.title}
                             </h4>
-                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : 'محاضرة فيديو يوتيوب'}</p>
+                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : (m.type === 'VK' ? 'محاضرة فيديو VK' : 'محاضرة فيديو يوتيوب')}</p>
                             {m.type !== 'PDF' && (
                               <div className="mt-3 w-full max-w-[200px] border-2 border-black dark:border-white bg-white dark:bg-black rounded-full h-3 overflow-hidden shadow-inner">
                                 <div 

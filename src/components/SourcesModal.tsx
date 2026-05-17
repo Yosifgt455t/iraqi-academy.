@@ -116,7 +116,7 @@ export default function SourcesModal({ userId, onClose, onAttachSource }: Props)
         setIsSaving(false);
         return;
       }
-      if (content.includes('youtube.com') || content.includes('youtu.be')) {
+      if (content.includes('youtube.com') || content.includes('youtu.be') || content.includes('vkvideo.ru') || content.includes('vk.com/video')) {
         type = 'youtube';
       }
     } else if (type === 'text') {
@@ -173,7 +173,7 @@ export default function SourcesModal({ userId, onClose, onAttachSource }: Props)
 
   const getSourceLabel = (type: SourceType) => {
     switch (type) {
-      case 'youtube': return 'رابط يوتيوب';
+      case 'youtube': return 'رابط فيديو';
       case 'link': return 'رابط موقع';
       case 'pdf': return 'ملف PDF';
       case 'text': return 'نص عادي';

@@ -46,6 +46,7 @@ import { extractTextFromPDF } from "../utils/pdfParser";
 import { Grade } from "../types";
 import { useClasses } from "../hooks/useClasses";
 import { GoogleGenAI, Type } from "@google/genai";
+import { getAdmins, addAdmin, removeAdmin } from "../services/adminService";
 
 interface Subject {
   id: string;
@@ -62,7 +63,7 @@ interface Chapter {
 interface Material {
   id: string;
   title: string;
-  type: "Video" | "PDF" | "Ministerial";
+  type: "Video" | "VK" | "PDF" | "Ministerial";
   url: string;
   chapterIds: string[];
   order_index?: number;
@@ -153,7 +154,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
   const [materialTitle, setMaterialTitle] = useState("");
   const [materialType, setMaterialType] = useState<
-    "Video" | "PDF" | "Ministerial"
+    "Video" | "VK" | "PDF" | "Ministerial"
   >("Video");
   const [materialUrl, setMaterialUrl] = useState("");
   const [materialFile, setMaterialFile] = useState<File | null>(null);
@@ -176,7 +177,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [reviewSubGrades, setReviewSubGrades] = useState<Grade[]>([]);
   
   const [reviewMatTitle, setReviewMatTitle] = useState("");
-  const [reviewMatType, setReviewMatType] = useState<"PDF" | "Video">("PDF");
+  const [reviewMatType, setReviewMatType] = useState<"PDF" | "Video" | "VK">("PDF");
   const [reviewMatUrl, setReviewMatUrl] = useState("");
   const [reviewMatFile, setReviewMatFile] = useState<File | null>(null);
   const [selectedReviewSubId, setSelectedReviewSubId] = useState("");
@@ -2191,7 +2192,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   }
                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 >
-                                  <option value="Video">يوتيوب (Video)</option>
+                                  <option value="Video">فيديو (يوتيوب)</option>
+                                  <option value="VK">فيديو (VK)</option>
                                   <option value="PDF">ملف (PDF)</option>
                                 </select>
                               </div>
@@ -2682,11 +2684,12 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 <label className="block text-sm font-black text-slate-700">نوع المحتوى</label>
                                 <select
                                   value={reviewMatType}
-                                  onChange={(e) => setReviewMatType(e.target.value as "PDF" | "Video")}
+                                  onChange={(e) => setReviewMatType(e.target.value as "PDF" | "Video" | "VK")}
                                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold"
                                 >
                                   <option value="PDF">ملف PDF</option>
-                                  <option value="Video">محاضرة فيديو</option>
+                                  <option value="Video">محاضرة فيديو (يوتيوب)</option>
+                                  <option value="VK">محاضرة فيديو (VK)</option>
                                 </select>
                               </div>
                             </div>
