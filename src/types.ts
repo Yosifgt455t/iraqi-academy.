@@ -130,3 +130,16 @@ export interface QuizQuestion {
   difficulty: number;
   subjectId?: string;
 }
+
+export interface ExamQuestion {
+  id: string;
+  subject: string;
+  grade: string;
+  round: string;
+  year: string;
+  type: 'MCQ' | 'Essay' | 'TrueFalse';
+  question: string;
+  image?: string;
+  options?: string[];
+  correctAnswer?: string | number;
+}

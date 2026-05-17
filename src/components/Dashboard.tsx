@@ -34,7 +34,8 @@ import {
   MoreVertical,
   History,
   Info,
-  Phone
+  Phone,
+  Brain
 } from 'lucide-react';
 import SubjectSelector from './SubjectSelector';
 import ChapterSelector from './ChapterSelector';
@@ -57,8 +58,8 @@ import MillionaireHub from './MillionaireHub';
 import CommunityView from './CommunityView';
 import LeaderboardView from './LeaderboardView';
 import MultiplayerQuiz from './MultiplayerQuiz';
-
 import ActivitiesMenu from './ActivitiesMenu';
+import SmartAssistantView from './SmartAssistantView';
 
 import { useClasses } from '../hooks/useClasses';
 
@@ -72,7 +73,7 @@ interface Props {
 
 export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeGrade, onLogout }: Props) {
   const { getGradeName } = useClasses();
-  const [view, setView] = useState<'home' | 'todo' | 'admin' | 'reviews' | 'quiz' | 'community' | 'leaderboard' | 'multiplayer' | 'activities'>('home');
+  const [view, setView] = useState<'home' | 'todo' | 'admin' | 'reviews' | 'quiz' | 'community' | 'leaderboard' | 'multiplayer' | 'activities' | 'smart_assistant'>('home');
   const [showExemptionCalculator, setShowExemptionCalculator] = useState(false);
   const [showImageToPdf, setShowImageToPdf] = useState(false);
   const [showTextToPdf, setShowTextToPdf] = useState(false);
@@ -301,6 +302,8 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
           <AdminDashboard user={user} onBack={() => setView('home')} />
         ) : view === 'activities' ? (
           <ActivitiesMenu onBack={() => setView('home')} onSelect={(selectedView) => setView(selectedView)} />
+        ) : view === 'smart_assistant' ? (
+          <SmartAssistantView userId={user.id} onBack={() => setView('home')} />
         ) : view === 'reviews' ? (
           <ReviewSection grade={grade} onBack={() => setView('home')} />
         ) : view === 'quiz' ? (
@@ -339,7 +342,7 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <button
                 onClick={() => setView('activities')}
-                className="bg-white dark:bg-slate-900 neo-border p-6 md:col-span-2 flex flex-col items-start justify-between min-h-[160px] text-right group neo-hover relative overflow-hidden"
+                className="bg-white dark:bg-slate-900 neo-border p-6 flex flex-col items-start justify-between min-h-[160px] text-right group neo-hover relative overflow-hidden"
               >
                 <div className="absolute left-0 bottom-0 opacity-10 group-hover:opacity-20 transition-opacity">
                   <Crown size={180} className="translate-y-8 -translate-x-8" />
@@ -349,7 +352,24 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
                 </div>
                 <div className="relative z-10">
                   <h3 className="font-black text-black dark:text-white text-2xl">الأنشطة والفعاليات</h3>
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-2">العب وتعلم مع زملائك، اكتشف المتصدرين، وراجع معلوماتك</p>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-2">العب وتعلم مع زملائك، اكتشف المتصدرين</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setView('smart_assistant')}
+                className="bg-blue-50 dark:bg-blue-900/10 border-4 border-blue-600 p-6 flex flex-col items-start justify-between min-h-[160px] text-right group hover:-translate-y-2 transition-all relative overflow-hidden"
+                style={{ boxShadow: '6px 6px 0px 0px #2563eb' }}
+              >
+                <div className="absolute left-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity text-blue-600">
+                  <Brain size={180} className="translate-y-8 -translate-x-8" />
+                </div>
+                <div className="w-16 h-16 bg-blue-600 border-4 border-black rounded-xl flex items-center justify-center text-white mb-4 relative z-10 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <Sparkles size={32} />
+                </div>
+                <div className="relative z-10">
+                  <h3 className="font-black text-black dark:text-white text-2xl">بوابة الوزاري الذكي</h3>
+                  <p className="text-sm font-bold text-blue-800 dark:text-blue-300 mt-2">مساعدك الشخصي للتحضير للامتحانات</p>
                 </div>
               </button>
 

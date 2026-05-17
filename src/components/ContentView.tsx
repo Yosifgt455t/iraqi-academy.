@@ -405,17 +405,17 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
   };
 
   const filteredMaterials = teacher
-    ? materials.filter(m => (m as any).teacherId === teacher.id || !(m as any).teacherId)
+    ? materials.filter(m => m.teacherId === teacher.id)
     : materials;
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
   if (selectedVideo) {
     return (
-      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col xl:flex-row animate-in fade-in transition-all overflow-y-auto xl:overflow-hidden">
+      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col xl:flex-row animate-in fade-in transition-all overflow-hidden">
         {/* Main Content Area */}
-        <div className="w-full xl:flex-1 flex flex-col xl:overflow-y-auto custom-scrollbar flex-shrink-0 xl:shrink">
-          <div className="w-full bg-black relative aspect-video xl:h-[70vh] flex-shrink-0 sticky top-0 z-30 xl:static shadow-sm">
+        <div className="w-full xl:flex-1 flex flex-col overflow-y-auto custom-scrollbar">
+          <div className="w-full bg-black relative aspect-video xl:h-[70vh] flex-shrink-0 sticky top-0 z-30 shadow-md xl:shadow-none">
             <VideoPlayer
               material={selectedVideo}
               isPlaying={isModalPlaying && isPlayerReady}
@@ -423,34 +423,34 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
             />
           </div>
           <div className="p-4 md:p-8 flex flex-col gap-4 max-w-5xl w-full text-right self-center flex-shrink-0 relative z-20 bg-slate-50 dark:bg-slate-950">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-500 flex-wrap pointer-events-none">
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-500 flex-wrap pointer-events-none">
               <span>{chapter.name}</span>
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
               <span className="text-slate-800 dark:text-slate-200">{selectedVideo.title}</span>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-black text-black dark:text-white leading-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-black dark:text-white leading-snug">
               {selectedVideo.title}
             </h1>
             
-            <div className="flex items-center gap-4 border-b-2 border-black/10 dark:border-white/10 pb-6 mb-4">
-              <button className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors font-bold text-sm">
-                <span className="bg-slate-100 p-2 border-2 border-black/10 rounded-lg"><ExternalLink size={20} /></span>
-                شارك
+            <div className="flex items-center gap-4 border-b-2 border-black/10 dark:border-white/10 pb-4 mb-2 overflow-x-auto whitespace-nowrap">
+              <button className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors font-bold text-sm bg-slate-100 dark:bg-slate-800 p-2 sm:px-4 rounded-xl border-2 border-black/10 dark:border-white/10 hover:border-blue-600">
+                <ExternalLink size={18} />
+                <span className="hidden sm:inline">شارك</span>
               </button>
-              <button className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors font-bold text-sm">
-                <span className="bg-slate-100 p-2 border-2 border-black/10 rounded-lg"><Award size={20} /></span>
-                حفظ
+              <button className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors font-bold text-sm bg-slate-100 dark:bg-slate-800 p-2 sm:px-4 rounded-xl border-2 border-black/10 dark:border-white/10 hover:border-blue-600">
+                <Award size={18} />
+                <span className="hidden sm:inline">حفظ</span>
               </button>
             </div>
 
             <p className="text-sm font-bold text-slate-600 dark:text-slate-400">
               تأكد من إكمال المحاضرة للنهاية ليتم احتساب نسبة إنجازك. اضغط على الزر أدناه عند الانتهاء.
             </p>
-            <div className="flex flex-wrap gap-4 mt-2">
+            <div className="flex flex-wrap gap-3 mt-2">
               <button
                 onClick={closeVideoModal}
-                className="px-6 py-3 border-2 border-black dark:border-white rounded-xl font-bold flex items-center justify-center gap-2 hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_white] transition-all bg-white dark:bg-black text-black dark:text-white hover:neo-bg-yellow"
+                className="px-4 sm:px-6 py-3 border-2 border-black dark:border-white rounded-xl font-bold flex items-center justify-center gap-2 hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_white] transition-all bg-white dark:bg-black text-black dark:text-white hover:neo-bg-yellow text-sm sm:text-base w-full sm:w-auto"
               >
                 العودة لقائمة المحاضرات
                 <ChevronLeft size={20} />
@@ -459,7 +459,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               {!completedIds.includes(selectedVideo.id) && (
                 <button
                    onClick={() => markAsCompleted(selectedVideo.id)}
-                   className="px-6 py-3 border-2 border-black rounded-xl font-bold flex items-center justify-center gap-2 hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all bg-green-500 text-black hover:bg-green-400"
+                   className="px-4 sm:px-6 py-3 border-2 border-black rounded-xl font-bold flex items-center justify-center gap-2 hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all bg-green-500 text-black hover:bg-green-400 text-sm sm:text-base w-full sm:w-auto"
                 >
                   <CheckCircle2 size={20} />
                   إكمال المحاضرة
@@ -470,8 +470,8 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
         </div>
 
         {/* Sidebar */}
-        <div className="w-full xl:w-[400px] xl:max-w-md border-t-4 xl:border-t-0 xl:border-r-4 border-black dark:border-white bg-slate-50 dark:bg-[#1a1a1a] flex flex-col xl:h-full flex-shrink-0">
-          <div className="p-4 xl:p-6 border-b-4 border-black dark:border-white bg-white dark:bg-black xl:sticky top-0 z-20">
+        <div className="w-full xl:w-[400px] xl:max-w-md border-t-4 xl:border-t-0 xl:border-r-4 border-black dark:border-white bg-slate-50 dark:bg-[#1a1a1a] flex flex-col h-auto xl:h-full flex-shrink-0">
+          <div className="p-4 border-b-4 border-black dark:border-white bg-white dark:bg-black sticky top-0 z-20">
              <h2 className="font-black text-xl text-black dark:text-white">{chapter.name}</h2>
              <p className="text-sm font-bold text-slate-500 mt-2 flex items-center gap-2">
                 <Play size={16} fill="currentColor" /> {filteredMaterials.filter(m => m.type !== 'PDF' && m.type !== 'Ministerial').length} فيديو

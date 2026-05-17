@@ -43,7 +43,7 @@ import { signOut } from "firebase/auth";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { motion, AnimatePresence } from "framer-motion";
 import { extractTextFromPDF } from "../utils/pdfParser";
-import { Grade } from "../types";
+import { Grade, ExamQuestion } from "../types";
 import { useClasses } from "../hooks/useClasses";
 import { GoogleGenAI, Type } from "@google/genai";
 import { getAdmins, addAdmin, removeAdmin } from "../services/adminService";
@@ -121,12 +121,14 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     | "news"
     | "database"
     | "settings"
+    | "exam_questions"
   >("subjects");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [ministerialQuestions, setMinisterialQuestions] = useState<any[]>([]);
+  const [examQuestions, setExamQuestions] = useState<ExamQuestion[]>([]);
   const [reviewSubjects, setReviewSubjects] = useState<any[]>([]);
   const [reviewMaterials, setReviewMaterials] = useState<any[]>([]);
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
@@ -143,6 +145,18 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [newsContent, setNewsContent] = useState('');
   const [newsImage, setNewsImage] = useState('');
   const [newsCategory, setNewsCategory] = useState('عام');
+
+  // Exam Questions Form
+  const [examQuestGrade, setExamQuestGrade] = useState("");
+  const [examQuestSubject, setExamQuestSubject] = useState("");
+  const [examQuestYear, setExamQuestYear] = useState("");
+  const [examQuestRound, setExamQuestRound] = useState("");
+  const [examQuestType, setExamQuestType] = useState<"MCQ" | "Essay" | "TrueFalse">("MCQ");
+  const [examQuestText, setExamQuestText] = useState("");
+  const [examQuestOptions, setExamQuestOptions] = useState(["", "", "", ""]);
+  const [examQuestCorrectAnswer, setExamQuestCorrectAnswer] = useState<string | number>(0);
+  const [examQuestImageFile, setExamQuestImageFile] = useState<File | null>(null);
+  const [examQuestImageUrl, setExamQuestImageUrl] = useState("");
 
   // Form states
   const [subjectName, setSubjectName] = useState("");
@@ -319,6 +333,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     }
     if (activeTab === "flashcards") fetchFlashcards();
     if (activeTab === "ministerial") fetchMinisterialQuestions();
+    if (activeTab === "exam_questions") fetchExamQuestions();
     if (activeTab === "teachers") fetchTeachers();
     if (activeTab === "reviews") {
       fetchReviewSubjects();
@@ -330,6 +345,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
       fetchMaterials();
       fetchFlashcards();
       fetchMinisterialQuestions();
+      fetchExamQuestions();
       fetchReviewSubjects();
       fetchReviewMaterials();
       fetchQuizQuestions();
@@ -352,6 +368,17 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
       );
     } catch (err) {
       console.error("Error fetching ministerial questions:", err);
+    }
+  };
+
+  const fetchExamQuestions = async () => {
+    try {
+      const snap = await getDocs(collection(db, "exam_questions"));
+      setExamQuestions(
+        snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as ExamQuestion)),
+      );
+    } catch (err) {
+      console.error("Error fetching exam questions:", err);
     }
   };
 
@@ -1057,6 +1084,58 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     setEditingId(null);
   };
 
+  const resetExamQuestForm = () => {
+    setExamQuestGrade("");
+    setExamQuestSubject("");
+    setExamQuestYear("");
+    setExamQuestRound("");
+    setExamQuestType("MCQ");
+    setExamQuestText("");
+    setExamQuestOptions(["", "", "", ""]);
+    setExamQuestCorrectAnswer(0);
+    setExamQuestImageFile(null);
+    setExamQuestImageUrl("");
+    setEditingId(null);
+  };
+
+  const handleAddExamQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      let finalImageUrl = examQuestImageUrl;
+      if (examQuestImageFile) {
+        finalImageUrl = await uploadFile(examQuestImageFile);
+      }
+
+      const data = {
+        grade: examQuestGrade,
+        subject: examQuestSubject,
+        year: examQuestYear,
+        round: examQuestRound,
+        type: examQuestType,
+        question: examQuestText,
+        options: examQuestType === 'MCQ' ? examQuestOptions : [],
+        correctAnswer: examQuestCorrectAnswer,
+        image: finalImageUrl,
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "exam_questions", editingId), data);
+        showToast("success", "تم تعديل السؤال الوزاري بنجاح");
+      } else {
+        await addDoc(collection(db, "exam_questions"), data);
+        showToast("success", "تمت إضافة السؤال الوزاري بنجاح");
+      }
+      resetExamQuestForm();
+      fetchExamQuestions();
+    } catch (err: any) {
+      console.error("Error adding exam question:", err);
+      showToast("error", err?.message || "فشل الإجراء");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleToggleMaintenance = async () => {
     if (!isSuperAdmin) return;
     setLoading(true);
@@ -1154,6 +1233,11 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                 label: "الأسئلة الوزارية",
               },
               {
+                id: "exam_questions",
+                icon: HelpCircle,
+                label: "بوابة الوزاري الذكي",
+              },
+              {
                 id: "teachers",
                 icon: GraduationCap,
                 label: "إدارة المدرسين",
@@ -1241,7 +1325,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                   {activeTab === "chapters" && "إدارة الفصول"}
                   {activeTab === "materials" && "إدارة المحاضرات"}
                   {activeTab === "flashcards" && "إدارة البطاقات"}
-                  {activeTab === "ministerial" && "إدارة الأسئلة الوزارية"}
+                  {activeTab === "ministerial" && "إدارة المراجع الوزارية (ملفات وفيديو)"}
+                  {activeTab === "exam_questions" && "بوابة الوزاري الذكي (اختبارات)"}
                   {activeTab === "reviews" && "إدارة المراجعات المركزة"}
                   {activeTab === "quiz" && "إدارة مسابقة المليون"}
                   {activeTab === "news" && "إدارة أخر الأخبار"}
@@ -2823,6 +2908,158 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                         </form>
                       )}
 
+                      {activeTab === "exam_questions" && (
+                        <form onSubmit={handleAddExamQuestion} className="space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="block text-sm font-black text-slate-700">الصف</label>
+                                <select required value={examQuestGrade} onChange={(e) => setExamQuestGrade(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold">
+                                  <option value="">-- اختر --</option>
+                                  <option value="السادس الإعدادي - علمي">السادس الإعدادي - علمي</option>
+                                  <option value="السادس الإعدادي - أدبي">السادس الإعدادي - أدبي</option>
+                                  <option value="الثالث المتوسط">الثالث المتوسط</option>
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-black text-slate-700">المادة</label>
+                                <input required type="text" value={examQuestSubject} onChange={(e) => setExamQuestSubject(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold" placeholder="مثال: الرياضيات" />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-black text-slate-700">السنة</label>
+                                <input required type="number" min="1990" max="2050" value={examQuestYear} onChange={(e) => setExamQuestYear(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold" placeholder="مثال: 2024" />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-black text-slate-700">الدور</label>
+                                <select required value={examQuestRound} onChange={(e) => setExamQuestRound(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold">
+                                  <option value="">-- اختر --</option>
+                                  <option value="التمهيدي">التمهيدي</option>
+                                  <option value="الدور الأول">الدور الأول</option>
+                                  <option value="الدور الثاني">الدور الثاني</option>
+                                  <option value="الدور الثالث">الدور الثالث</option>
+                                </select>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">النوع</label>
+                              <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer font-bold">
+                                  <input type="radio" value="MCQ" checked={examQuestType === 'MCQ'} onChange={() => setExamQuestType('MCQ')} /> اختيار من متعدد
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer font-bold">
+                                  <input type="radio" value="Essay" checked={examQuestType === 'Essay'} onChange={() => setExamQuestType('Essay')} /> مقالي
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <label className="block text-sm font-black text-slate-700">نص السؤال</label>
+                              <textarea
+                                required
+                                value={examQuestText}
+                                onChange={(e) => setExamQuestText(e.target.value)}
+                                className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold resize-none h-32"
+                                placeholder="اكتب السؤال الوزاري هنا"
+                              />
+                            </div>
+
+                            <div className="space-y-4 border-t border-slate-100 pt-6">
+                                <label className="block text-sm font-black text-slate-700 whitespace-nowrap">إرفاق صورة للسؤال (اختياري)</label>
+                                <div className="flex gap-4">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => setExamQuestImageFile(e.target?.files?.[0] || null)}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-lg text-sm text-slate-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                                  />
+                                </div>
+                                {examQuestImageUrl && !examQuestImageFile && (
+                                  <p className="text-xs text-blue-500 font-bold">يوجد صورة مرفقة سابقاً. ارفع جديدة للاستبدال.</p>
+                                )}
+                            </div>
+
+                            {examQuestType === 'MCQ' ? (
+                              <div className="space-y-6 pt-6 border-t border-slate-100">
+                                <h3 className="font-black text-slate-800">الخيارات</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {examQuestOptions.map((opt, idx) => (
+                                    <div key={idx} className="space-y-4 bg-slate-50 p-4 rounded-2xl relative">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center font-black text-slate-400 border border-slate-200">
+                                          {idx + 1}
+                                        </div>
+                                        <input
+                                          required
+                                          value={opt}
+                                          onChange={(e) => {
+                                            const newOps = [...examQuestOptions];
+                                            newOps[idx] = e.target.value;
+                                            setExamQuestOptions(newOps);
+                                          }}
+                                          className="flex-1 p-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-bold"
+                                          placeholder={`الخيار ${idx + 1}`}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => setExamQuestCorrectAnswer(idx)}
+                                          className={`p-2 rounded-xl transition-all ${
+                                            examQuestCorrectAnswer === idx
+                                              ? 'bg-green-100 text-green-600'
+                                              : 'bg-slate-200 text-slate-400 hover:bg-slate-300'
+                                          }`}
+                                          title="تعيين كإجابة صحيحة"
+                                        >
+                                          <CheckCircle2 size={24} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4 pt-6 border-t border-slate-100">
+                                <label className="block text-sm font-black text-slate-700">الإجابة النموذجية أو قواعد التصحيح</label>
+                                <textarea
+                                  required
+                                  value={examQuestCorrectAnswer as string}
+                                  onChange={(e) => setExamQuestCorrectAnswer(e.target.value)}
+                                  className="w-full p-5 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 font-bold resize-none h-32"
+                                  placeholder="اكتب الإجابة النموذجية لتستخدم في تقييم الذكاء الاصطناعي"
+                                />
+                              </div>
+                            )}
+
+                            <button
+                              type="submit"
+                              disabled={loading}
+                              className="w-full flex items-center justify-center gap-2 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-lg transition-all focus:ring-4 focus:ring-blue-200 disabled:opacity-50"
+                            >
+                              {loading ? (
+                                <Loader2 size={24} className="animate-spin" />
+                              ) : editingId ? (
+                                <>
+                                  <Edit size={24} />
+                                  حفظ التعديلات
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={24} />
+                                  إضافة السؤال
+                                </>
+                              )}
+                            </button>
+                            {editingId && (
+                               <button
+                                  type="button"
+                                  onClick={resetExamQuestForm}
+                                  className="w-full text-center py-2 text-slate-500 font-bold hover:text-slate-800"
+                               >
+                                 إلغاء التعديل
+                               </button>
+                            )}
+                        </form>
+                      )}
+
                       {activeTab === "news" && (
                         <form onSubmit={handleAddNews} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3284,6 +3521,44 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 >
  <Trash2 size={16} className="pointer-events-none" />
 </div>
+                              </div>
+                            ))}
+
+                          {activeTab === "exam_questions" &&
+                            examQuestions.map((q) => (
+                              <div
+                                key={q.id}
+                                onClick={() => {
+                                  setEditingId(q.id);
+                                  setExamQuestGrade(q.grade);
+                                  setExamQuestSubject(q.subject);
+                                  setExamQuestYear(q.year);
+                                  setExamQuestRound(q.round);
+                                  setExamQuestType(q.type);
+                                  setExamQuestText(q.question);
+                                  setExamQuestOptions(q.options || ["", "", "", ""]);
+                                  setExamQuestCorrectAnswer(q.correctAnswer || 0);
+                                  setExamQuestImageUrl(q.image || "");
+                                  setIsBulkMode(false);
+                                }}
+                                className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-blue-600 hover:text-white transition-all border border-transparent text-right"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <HelpCircle size={18} className="group-hover:text-white text-blue-500" />
+                                  <div className="flex flex-col text-right">
+                                     <span className="font-bold truncate max-w-[200px]">{q.question}</span>
+                                     <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] bg-slate-200 group-hover:bg-blue-500 px-2 py-0.5 rounded text-slate-600 group-hover:text-blue-100">{q.subject}</span>
+                                        <span className="text-[10px] bg-amber-100 group-hover:bg-amber-600 px-2 py-0.5 rounded text-amber-600 group-hover:text-amber-100">{q.year} - {q.round}</span>
+                                     </div>
+                                  </div>
+                                </div>
+                                <div
+                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete("exam_questions", q.id, fetchExamQuestions); }}
+                                 className="p-2 hover:bg-white/20 rounded-lg text-slate-400 group-hover:text-white transition-all z-10 hover:text-white bg-red-50 hover:bg-red-500 text-red-500"
+                                >
+                                 <Trash2 size={16} className="pointer-events-none" />
+                                </div>
                               </div>
                             ))}
 

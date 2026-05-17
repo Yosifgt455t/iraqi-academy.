@@ -147,6 +147,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /exam_questions/{doc=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /teachers/{doc=**} {
       allow read: if true;
       allow write: if isAdmin();
@@ -185,6 +190,17 @@ service cloud.firestore {
         incoming().diff(existing()).affectedKeys().hasOnly(['messages', 'title', 'updatedAt']);
 
       allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // --- Exam History Collection ---
+    match /exam_history/{historyId} {
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() &&
+        incoming().userId == request.auth.uid;
+
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
     }
 
     // --- Sources Collection ---

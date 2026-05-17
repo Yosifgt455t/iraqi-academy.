@@ -81,7 +81,7 @@ export default function ChapterSelector({ subject, userId, onSelect, teacherId }
 
       // Filter by teacher if selected
       if (teacherId) {
-        return m.teacherId === teacherId || !m.teacherId;
+        return m.teacherId === teacherId;
       }
       
       return true;
