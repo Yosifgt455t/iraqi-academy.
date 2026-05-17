@@ -58,6 +58,7 @@ interface Chapter {
   id: string;
   name: string;
   subjectIds: string[];
+  aiContext?: string;
 }
 
 interface Material {
