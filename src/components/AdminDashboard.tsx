@@ -1850,16 +1850,16 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               <div className="bg-white p-4 rounded-xl border-2 border-slate-200 h-96 overflow-y-auto custom-scrollbar shadow-sm">
                                 <h6 className="font-black text-red-600 mb-4 border-b-2 border-red-100 pb-3 sticky top-0 bg-white z-10 flex justify-between items-center">
                                   <span>الصفوف (gradeId)</span>
-                                  <span className="bg-red-100 text-red-600 px-2 py-1 rounded-lg text-xs">{classes.length}</span>
+                                  <span className="bg-red-100 text-red-600 px-2 py-1 rounded-lg text-xs">{allGrades.length}</span>
                                 </h6>
                                 <div className="space-y-3">
-                                  {classes.map(c => (
+                                  {allGrades.map(c => (
                                     <div key={c.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-red-200 hover:shadow-sm transition-all group">
                                       <span className="font-black text-slate-800 text-sm group-hover:text-red-600 transition-colors">{c.name}</span>
                                       <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{c.id}</code>
                                     </div>
                                   ))}
-                                  {classes.length === 0 && <p className="text-slate-400 text-center py-8 font-black text-sm">لا توجد صفوف</p>}
+                                  {allGrades.length === 0 && <p className="text-slate-400 text-center py-8 font-black text-sm">لا توجد صفوف</p>}
                                 </div>
                               </div>
                               
@@ -1873,7 +1873,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   {subjects.map(s => (
                                     <div key={s.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-blue-200 hover:shadow-sm transition-all group">
                                       <span className="font-black text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
-                                        {s.name} <span className="text-slate-400 font-bold text-xs bg-white px-2 py-0.5 rounded border border-slate-200 ml-1">({classes.find(c => c.id === s.gradeId)?.name || 'غير محدد'})</span>
+                                        {s.name} <span className="text-slate-400 font-bold text-xs bg-white px-2 py-0.5 rounded border border-slate-200 ml-1">({allGrades.find(c => c.id === s.gradeId)?.name || 'غير محدد'})</span>
                                       </span>
                                       <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{s.id}</code>
                                     </div>
