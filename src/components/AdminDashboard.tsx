@@ -24,7 +24,9 @@ import {
   Eye,
   EyeOff,
   GraduationCap,
-  MessageSquare
+  MessageSquare,
+  Upload,
+  Hash
 } from "lucide-react";
 import {
   collection,
@@ -47,6 +49,7 @@ import { Grade, ExamQuestion } from "../types";
 import { useClasses } from "../hooks/useClasses";
 import { GoogleGenAI, Type } from "@google/genai";
 import { getAdmins, addAdmin, removeAdmin } from "../services/adminService";
+import * as XLSX from "xlsx";
 
 interface Subject {
   id: string;
@@ -122,6 +125,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     | "database"
     | "settings"
     | "exam_questions"
+    | "bulk_import"
+    | "id_directory"
   >("subjects");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -217,6 +222,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isBulkMode, setIsBulkMode] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
   const [isYoutubeMode, setIsYoutubeMode] = useState(false); // NEW
   const [youtubePlaylistUrl, setYoutubePlaylistUrl] = useState("");
   const [aiParsing, setAiParsing] = useState(false);
@@ -349,6 +355,12 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
       fetchReviewSubjects();
       fetchReviewMaterials();
       fetchQuizQuestions();
+    }
+    if (activeTab === "id_directory") {
+      // Actually classes are already fetched, but let's just make sure others are
+      fetchSubjects();
+      fetchChapters();
+      fetchTeachers();
     }
   }, [activeTab]);
 
@@ -494,6 +506,99 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
     setFlashcards(
       snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Flashcard),
     );
+  };
+
+  const getExcelConfig = (tab: string) => {
+    switch (tab) {
+      case "materials": return { cols: ["title", "videoUrl", "pdfUrl", "description", "gradeId", "subjectId", "chapterId", "teacherId"], title: "المحاضرات" };
+      case "exam_questions": return { cols: ["grade", "subject", "year", "round", "type", "question", "options", "correctAnswer", "image"], title: "بوابة الوزاري" };
+      case "quiz": return { cols: ["question", "options", "correctOption", "points", "subjectId"], title: "مسابقة المليون" };
+      case "ministerial": return { cols: ["title", "pdfUrl", "videoUrl", "gradeId", "subjectId", "order_index"], title: "الوزاريات" };
+      case "flashcards": return { cols: ["question", "answer", "gradeId", "subjectId", "chapterId"], title: "البطاقات" };
+      case "subjects": return { cols: ["name", "gradeId"], title: "المواد" };
+      case "chapters": return { cols: ["name", "subjectId", "gradeId"], title: "الفصول" };
+      case "teachers": return { cols: ["name", "subject", "phone", "email"], title: "المدرسين" };
+      case "news": return { cols: ["title", "content", "label"], title: "الأخبار" };
+      case "reviews": return { cols: ["title", "pdfUrl", "videoUrl", "subjectId", "order_index"], title: "المراجعات (الملفات)" };
+      default: return null;
+    }
+  };
+
+  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      if (data && data.length > 0) {
+        let addedCount = 0;
+        for (const row of data as any[]) {
+          let docData: any = { created_at: new Date().toISOString() };
+          let collName = "";
+
+          if (activeTab === "materials") {
+            collName = "materials";
+            docData = { ...docData, title: row.title || "", videoUrl: row.videoUrl || "", pdfUrl: row.pdfUrl || "", description: row.description || "", gradeId: row.gradeId || "", subjectId: row.subjectId || "", chapterId: row.chapterId ? String(row.chapterId).split(',')[0].trim() : "", chapterIds: row.chapterId ? String(row.chapterId).split(',').map((id: string) => id.trim()).filter(Boolean) : [], teacherId: row.teacherId ? String(row.teacherId) : "" };
+          } else if (activeTab === "exam_questions") {
+            collName = "exam_questions";
+            docData = { ...docData, grade: row.grade || "", subject: row.subject || "", year: row.year || "", round: row.round || "", type: row.type || "MCQ", question: row.question || "", options: row.options ? String(row.options).split('|').map(o => o.trim()) : ["", "", "", ""], correctAnswer: row.correctAnswer !== undefined ? row.correctAnswer : 0, image: row.image || "" };
+          } else if (activeTab === "quiz") {
+            collName = "quiz_questions";
+            docData = { ...docData, question: row.question || "", options: row.options ? String(row.options).split('|').map(o => o.trim()) : ["", "", "", ""], correctOption: row.correctOption !== undefined ? Number(row.correctOption) : 0, points: row.points !== undefined ? Number(row.points) : 10, subjectId: row.subjectId || "general" };
+          } else if (activeTab === "ministerial") {
+            collName = "ministerial_questions";
+            docData = { ...docData, title: row.title || "", pdfUrl: row.pdfUrl || "", videoUrl: row.videoUrl || "", gradeId: row.gradeId || "", subjectId: row.subjectId || "", order_index: row.order_index !== undefined ? Number(row.order_index) : 0 };
+          } else if (activeTab === "flashcards") {
+            collName = "flashcards";
+            docData = { ...docData, question: row.question || "", answer: row.answer || "", gradeId: row.gradeId || "", subjectId: row.subjectId || "", chapterId: row.chapterId || "" };
+          } else if (activeTab === "subjects") {
+            collName = "subjects";
+            docData = { ...docData, name: row.name || "", gradeId: row.gradeId || "" };
+          } else if (activeTab === "chapters") {
+            collName = "chapters";
+            docData = { ...docData, name: row.name || "", subjectId: row.subjectId || "", gradeId: row.gradeId || "" };
+          } else if (activeTab === "teachers") {
+            collName = "teachers";
+            docData = { ...docData, name: row.name || "", subject: row.subject || "", phone: row.phone || "", email: row.email || "" };
+          } else if (activeTab === "news") {
+            collName = "news";
+            docData = { ...docData, title: row.title || "", content: row.content || "", label: row.label || "عاجل" };
+          } else if (activeTab === "reviews") {
+            collName = "review_materials";
+             docData = { ...docData, title: row.title || "", pdfUrl: row.pdfUrl || "", videoUrl: row.videoUrl || "", subjectId: row.subjectId || "", order_index: row.order_index !== undefined ? Number(row.order_index) : 0 };
+          }
+
+          if (collName) {
+            await addDoc(collection(db, collName), docData);
+            addedCount++;
+          }
+        }
+        alert(`تم إضافة ${addedCount} عنصر بنجاح.`);
+        
+        // Refresh based on active tab
+        if (activeTab === "materials") { fetchMaterials(); fetchTeachers(); }
+        else if (activeTab === "exam_questions") fetchExamQuestions();
+        else if (activeTab === "quiz") fetchQuizQuestions();
+        else if (activeTab === "ministerial") fetchMinisterialQuestions();
+        else if (activeTab === "flashcards") fetchFlashcards();
+        else if (activeTab === "subjects") fetchSubjects();
+        else if (activeTab === "chapters") fetchChapters();
+        else if (activeTab === "teachers") fetchTeachers();
+        else if (activeTab === "news") fetchNews();
+        else if (activeTab === "reviews") { fetchReviewSubjects(); fetchReviewMaterials(); }
+      }
+    } catch (error) {
+      console.error("Error reading excel:", error);
+      alert("حدث خطأ أثناء قراءة أو استيراد البيانات من الملف.");
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
   };
 
   const handleAddSubject = async (e: React.FormEvent) => {
@@ -653,6 +758,51 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
       showToast("error", "حدث خطأ أثناء الاتصال بالذكاء الاصطناعي");
     } finally {
       setAiParsing(false);
+    }
+  };
+
+  const handleBulkExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      if (data && data.length > 0) {
+        let addedCount = 0;
+        for (const row of data as any[]) {
+          if (!row.title || (!row.videoUrl && !row.pdfUrl)) continue; // basic validation
+          
+          const newMaterial = {
+            title: row.title || "",
+            videoUrl: row.videoUrl || "",
+            pdfUrl: row.pdfUrl || "",
+            description: row.description || "",
+            gradeId: row.gradeId || "",
+            subjectId: row.subjectId || "",
+            chapterId: row.chapterId ? String(row.chapterId).split(',')[0].trim() : "", 
+            chapterIds: row.chapterId ? String(row.chapterId).split(',').map((id: string) => id.trim()).filter(Boolean) : [], 
+            teacherId: row.teacherId ? String(row.teacherId) : "",
+            created_at: new Date().toISOString(),
+          };
+
+          await addDoc(collection(db, "materials"), newMaterial);
+          addedCount++;
+        }
+        alert(`تم إضافة ${addedCount} محاضرة للنظام.`);
+        fetchMaterials();
+      }
+    } catch (error) {
+      console.error("Error reading excel:", error);
+      alert("حدث خطأ أثناء قراءة أو استيراد البيانات من الملف.");
+    } finally {
+      setLoading(false);
+      e.target.value = '';
     }
   };
 
@@ -1258,6 +1408,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                 label: "أخر الأخبار",
               },
               { id: "database", icon: Database, label: "النسخ الاحتياطي" },
+              { id: "bulk_import", icon: Upload, label: "استيراد ملف Excel" },
+              { id: "id_directory", icon: Hash, label: "دليل المعرفات (IDs)" },
               { id: "settings", icon: Wrench, label: "إعدادات النظام" },
             ].map((item) => (
               <button
@@ -1265,6 +1417,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                 onClick={() => {
                   setActiveTab(item.id as any);
                   setEditingId(null);
+                  setShowExcelImport(false);
                   setIsMobileMenuOpen(false);
                 }}
                 className={`flex items-center justify-between px-4 py-4 rounded-xl border-2 border-black transition-all duration-300 font-black text-base group ${
@@ -1330,6 +1483,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                   {activeTab === "reviews" && "إدارة المراجعات المركزة"}
                   {activeTab === "quiz" && "إدارة مسابقة المليون"}
                   {activeTab === "news" && "إدارة أخر الأخبار"}
+                  {activeTab === "bulk_import" && "استيراد البيانات من Excel"}
+                  {activeTab === "id_directory" && "دليل المعرفات (IDs)"}
                   {activeTab === "database" && "النسخ الاحتياطي"}
                   {activeTab === "settings" && "إعدادات النظام"}
                 </h1>
@@ -1353,7 +1508,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div
                 className={
-                  activeTab === "database" || activeTab === "settings"
+                  activeTab === "database" || activeTab === "settings" || activeTab === "bulk_import" || activeTab === "id_directory"
                     ? "lg:col-span-12"
                     : "lg:col-span-7"
                 }
@@ -1614,6 +1769,157 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                       </div>
                     )}
                   </div>
+                ) : activeTab === "bulk_import" ? (
+                  <div className="bg-white p-8 rounded-xl neo-border">
+                    <div className="space-y-6">
+                      <div className="p-6 neo-bg-green rounded-xl border-4 border-black flex items-center gap-4">
+                        <div className="w-14 h-14 bg-white rounded-xl flex border-2 border-black items-center justify-center text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                          <Upload size={28} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h3 className="font-black text-black text-xl mb-1">
+                            استيراد البيانات من Excel (المحاضرات)
+                          </h3>
+                          <p className="text-black/70 font-bold text-sm">
+                            رفع ملف Excel لإضافة العديد من المحاضرات دفعة واحدة.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="p-6 bg-slate-50 rounded-xl border-2 border-slate-100 space-y-4">
+                        <h4 className="font-black text-slate-800 text-lg">الأعمدة المطلوبة في ملف Excel</h4>
+                        <p className="text-sm text-slate-600 font-bold max-w-2xl leading-relaxed">
+                          يرجى التأكد من أن الأعمدة (الصف الأول) في ملف Excel مطابقة تماماً للأسماء التالية ليتم التعرف عليها:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {['title', 'videoUrl', 'pdfUrl', 'description', 'gradeId', 'subjectId', 'chapterId', 'teacherId'].map(col => (
+                            <span key={col} className="px-3 py-1.5 bg-white border-2 border-slate-200 rounded-lg text-sm font-black text-blue-600 select-all">
+                              {col}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-xs text-red-500 font-black mt-2">
+                          ملاحظة: يمكنك إنشاء ملف Excel وإضافة هذه الأسماء في الصف الأول، ثم بدء تعبئة البيانات في الصفوف التالية. لا تترك أي حقل فارغ إذا كان ضرورياً (مثل title, videoUrl).
+                        </p>
+                      </div>
+
+                      <div className="p-8 border-4 border-dashed border-slate-200 rounded-2xl text-center bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <input
+                          type="file"
+                          accept=".xlsx, .xls, .csv"
+                          onChange={handleBulkExcelUpload}
+                          className="hidden"
+                          id="excel-upload"
+                        />
+                        <label
+                          htmlFor="excel-upload"
+                          className="cursor-pointer inline-flex flex-col items-center gap-4"
+                        >
+                          <div className="w-20 h-20 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-full flex items-center justify-center text-blue-600">
+                            <Upload size={32} strokeWidth={2.5} />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-xl font-black text-slate-900">اضغط لرفع ملف</h4>
+                            <p className="text-sm font-bold text-slate-500">
+                              .xlsx, .xls, .csv مدعومة
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ) : activeTab === "id_directory" ? (
+                  <div className="bg-white p-8 rounded-xl neo-border">
+                    <div className="space-y-8">
+                      <div className="p-6 neo-bg-teal rounded-xl border-4 border-black flex items-center gap-4">
+                        <div className="w-14 h-14 bg-white rounded-xl flex border-2 border-black items-center justify-center text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                          <Hash size={28} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h3 className="font-black text-black text-xl mb-1">
+                            دليل المعرفات (IDs)
+                          </h3>
+                          <p className="text-black/70 font-bold text-sm">
+                            دليل شامل لكل المعرفات للنسخ واستخدامها في ملفات الاستيراد الجماعية Excel.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                              {/* Grades */}
+                              <div className="bg-white p-4 rounded-xl border-2 border-slate-200 h-96 overflow-y-auto custom-scrollbar shadow-sm">
+                                <h6 className="font-black text-red-600 mb-4 border-b-2 border-red-100 pb-3 sticky top-0 bg-white z-10 flex justify-between items-center">
+                                  <span>الصفوف (gradeId)</span>
+                                  <span className="bg-red-100 text-red-600 px-2 py-1 rounded-lg text-xs">{classes.length}</span>
+                                </h6>
+                                <div className="space-y-3">
+                                  {classes.map(c => (
+                                    <div key={c.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-red-200 hover:shadow-sm transition-all group">
+                                      <span className="font-black text-slate-800 text-sm group-hover:text-red-600 transition-colors">{c.name}</span>
+                                      <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{c.id}</code>
+                                    </div>
+                                  ))}
+                                  {classes.length === 0 && <p className="text-slate-400 text-center py-8 font-black text-sm">لا توجد صفوف</p>}
+                                </div>
+                              </div>
+                              
+                              {/* Subjects */}
+                              <div className="bg-white p-4 rounded-xl border-2 border-slate-200 h-96 overflow-y-auto custom-scrollbar shadow-sm">
+                                <h6 className="font-black text-blue-600 mb-4 border-b-2 border-blue-100 pb-3 sticky top-0 bg-white z-10 flex justify-between items-center">
+                                  <span>المواد (subjectId)</span>
+                                  <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded-lg text-xs">{subjects.length}</span>
+                                </h6>
+                                <div className="space-y-3">
+                                  {subjects.map(s => (
+                                    <div key={s.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-blue-200 hover:shadow-sm transition-all group">
+                                      <span className="font-black text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
+                                        {s.name} <span className="text-slate-400 font-bold text-xs bg-white px-2 py-0.5 rounded border border-slate-200 ml-1">({classes.find(c => c.id === s.gradeId)?.name || 'غير محدد'})</span>
+                                      </span>
+                                      <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{s.id}</code>
+                                    </div>
+                                  ))}
+                                  {subjects.length === 0 && <p className="text-slate-400 text-center py-8 font-black text-sm">لا توجد مواد</p>}
+                                </div>
+                              </div>
+
+                              {/* Chapters */}
+                              <div className="bg-white p-4 rounded-xl border-2 border-slate-200 h-96 overflow-y-auto custom-scrollbar shadow-sm">
+                                <h6 className="font-black text-green-600 mb-4 border-b-2 border-green-100 pb-3 sticky top-0 bg-white z-10 flex justify-between items-center">
+                                  <span>الفصول (chapterId)</span>
+                                  <span className="bg-green-100 text-green-600 px-2 py-1 rounded-lg text-xs">{chapters.length}</span>
+                                </h6>
+                                <div className="space-y-3">
+                                  {chapters.map(ch => (
+                                    <div key={ch.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-green-200 hover:shadow-sm transition-all group">
+                                      <span className="font-black text-slate-800 text-sm group-hover:text-green-600 transition-colors">
+                                        {ch.name} <span className="text-slate-400 font-bold text-xs bg-white px-2 py-0.5 rounded border border-slate-200 ml-1">({subjects.find(s => s.id === ch.subjectId)?.name || 'غير محدد'})</span>
+                                      </span>
+                                      <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{ch.id}</code>
+                                    </div>
+                                  ))}
+                                  {chapters.length === 0 && <p className="text-slate-400 text-center py-8 font-black text-sm">لا توجد فصول</p>}
+                                </div>
+                              </div>
+
+                              {/* Teachers */}
+                              <div className="bg-white p-4 rounded-xl border-2 border-slate-200 h-96 overflow-y-auto custom-scrollbar shadow-sm">
+                                <h6 className="font-black text-purple-600 mb-4 border-b-2 border-purple-100 pb-3 sticky top-0 bg-white z-10 flex justify-between items-center">
+                                  <span>المدرسين (teacherId)</span>
+                                  <span className="bg-purple-100 text-purple-600 px-2 py-1 rounded-lg text-xs">{teachers.length}</span>
+                                </h6>
+                                <div className="space-y-3">
+                                  {teachers.map(t => (
+                                    <div key={t.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-purple-200 hover:shadow-sm transition-all group">
+                                      <span className="font-black text-slate-800 text-sm group-hover:text-purple-600 transition-colors">{t.name}</span>
+                                      <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{t.id}</code>
+                                    </div>
+                                  ))}
+                                  {teachers.length === 0 && <p className="text-slate-400 text-center py-8 font-black text-sm">لا يوجد مدرسين</p>}
+                                </div>
+                              </div>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <>
                     <motion.div
@@ -1648,8 +1954,58 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               {isBulkMode ? "الوضع العادي" : "وضع الإضافة الجماعية"}
                             </button>
                           )}
+                          {!editingId && getExcelConfig(activeTab) && (
+                            <button
+                              onClick={() => setShowExcelImport(!showExcelImport)}
+                              className={`px-4 py-2 rounded-xl font-black text-xs border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-none hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2 ${showExcelImport ? "bg-black text-white" : "bg-green-400 text-black"}`}
+                            >
+                              <Upload size={14} />
+                              {showExcelImport ? "إلغاء الاستيراد" : "استيراد من Excel"}
+                            </button>
+                          )}
                         </div>
                       </div>
+
+                      {showExcelImport && getExcelConfig(activeTab) && (
+                        <div className="mb-8 p-6 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl space-y-4">
+                          <h4 className="font-black text-slate-800 text-lg flex justify-between items-center">
+                            متطلبات أعمدة Excel 
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(getExcelConfig(activeTab)?.cols.join('\t') || '');
+                                alert("تم نسخ الأعمدة للحافظة، يمكنك لصقها في أول صف بملف Excel.");
+                              }}
+                              className="text-xs px-3 py-1 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-transform"
+                            >
+                              نسخ الأعمدة
+                            </button>
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {getExcelConfig(activeTab)?.cols.map(col => (
+                              <span key={col} className="px-2 py-1 bg-white border border-slate-200 rounded font-bold text-xs text-blue-600 select-all">
+                                {col}
+                              </span>
+                            ))}
+                          </div>
+                          
+                          <div className="pt-4 border-t border-slate-200">
+                            <input
+                              type="file"
+                              accept=".xlsx, .xls, .csv"
+                              onChange={handleExcelImport}
+                              className="hidden"
+                              id={`excel-upload-${activeTab}`}
+                            />
+                            <label
+                              htmlFor={`excel-upload-${activeTab}`}
+                              className="cursor-pointer flex flex-col items-center gap-2 w-full p-4 bg-white border-2 border-black rounded-xl hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                            >
+                              <Upload size={24} className="text-green-500" />
+                              <span className="font-black text-sm">اختر ملف Excel للبدء بالاستيراد الجماعي</span>
+                            </label>
+                          </div>
+                        </div>
+                      )}
 
                       {activeTab === "classes" && (
                         <div className="space-y-8">
@@ -3302,6 +3658,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
               {/* List / Preview Side */}
               {activeTab !== "database" &&
                 activeTab !== "settings" &&
+                activeTab !== "bulk_import" &&
                 activeTab !== "classes" && (
                   <div className="lg:col-span-5 space-y-6">
                     <div className="sticky top-[110px]">

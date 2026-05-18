@@ -10,16 +10,17 @@ export const extractTextFromPDF = async (file: File): Promise<string> => {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
     
-    // Limit to prevent browser hang on huge books
-    // We only need about 50k - 100k characters for the generation anyway
-    for (let i = 1; i <= pdf.numPages; i++) {
+    // Limit to prevent browser memory crashes on mobile
+    // We only need about 50k characters for the generation anyway
+    const maxPages = Math.min(pdf.numPages, 10); // Only process first 10 pages max
+    for (let i = 1; i <= maxPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
       const pageText = textContent.items.map((item: any) => item.str).join(' ');
       fullText += pageText + '\n';
       
-      if (fullText.length > 100000) {
-        break; // Stop parsing after ~100k characters to prevent memory overflow
+      if (fullText.length > 50000) {
+        break; // Stop parsing after 50k characters
       }
     }
     

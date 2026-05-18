@@ -144,6 +144,14 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Limit file size to 5MB to prevent mobile browser memory crashes
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+       alert("حجم الملف كبير جداً. يرجى رفع ملف حجمه أقل من 5 ميجابايت.");
+       if (fileInputRef.current) fileInputRef.current.value = '';
+       return;
+    }
+
     setIsUploading(true);
     
     // Allow UI to render the loading state before heavy processing blocks the main thread
