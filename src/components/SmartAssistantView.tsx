@@ -98,10 +98,10 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
     }
   }, [activeTab, userId]);
 
-  const availableGrades = Array.from(new Set(allQuestions.map(q => q.grade))).filter(Boolean).sort();
-  const availableSubjects = Array.from(new Set(allQuestions.filter(q => q.grade === selectedGrade || !selectedGrade).map(q => q.subject))).filter(Boolean).sort();
-  const availableRounds = Array.from(new Set(allQuestions.filter(q => (q.grade === selectedGrade || !selectedGrade) && (q.subject === selectedSubject || !selectedSubject)).map(q => q.round))).filter(Boolean).sort();
-  const availableYears = Array.from(new Set(allQuestions.filter(q => (q.grade === selectedGrade || !selectedGrade) && (q.subject === selectedSubject || !selectedSubject) && (q.round === selectedRound || !selectedRound)).map(q => q.year))).filter(Boolean).sort((a, b) => b.localeCompare(a));
+  const availableGrades = Array.from(new Set(allQuestions.map(q => String(q.grade || '').trim()))).filter(Boolean).sort();
+  const availableSubjects = Array.from(new Set(allQuestions.filter(q => String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade).map(q => String(q.subject || '').trim()))).filter(Boolean).sort();
+  const availableRounds = Array.from(new Set(allQuestions.filter(q => (String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade) && (String(q.subject || '').trim() === String(selectedSubject).trim() || !selectedSubject)).map(q => String(q.round || '').trim()))).filter(Boolean).sort();
+  const availableYears = Array.from(new Set(allQuestions.filter(q => (String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade) && (String(q.subject || '').trim() === String(selectedSubject).trim() || !selectedSubject) && (String(q.round || '').trim() === String(selectedRound).trim() || !selectedRound)).map(q => String(q.year || '').trim()))).filter(Boolean).sort((a, b) => b.localeCompare(a));
 
 
   const handleStartExam = async () => {
@@ -112,10 +112,10 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
       const allQuestions = snap.docs.map(d => ({ id: d.id, ...d.data() } as ExamQuestion));
       
       const filtered = allQuestions.filter(q => 
-        q.grade === selectedGrade && 
-        q.subject === selectedSubject && 
-        q.year === selectedYear && 
-        q.round === selectedRound
+        String(q.grade).trim() === String(selectedGrade).trim() && 
+        String(q.subject).trim() === String(selectedSubject).trim() && 
+        String(q.year).trim() === String(selectedYear).trim() && 
+        String(q.round).trim() === String(selectedRound).trim()
       );
       
       // Shuffle randomly

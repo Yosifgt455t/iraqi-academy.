@@ -511,7 +511,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const getExcelConfig = (tab: string) => {
     switch (tab) {
       case "materials": return { cols: ["title", "videoUrl", "pdfUrl", "description", "gradeId", "subjectId", "chapterId", "teacherId"], title: "المحاضرات" };
-      case "exam_questions": return { cols: ["grade", "subject", "year", "round", "type", "question", "options", "correctAnswer", "image"], title: "بوابة الوزاري" };
+      case "exam_questions": return { cols: ["year", "round", "type", "question", "options", "correctAnswer", "image"], title: "بوابة الوزاري" };
       case "quiz": return { cols: ["question", "options", "correctOption", "points", "subjectId"], title: "مسابقة المليون" };
       case "ministerial": return { cols: ["title", "pdfUrl", "videoUrl", "gradeId", "subjectId", "order_index"], title: "الوزاريات" };
       case "flashcards": return { cols: ["question", "answer", "gradeId", "subjectId", "chapterId"], title: "البطاقات" };
@@ -546,7 +546,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
             docData = { ...docData, title: row.title || "", videoUrl: row.videoUrl || "", pdfUrl: row.pdfUrl || "", description: row.description || "", gradeId: row.gradeId || "", subjectId: row.subjectId || "", chapterId: row.chapterId ? String(row.chapterId).split(',')[0].trim() : "", chapterIds: row.chapterId ? String(row.chapterId).split(',').map((id: string) => id.trim()).filter(Boolean) : [], teacherId: row.teacherId ? String(row.teacherId) : "" };
           } else if (activeTab === "exam_questions") {
             collName = "exam_questions";
-            docData = { ...docData, grade: row.grade || "", subject: row.subject || "", year: row.year || "", round: row.round || "", type: row.type || "MCQ", question: row.question || "", options: row.options ? String(row.options).split('|').map(o => o.trim()) : ["", "", "", ""], correctAnswer: row.correctAnswer !== undefined ? row.correctAnswer : 0, image: row.image || "" };
+            docData = { ...docData, grade: examQuestGrade || row.grade || "", subject: examQuestSubject || row.subject || "", year: String(row.year || ""), round: String(row.round || ""), type: row.type || "MCQ", question: row.question || "", options: row.options ? String(row.options).split('|').map(o => o.trim()) : ["", "", "", ""], correctAnswer: row.correctAnswer !== undefined ? row.correctAnswer : 0, image: row.image || "" };
           } else if (activeTab === "quiz") {
             collName = "quiz_questions";
             docData = { ...docData, question: row.question || "", options: row.options ? String(row.options).split('|').map(o => o.trim()) : ["", "", "", ""], correctOption: row.correctOption !== undefined ? Number(row.correctOption) : 0, points: row.points !== undefined ? Number(row.points) : 10, subjectId: row.subjectId || "general" };
@@ -1855,7 +1855,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                 <div className="space-y-3">
                                   {allGrades.map(c => (
                                     <div key={c.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-red-200 hover:shadow-sm transition-all group">
-                                      <span className="font-black text-slate-800 text-sm group-hover:text-red-600 transition-colors">{c.name}</span>
+                                      <span className="font-black text-slate-800 text-sm group-hover:text-red-600 transition-colors">{c.label}</span>
                                       <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{c.id}</code>
                                     </div>
                                   ))}
@@ -1873,7 +1873,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   {subjects.map(s => (
                                     <div key={s.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-blue-200 hover:shadow-sm transition-all group">
                                       <span className="font-black text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
-                                        {s.name} <span className="text-slate-400 font-bold text-xs bg-white px-2 py-0.5 rounded border border-slate-200 ml-1">({allGrades.find(c => c.id === s.gradeId)?.name || 'غير محدد'})</span>
+                                        {s.name} <span className="text-slate-400 font-bold text-xs bg-white px-2 py-0.5 rounded border border-slate-200 ml-1">({s.grades?.map(g => allGrades.find(c => c.id === g)?.label).filter(Boolean).join('، ') || 'غير محدد'})</span>
                                       </span>
                                       <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{s.id}</code>
                                     </div>
@@ -1892,7 +1892,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                                   {chapters.map(ch => (
                                     <div key={ch.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-green-200 hover:shadow-sm transition-all group">
                                       <span className="font-black text-slate-800 text-sm group-hover:text-green-600 transition-colors">
-                                        {ch.name} <span className="text-slate-400 font-bold text-xs bg-white px-2 py-0.5 rounded border border-slate-200 ml-1">({subjects.find(s => s.id === ch.subjectId)?.name || 'غير محدد'})</span>
+                                        {ch.name} <span className="text-slate-400 font-bold text-xs bg-white px-2 py-0.5 rounded border border-slate-200 ml-1">({ch.subjectIds?.map(sid => subjects.find(su => su.id === sid)?.name).filter(Boolean).join('، ') || 'غير محدد'})</span>
                                       </span>
                                       <code className="text-xs text-slate-600 select-all bg-white border border-slate-200 p-2 rounded-lg font-mono w-full overflow-hidden text-ellipsis block cursor-text">{ch.id}</code>
                                     </div>
@@ -1980,14 +1980,54 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
                               نسخ الأعمدة
                             </button>
                           </h4>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-2 mb-4">
                             {getExcelConfig(activeTab)?.cols.map(col => (
                               <span key={col} className="px-2 py-1 bg-white border border-slate-200 rounded font-bold text-xs text-blue-600 select-all">
                                 {col}
                               </span>
                             ))}
                           </div>
-                          
+
+                          {activeTab === "exam_questions" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-slate-200">
+                              <div className="space-y-2">
+                                <label className="block text-sm font-black text-slate-700">تطبيق الصفوف كقيمة موحدة بالاستيراد (اختياري)</label>
+                                <select value={examQuestGrade} onChange={(e) => setExamQuestGrade(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 font-bold text-sm">
+                                  <option value="">-- يتم القراءة من ملف Excel --</option>
+                                  <option value="السادس الإعدادي - علمي">السادس الإعدادي - علمي</option>
+                                  <option value="السادس الإعدادي - أدبي">السادس الإعدادي - أدبي</option>
+                                  <option value="الثالث المتوسط">الثالث المتوسط</option>
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-black text-slate-700">تطبيق المادة كقيمة موحدة بالاستيراد (اختياري)</label>
+                                <input type="text" value={examQuestSubject} onChange={(e) => setExamQuestSubject(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 font-bold text-sm" placeholder="مثال: الرياضيات" />
+                              </div>
+                              <div className="md:col-span-2 pt-2">
+                                 <button
+                                   onClick={() => {
+                                      const prompt = `أحتاج إلى جدول بنسق Excel يحتوي على أسئلة وزارية. يرجى تزويدي بالجدول بالأعمدة التالية حصراً (من اليمين لليسار):
+${getExcelConfig('exam_questions')?.cols.join(' | ')}
+مع مراعاة التالي:
+- year: مثال 2024
+- round: الدور الأول، التمهيدي، إلخ
+- type: ضع MCQ للاختيارات، أو Essay للأسئلة المقالية
+- options: للاختيارات فقط (أفصل الخيارات بعلامة |، وإذا كان مقالي اتركه فارغ)
+- correctAnswer: رقم الخيار الصحيح (صفر يمثل الخيار الأول، 1 الثاني، وهكذا)
+- image: رابط للصورة أو اتركه فارغ إذا لم يتوفر
+
+يرجى إعطائي بعض الأمثلة كنص مفصول بعلامة الجدولة (Tab) لأقوم بنسخها للصقها مباشرة في الاكسل.`;
+                                      navigator.clipboard.writeText(prompt);
+                                      alert("تم نسخ طلب الذكاء الاصطناعي بنجاح! يمكنك الآن لصقه في ChatGPT أو Gemini للحصول على بيانات جاهزة للاستيراد.");
+                                   }}
+                                   className="w-full py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:opacity-90 shadow-sm"
+                                 >
+                                   <span>نسخ رسالة طلب الذكاء الاصطناعي لتوليد الجدول</span>
+                                 </button>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="pt-4 border-t border-slate-200">
                             <input
                               type="file"
