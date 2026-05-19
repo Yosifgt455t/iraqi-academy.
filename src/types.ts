@@ -137,6 +137,8 @@ export interface ExamQuestion {
   grade: string;
   round: string;
   year: string;
+  chapter?: string;
+  topic?: string;
   type: 'MCQ' | 'Essay' | 'TrueFalse';
   question: string;
   image?: string;

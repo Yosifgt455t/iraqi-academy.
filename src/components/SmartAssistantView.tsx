@@ -6,12 +6,13 @@ import { db } from '../lib/firebase';
 import { ExamQuestion } from '../types';
 import { extractTextFromPDF } from '../utils/pdfParser';
 import { getAIClient, shouldSwitchKey } from '../services/aiService';
-import { Type } from '@google/genai';
+import { Type, Schema } from '@google/genai';
 import mammoth from 'mammoth';
 
 interface Props {
   onBack: () => void;
   userId: string;
+  isAdmin?: boolean;
 }
 
 interface ExamHistoryEntry {
@@ -25,15 +26,23 @@ interface ExamHistoryEntry {
 
 type ExamState = 'setup' | 'taking' | 'result' | 'fileSettings';
 
-export default function SmartAssistantView({ onBack, userId }: Props) {
-  const [activeTab, setActiveTab] = useState<'create' | 'upload' | 'history'>('create');
+export default function SmartAssistantView({ onBack, userId, isAdmin = false }: Props) {
+  const [activeTab, setActiveTab] = useState<'create' | 'upload' | 'history' | 'admin_import'>('upload');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedRound, setSelectedRound] = useState('');
+  const [selectedChapter, setSelectedChapter] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState('');
 
   const [examState, setExamState] = useState<ExamState>('setup');
   const [loading, setLoading] = useState(false);
+  
+  // Admin import states
+  const [adminImportText, setAdminImportText] = useState('');
+  const [adminImportLoading, setAdminImportLoading] = useState(false);
+  const [adminImportProgress, setAdminImportProgress] = useState('');
+
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number>>({});
@@ -56,7 +65,178 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
      language: 'العربية'
   });
 
+  // Admin AI text import state
+  const handleAdminTextImport = async () => {
+    if (!adminImportText.trim()) return;
+    setAdminImportLoading(true);
+    setAdminImportProgress('جاري معالجة النص باستخدام الذكاء الاصطناعي...');
+
+    try {
+      const ai = getAIClient();
+      const responseSchema: Schema = {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            grade: { type: Type.STRING, description: "الصف الدراسي، مثلا (الثالث المتوسط، السادس الإعدادي)" },
+            subject: { type: Type.STRING, description: "المادة الدراسية، مثلا (التربية الإسلامية، الرياضيات)" },
+            year: { type: Type.STRING, description: "السنة الدراسية للامتحان الوزاري، مثلا (2020، 2021)" },
+            round: { type: Type.STRING, description: "الدور الامتحاني، مثلا (الدور الأول، الدور الثاني، التمهيدي)" },
+            chapter: { type: Type.STRING, description: "رقم أو اسم الفصل الذي يعود له السؤال" },
+            topic: { type: Type.STRING, description: "موضوع السؤال المحدد من الفصل الدراسي" },
+            type: { type: Type.STRING, description: "نوع السؤال: MCQ, Essay, أو TrueFalse" },
+            question: { type: Type.STRING, description: "نص السؤال الامتحاني" },
+            options: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "الخيارات الخاصة بالسؤال، إذا كان نوعها MCQ. يجب أن تكون 4 خيارات"
+            },
+            correctAnswer: { type: Type.INTEGER, description: "رقم الإجابة الصحيحة للـ MCQ، صفر-مبني (0 للخيارات الأول، 1 للثاني، إلخ). بالنسبة للـ Essay و TrueFalse اجعله 0" }
+          },
+          required: ["grade", "subject", "year", "round", "chapter", "topic", "type", "question", "options", "correctAnswer"]
+        }
+      };
+
+      const result = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: `أنت مساعد تعليمي متخصص في تقديم أسئلة الامتحانات الوزارية العراقية.
+المطلوب منك تحويل النص التالي إلى مجموعة أسئلة بصيغة محددة وحفظها بقاعدة البيانات.
+قم باستخراج ما يلي لكل سؤال:
+- الصف الدراسي (grade)
+- المادة (subject)
+- سنة الامتحان (year)
+- الدور (round)
+- الفصل (chapter)
+- الموضوع (topic)
+- نص السؤال (question)
+- نوع السؤال (type): MCQ أو Essay أو TrueFalse
+- الخيارات (options): قم بتوليد 4 خيارات منطقية من ضمنها الحل الصحيح لأسئلة الاختيارات.
+- الإجابة الصحيحة (correctAnswer): موقع الخيار الصحيح (0, 1, 2, 3)
+
+النص المدخل:
+${adminImportText}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+        }
+      });
+
+      const jsonText = result.text;
+      if (!jsonText) throw new Error("لم يتم استرجاع بيانات.");
+
+      const parsedQuestions = JSON.parse(jsonText);
+      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
+        throw new Error("لم يتم التعرف على أي أسئلة.");
+      }
+
+      setAdminImportProgress(`تم استخراج ${parsedQuestions.length} سؤال. جاري الإضافة لقاعدة البيانات...`);
+      
+      let addedCount = 0;
+      for (const row of parsedQuestions) {
+         let docData: any = {
+           created_at: new Date().toISOString(),
+           grade: row.grade || "", 
+           subject: row.subject || "", 
+           year: String(row.year || ""), 
+           round: String(row.round || ""), 
+           chapter: row.chapter || "",
+           topic: row.topic || "",
+           type: row.type || "MCQ", 
+           question: row.question || "", 
+           options: Array.isArray(row.options) && row.options.length > 0 ? row.options : ["", "", "", ""], 
+           correctAnswer: row.correctAnswer !== undefined ? Number(row.correctAnswer) : 0, 
+           image: ""
+         };
+         // Use the selected ones if provided, else use the ones from json
+         if (selectedGrade) docData.grade = selectedGrade;
+         if (selectedSubject) docData.subject = selectedSubject;
+         if (selectedYear) docData.year = selectedYear;
+         if (selectedRound) docData.round = selectedRound;
+
+         await addDoc(collection(db, "exam_questions"), docData);
+         addedCount++;
+      }
+      
+      setAdminImportProgress("");
+      alert(`تمت إضافة ${addedCount} سؤال بنجاح بواسطة الذكاء الاصطناعي.`);
+      setAdminImportText("");
+      
+      // refresh questions list
+      const snap = await getDocs(collection(db, "exam_questions"));
+      const questionsList = snap.docs.map(d => ({ id: d.id, ...d.data() } as ExamQuestion));
+      setAllQuestions(questionsList);
+      
+    } catch (e: any) {
+      console.error(e);
+      if (shouldSwitchKey(e)) {
+        alert("انتهت حصة المفتاح. جرب ثانية.");
+      } else {
+        alert("حدث خطأ أثناء معالجة النص: " + e.message);
+      }
+      setAdminImportProgress("");
+    } finally {
+      setAdminImportLoading(false);
+    }
+  };
+
   useEffect(() => {
+    // SEEDING LOGIC
+    const seed = async () => {
+      if (!localStorage.getItem('seeded_q')) {
+        localStorage.setItem('seeded_q', 'true');
+        const sampleQs = [
+          {
+            grade: "الثالث المتوسط",
+            subject: "التربية الاسلامية",
+            year: "2018",
+            round: "الدور الاول",
+            chapter: "احكام التلاوة",
+            topic: "المد",
+            type: "MCQ",
+            question: "في قوله تعالى (أُولئِكَ لَهُمُ اللَّعْنَةُ وَلَهُمْ سُوءُ الدَّارِ) مانوع المد في كلمة (سوء)؟",
+            options: ["مد متصل", "مد منفصل", "مد بدل", "مد عارض للسكون"],
+            correctAnswer: 0,
+            difficulty: 1
+          },
+          {
+            grade: "الثالث المتوسط",
+            subject: "التربية الاسلامية",
+            year: "2016",
+            round: "الدور الثاني",
+            chapter: "احكام التلاوة",
+            topic: "المد",
+            type: "MCQ",
+            question: "في قوله تعالى (يُثَبِّتُ اللَّهُ الَّذينَ آمَنوا بِالقَولِ الثّابِتِ) مانوع المد في كلمة (آمَنوا)؟",
+            options: ["مد متصل", "مد منفصل", "مد بدل", "مد عارض للسكون"],
+            correctAnswer: 2,
+            difficulty: 1
+          },
+          {
+            grade: "الثالث المتوسط",
+            subject: "التربية الاسلامية",
+            year: "2018",
+            round: "الدور الاول",
+            chapter: "الوحدة الاولى",
+            topic: "سورة الحشر",
+            type: "MCQ",
+            question: "ما معنى كلمة (المهيمن)؟",
+            options: ["المحيط بغيره الذي لا يخرج عن قدرته احد", "عالم السر والعلانية", "المنشئ من العدم", "خالق المخلوقات"],
+            correctAnswer: 0,
+            difficulty: 1
+          }
+        ];
+        try {
+          for (const q of sampleQs) {
+            await addDoc(collection(db, "exam_questions"), q);
+          }
+        } catch (e) {
+          console.error("Failed to seed", e);
+        }
+      }
+    };
+    seed();
+    
+    // FETCHING LOGIC
     const fetchQuestions = async () => {
       try {
         const snap = await getDocs(collection(db, "exam_questions"));
@@ -102,6 +282,9 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
   const availableSubjects = Array.from(new Set(allQuestions.filter(q => String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade).map(q => String(q.subject || '').trim()))).filter(Boolean).sort();
   const availableRounds = Array.from(new Set(allQuestions.filter(q => (String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade) && (String(q.subject || '').trim() === String(selectedSubject).trim() || !selectedSubject)).map(q => String(q.round || '').trim()))).filter(Boolean).sort();
   const availableYears = Array.from(new Set(allQuestions.filter(q => (String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade) && (String(q.subject || '').trim() === String(selectedSubject).trim() || !selectedSubject) && (String(q.round || '').trim() === String(selectedRound).trim() || !selectedRound)).map(q => String(q.year || '').trim()))).filter(Boolean).sort((a, b) => b.localeCompare(a));
+  
+  const availableChapters = Array.from(new Set(allQuestions.filter(q => (String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade) && (String(q.subject || '').trim() === String(selectedSubject).trim() || !selectedSubject)).map(q => String(q.chapter || '').trim()))).filter(Boolean).sort();
+  const availableTopics = Array.from(new Set(allQuestions.filter(q => (String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade) && (String(q.subject || '').trim() === String(selectedSubject).trim() || !selectedSubject) && (String(q.chapter || '').trim() === String(selectedChapter).trim() || !selectedChapter)).map(q => String(q.topic || '').trim()))).filter(Boolean).sort();
 
 
   const handleStartExam = async () => {
@@ -114,8 +297,10 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
       const filtered = allQuestions.filter(q => 
         String(q.grade).trim() === String(selectedGrade).trim() && 
         String(q.subject).trim() === String(selectedSubject).trim() && 
-        String(q.year).trim() === String(selectedYear).trim() && 
-        String(q.round).trim() === String(selectedRound).trim()
+        (!selectedYear || String(q.year).trim() === String(selectedYear).trim()) && 
+        (!selectedRound || String(q.round).trim() === String(selectedRound).trim()) &&
+        (!selectedChapter || String(q.chapter || '').trim() === String(selectedChapter).trim()) &&
+        (!selectedTopic || String(q.topic || '').trim() === String(selectedTopic).trim())
       );
       
       // Shuffle randomly
@@ -491,9 +676,48 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="animate-in fade-in slide-in-from-bottom-8">
+      <div className={`grid grid-cols-1 ${isAdmin ? 'lg:grid-cols-12 gap-8 items-start' : ''}`}>
+        {/* Admin AI Chat / Import Panel */}
+        {isAdmin && (
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border-2 border-purple-200 dark:border-purple-900 rounded-2xl p-6 shadow-sm sticky top-24">
+            <div className="flex items-center gap-2 mb-4 text-purple-600 dark:text-purple-400">
+              <Sparkles size={24} />
+              <h3 className="font-black text-xl">مساعد الذكاء الاصطناعي (إدارة)</h3>
+            </div>
+            <p className="text-sm font-bold text-slate-500 mb-6 text-right leading-relaxed">
+              نافذة ذكية تقسم بوابة الوزاري. أرسل الأسئلة أو التعليمات النصية هنا، وسيقوم الذكاء الاصطناعي بتحليلها وإضافتها مباشرة إلى الأسئلة الوزارية.
+            </p>
+            
+            <textarea 
+              value={adminImportText}
+              onChange={(e) => setAdminImportText(e.target.value)}
+              placeholder="مثال: ضف هذه الأسئلة لمادة الرياضيات للصف السادس الإعدادي سنة 2024 الدور الأول، مبرهنة رول..."
+              className="w-full min-h-[250px] p-4 bg-purple-50 focus:bg-white dark:bg-slate-800 border-2 border-purple-100 focus:border-purple-500 rounded-xl outline-none transition-colors resize-y font-medium text-right mb-4 shadow-inner"
+              dir="rtl"
+            />
+
+            {adminImportProgress && (
+              <div className="bg-purple-100 text-purple-800 p-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 mb-4">
+                {adminImportLoading && <Loader2 size={14} className="animate-spin" />}
+                {adminImportProgress}
+              </div>
+            )}
+
+            <button
+              onClick={handleAdminTextImport}
+              disabled={adminImportLoading || !adminImportText.trim()}
+              className="w-full py-4 bg-gradient-to-l from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-black text-lg transition-all shadow-[0_5px_0_0_#4f46e5] hover:shadow-[0_2px_0_0_#4f46e5] hover:-translate-y-[3px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+               {adminImportLoading ? <Loader2 size={24} className="animate-spin" /> : <Brain size={24} />}
+               إرسال وإضافة
+            </button>
+          </div>
+        )}
+
+        <div className={isAdmin ? "lg:col-span-8 shrink-0 space-y-6" : "space-y-6"}>
+          {/* Header */}
+          <div className="flex items-center justify-between">
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-slate-600 hover:text-black dark:text-slate-400 dark:hover:text-white transition-colors font-bold group"
@@ -516,17 +740,6 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
       {/* Tabs */}
       <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border-2 border-black/10 dark:border-white/10">
         <button
-          onClick={() => setActiveTab('create')}
-          className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-            activeTab === 'create'
-              ? 'bg-white dark:bg-slate-700 shadow-sm border-2 border-slate-200 dark:border-slate-600'
-              : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          <Brain size={18} />
-          اختر تحديك
-        </button>
-        <button
           onClick={() => setActiveTab('upload')}
           className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
             activeTab === 'upload'
@@ -537,6 +750,19 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
           <FileText size={18} />
           من ملفاتي
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('create')}
+            className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'create'
+                ? 'bg-white dark:bg-slate-700 shadow-sm border-2 border-slate-200 dark:border-slate-600'
+                : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
+            }`}
+          >
+            <Brain size={18} />
+            اختر تحديك
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('history')}
           className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
@@ -569,6 +795,8 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
                     setSelectedSubject('');
                     setSelectedRound('');
                     setSelectedYear('');
+                    setSelectedChapter('');
+                    setSelectedTopic('');
                   }}
                   className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold"
                   dir="rtl"
@@ -586,6 +814,8 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
                     setSelectedSubject(e.target.value);
                     setSelectedRound('');
                     setSelectedYear('');
+                    setSelectedChapter('');
+                    setSelectedTopic('');
                   }}
                   disabled={!selectedGrade}
                   className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
@@ -598,18 +828,49 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">الفصل</label>
+                  <select
+                    value={selectedChapter}
+                    onChange={(e) => {
+                      setSelectedChapter(e.target.value);
+                      setSelectedTopic('');
+                    }}
+                    disabled={!selectedSubject || availableChapters.length === 0}
+                    className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
+                    dir="rtl"
+                  >
+                    <option value="">-- كل الفصول --</option>
+                    {availableChapters.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">الموضوع</label>
+                  <select
+                    value={selectedTopic}
+                    onChange={(e) => setSelectedTopic(e.target.value)}
+                    disabled={!selectedChapter || availableTopics.length === 0}
+                    className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
+                    dir="rtl"
+                  >
+                    <option value="">-- كل المواضيع --</option>
+                    {availableTopics.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">الدور</label>
                   <select
                     value={selectedRound}
                     onChange={(e) => {
                       setSelectedRound(e.target.value);
-                      setSelectedYear('');
                     }}
                     disabled={!selectedSubject}
                     className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
                     dir="rtl"
                   >
-                    <option value="">-- الدور --</option>
+                    <option value="">-- كل الأدوار --</option>
                     {availableRounds.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
@@ -618,11 +879,11 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
-                    disabled={!selectedRound}
+                    disabled={!selectedSubject}
                     className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
                     dir="rtl"
                   >
-                    <option value="">-- السنة --</option>
+                    <option value="">-- كل السنوات --</option>
                     {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
@@ -631,7 +892,7 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
 
             <button
               onClick={handleStartExam}
-              disabled={loading || loadingConfig || !selectedSubject || !selectedGrade || !selectedYear || !selectedRound}
+              disabled={loading || loadingConfig || !selectedSubject || !selectedGrade}
               className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg transition-all shadow-[0_5px_0_0_#1d4ed8] hover:shadow-[0_2px_0_0_#1d4ed8] hover:translate-y-[3px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 size={24} className="animate-spin" /> : <BookOpen size={24} />}
@@ -838,6 +1099,8 @@ export default function SmartAssistantView({ onBack, userId }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }

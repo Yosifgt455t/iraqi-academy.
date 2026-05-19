@@ -303,7 +303,7 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
         ) : view === 'activities' ? (
           <ActivitiesMenu onBack={() => setView('home')} onSelect={(selectedView) => setView(selectedView)} />
         ) : view === 'smart_assistant' ? (
-          <SmartAssistantView userId={user.id} onBack={() => setView('home')} />
+          <SmartAssistantView userId={user.id} isAdmin={currentIsAdmin} onBack={() => setView('home')} />
         ) : view === 'reviews' ? (
           <ReviewSection grade={grade} onBack={() => setView('home')} />
         ) : view === 'quiz' ? (

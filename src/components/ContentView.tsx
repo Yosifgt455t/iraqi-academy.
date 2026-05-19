@@ -191,8 +191,12 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
     return url;
   };
 
+  const getMaterialUrl = (material: Material | any) => {
+    return material.url || material.videoUrl || material.pdfUrl || material.content || material.url || "";
+  };
+
   const VideoPlayer = ({ material, isPlaying, onReady }: { material: Material, isPlaying: boolean, onReady?: () => void }) => {
-    let url = material.url || (material as any).content;
+    let url = getMaterialUrl(material);
     if (url.includes('<iframe')) {
       const srcMatch = url.match(/src="([^"]+)"/);
       if (srcMatch) url = srcMatch[1];
@@ -218,9 +222,13 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
     }, [isPlaying, isYoutube, isVk, material.id]);
 
     if (isYoutube || isVk) {
+      let finalSrc = isYoutube ? getYoutubeEmbedUrl(url) : getVkEmbedUrl(url);
+      if (!isPlaying) {
+         finalSrc = finalSrc.replace('autoplay=1', 'autoplay=0');
+      }
       return (
         <iframe
-          src={isPlaying ? (isYoutube ? getYoutubeEmbedUrl(url) : getVkEmbedUrl(url)) : undefined}
+          src={finalSrc}
           className="w-full h-full border-none"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -669,7 +677,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             </button>
                             {m.type === 'PDF' ? (
                               <button
-                                onClick={() => setSelectedPdf(m.url || (m as any).content)}
+                                onClick={() => setSelectedPdf(getMaterialUrl(m))}
                                 className="w-10 h-10 flex items-center justify-center rounded-xl border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] bg-white dark:bg-black text-black dark:text-white hover:-translate-y-1 transition-all"
                                 title="عرض بشاشة كاملة"
                               >
@@ -808,7 +816,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
                               {QType === 'PDF' ? (
                                 <button
-                                  onClick={() => setSelectedPdf(q.url)}
+                                  onClick={() => setSelectedPdf(getMaterialUrl(q))}
                                   className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white hover:neo-bg-blue hover:text-black rounded-xl transition-all font-black flex items-center justify-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1"
                                   title="فتح الملف"
                                 >

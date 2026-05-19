@@ -47,7 +47,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { extractTextFromPDF } from "../utils/pdfParser";
 import { Grade, ExamQuestion } from "../types";
 import { useClasses } from "../hooks/useClasses";
-import { GoogleGenAI, Type } from "@google/genai";
+import { getAIClient, shouldSwitchKey } from "../services/aiService";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { getAdmins, addAdmin, removeAdmin } from "../services/adminService";
 import * as XLSX from "xlsx";
 
@@ -511,7 +512,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const getExcelConfig = (tab: string) => {
     switch (tab) {
       case "materials": return { cols: ["title", "videoUrl", "pdfUrl", "description", "gradeId", "subjectId", "chapterId", "teacherId"], title: "المحاضرات" };
-      case "exam_questions": return { cols: ["year", "round", "type", "question", "options", "correctAnswer", "image"], title: "بوابة الوزاري" };
+      case "exam_questions": return { cols: ["grade", "subject", "year", "round", "chapter", "topic", "type", "question", "options", "correctAnswer", "image"], title: "بوابة الوزاري" };
       case "quiz": return { cols: ["question", "options", "correctOption", "points", "subjectId"], title: "مسابقة المليون" };
       case "ministerial": return { cols: ["title", "pdfUrl", "videoUrl", "gradeId", "subjectId", "order_index"], title: "الوزاريات" };
       case "flashcards": return { cols: ["question", "answer", "gradeId", "subjectId", "chapterId"], title: "البطاقات" };
@@ -521,6 +522,165 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
       case "news": return { cols: ["title", "content", "label"], title: "الأخبار" };
       case "reviews": return { cols: ["title", "pdfUrl", "videoUrl", "subjectId", "order_index"], title: "المراجعات (الملفات)" };
       default: return null;
+    }
+  };
+
+  const [jsonImportText, setJsonImportText] = useState("");
+
+  const handleJsonImport = async () => {
+    if (!jsonImportText.trim()) return;
+    setLoading(true);
+    try {
+      const data = JSON.parse(jsonImportText);
+      if (Array.isArray(data) && data.length > 0) {
+        let addedCount = 0;
+        for (const row of data) {
+          let docData: any = { created_at: new Date().toISOString() };
+          
+          if (activeTab === "exam_questions") {
+             docData = {
+               ...docData, 
+               grade: examQuestGrade || row.grade || "", 
+               subject: examQuestSubject || row.subject || "", 
+               year: String(row.year || ""), 
+               round: String(row.round || ""), 
+               chapter: row.chapter || "",
+               topic: row.topic || "",
+               type: row.type || "MCQ", 
+               question: row.question || "", 
+               options: Array.isArray(row.options) ? row.options : (row.options ? String(row.options).split('|').map(o => o.trim()) : ["", "", "", ""]), 
+               correctAnswer: row.correctAnswer !== undefined ? Number(row.correctAnswer) : 0, 
+               image: row.image || ""
+             };
+             await addDoc(collection(db, "exam_questions"), docData);
+             addedCount++;
+          }
+        }
+        alert(`تم إضافة ${addedCount} عنصر بنجاح.`);
+        setJsonImportText("");
+        if (activeTab === "exam_questions") fetchExamQuestions();
+      } else {
+        alert("تأكد أن النص يحتوي على مصفوفة JSON [{}, {}]");
+      }
+    } catch (error) {
+      console.error("Error reading JSON:", error);
+      alert("حدث خطأ أثناء قراءة أو استيراد البيانات، تأكد من صحة التنسيق (JSON).");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [aiPdfProgress, setAiPdfProgress] = useState("");
+
+  const handleAiPdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || activeTab !== 'exam_questions') return;
+
+    setLoading(true);
+    setAiPdfProgress("جاري قراءة ملف الـ PDF...");
+    try {
+      const text = await extractTextFromPDF(file);
+      if (!text || text.trim().length === 0) {
+        throw new Error("لم يتم العثور على نصوص في الـ PDF");
+      }
+
+      setAiPdfProgress("يتم الآن تحليل الأسئلة واستخراجها...");
+      const ai = getAIClient();
+
+      const responseSchema: Schema = {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            grade: { type: Type.STRING, description: "الصف الدراسي، مثلا (الثالث المتوسط، السادس الإعدادي)" },
+            subject: { type: Type.STRING, description: "المادة الدراسية، مثلا (التربية الإسلامية، الرياضيات)" },
+            year: { type: Type.STRING, description: "السنة الدراسية للامتحان الوزاري، مثلا (2020، 2021)" },
+            round: { type: Type.STRING, description: "الدور الامتحاني، مثلا (الدور الأول، الدور الثاني، التمهيدي)" },
+            chapter: { type: Type.STRING, description: "رقم أو اسم الفصل الذي يعود له السؤال" },
+            topic: { type: Type.STRING, description: "موضوع السؤال المحدد من الفصل الدراسي" },
+            type: { type: Type.STRING, description: "نوع السؤال: MCQ, Essay, أو TrueFalse" },
+            question: { type: Type.STRING, description: "نص السؤال الامتحاني" },
+            options: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "الخيارات الخاصة بالسؤال، إذا كان نوعها MCQ. يجب أن تكون 4 خيارات"
+            },
+            correctAnswer: { type: Type.INTEGER, description: "رقم الإجابة الصحيحة للـ MCQ، صفر-مبني (0 للخيارات الأول، 1 للثاني، إلخ). بالنسبة للـ Essay و TrueFalse اجعله 0" }
+          },
+          required: ["grade", "subject", "year", "round", "chapter", "topic", "type", "question", "options", "correctAnswer"]
+        }
+      };
+
+      const result = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: `أنت مساعد تعليمي متخصص في تحليل أسئلة الامتحانات الوزارية العراقية من ملفات الـ PDF.
+المطلوب منك تحويل النص التالي المأخوذ من ملزمة أو ملف أسئلة وزارية إلى مجموعة أسئلة بصيغة محددة.
+قم باستخراج ما يلي لكل سؤال:
+- الصف الدراسي (grade)
+- المادة (subject)
+- سنة الامتحان (year)
+- الدور (round)
+- الفصل التابع له (chapter)
+- الموضوع التابع له (topic)
+- نص السؤال (question)
+- نوع السؤال (type): يجب أن يكون MCQ اذا حولته الى اختيارات.
+- الخيارات (options): قم بتوليد 4 خيارات منطقية من ضمنها الحل الصحيح.
+- الإجابة الصحيحة (correctAnswer): مكان الجواب الصحيح (0, 1, 2, أو 3).
+
+النص المستخرج:
+${text}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+        }
+      });
+
+      const jsonText = result.text;
+      if (!jsonText) throw new Error("لم يتم استرجاع بيانات من النموذج");
+
+      const parsedQuestions = JSON.parse(jsonText);
+      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
+        throw new Error("لم يتم التعرف على أي أسئلة");
+      }
+
+      setAiPdfProgress(`تم تحديد ${parsedQuestions.length} سؤال. يتم الإضافة...`);
+      
+      let addedCount = 0;
+      for (const row of parsedQuestions) {
+         const docData = {
+           created_at: new Date().toISOString(),
+           grade: examQuestGrade || row.grade || "", 
+           subject: examQuestSubject || row.subject || "", 
+           year: String(row.year || ""), 
+           round: String(row.round || ""), 
+           chapter: row.chapter || "",
+           topic: row.topic || "",
+           type: row.type || "MCQ", 
+           question: row.question || "", 
+           options: Array.isArray(row.options) && row.options.length > 0 ? row.options : ["", "", "", ""], 
+           correctAnswer: row.correctAnswer !== undefined ? Number(row.correctAnswer) : 0, 
+           image: ""
+         };
+         await addDoc(collection(db, "exam_questions"), docData);
+         addedCount++;
+      }
+
+      setAiPdfProgress("");
+      alert(`تمت إضافة ${addedCount} سؤال بنجاح بواسطة الذكاء الاصطناعي`);
+      if (activeTab === "exam_questions") fetchExamQuestions();
+
+    } catch (error) {
+      console.error(error);
+      if (shouldSwitchKey(error)) {
+        alert("انتهت حصة مفتاح الذكاء الاصطناعي، يرجى المحاولة مرة أخرى.");
+      } else {
+        alert("حدث خطأ أثناء معالجة الـ PDF: " + (error as Error).message);
+      }
+      setAiPdfProgress("");
+    } finally {
+      setLoading(false);
+      // reset the input
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -2028,21 +2188,73 @@ ${getExcelConfig('exam_questions')?.cols.join(' | ')}
                             </div>
                           )}
 
-                          <div className="pt-4 border-t border-slate-200">
-                            <input
-                              type="file"
-                              accept=".xlsx, .xls, .csv"
-                              onChange={handleExcelImport}
-                              className="hidden"
-                              id={`excel-upload-${activeTab}`}
-                            />
-                            <label
-                              htmlFor={`excel-upload-${activeTab}`}
-                              className="cursor-pointer flex flex-col items-center gap-2 w-full p-4 bg-white border-2 border-black rounded-xl hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                            >
-                              <Upload size={24} className="text-green-500" />
-                              <span className="font-black text-sm">اختر ملف Excel للبدء بالاستيراد الجماعي</span>
-                            </label>
+                          <div className={`pt-4 border-t border-slate-200 grid grid-cols-1 ${activeTab === 'exam_questions' ? 'lg:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
+                            <div>
+                              <input
+                                type="file"
+                                accept=".xlsx, .xls, .csv"
+                                onChange={handleExcelImport}
+                                className="hidden"
+                                id={`excel-upload-${activeTab}`}
+                              />
+                              <label
+                                htmlFor={`excel-upload-${activeTab}`}
+                                className="cursor-pointer flex flex-col items-center justify-center gap-2 w-full h-full min-h-[120px] p-4 bg-white border-2 border-black rounded-xl hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-center"
+                              >
+                                <Upload size={24} className="text-green-500" />
+                                <span className="font-black text-sm">اختر ملف Excel للبدء بالاستيراد الجماعي</span>
+                              </label>
+                            </div>
+                            
+                            {activeTab === "exam_questions" && (
+                              <>
+                              <div>
+                                <input
+                                  type="file"
+                                  accept=".pdf"
+                                  onChange={handleAiPdfImport}
+                                  className="hidden"
+                                  id={`pdf-upload-${activeTab}`}
+                                />
+                                <label
+                                  htmlFor={`pdf-upload-${activeTab}`}
+                                  className="cursor-pointer flex flex-col items-center justify-center gap-2 w-full h-full min-h-[120px] p-4 bg-white border-2 border-black rounded-xl hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-center relative overflow-hidden group"
+                                >
+                                  {aiPdfProgress ? (
+                                    <>
+                                      <Loader2 size={24} className="text-purple-500 animate-spin" />
+                                      <span className="font-black text-sm text-purple-600">{aiPdfProgress}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent pointer-events-none" />
+                                      <FileText size={24} className="text-purple-600 group-hover:scale-110 transition-transform" />
+                                      <span className="font-black text-sm text-purple-700">تحليل PDF بالذكاء الاصطناعي</span>
+                                      <span className="text-[10px] text-purple-600 font-bold opacity-80">(يستخرج الأسئلة تلقائياً)</span>
+                                    </>
+                                  )}
+                                </label>
+                              </div>
+
+                              <div className="flex flex-col gap-2">
+                                <textarea
+                                  value={jsonImportText}
+                                  onChange={(e) => setJsonImportText(e.target.value)}
+                                  placeholder="الصق كود JSON الخاص بالأسئلة هنا..."
+                                  className="w-full text-left p-3 bg-white border-2 border-black rounded-xl h-24 font-mono text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] outline-none focus:ring-2 focus:ring-blue-100 resize-none"
+                                  dir="ltr"
+                                />
+                                <button
+                                  onClick={handleJsonImport}
+                                  disabled={loading || !jsonImportText.trim()}
+                                  className="w-full py-2 bg-yellow-400 text-black border-2 border-black rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:-translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 transition-all"
+                                >
+                                  {loading ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}
+                                  <span>استيراد كود JSON</span>
+                                </button>
+                              </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
