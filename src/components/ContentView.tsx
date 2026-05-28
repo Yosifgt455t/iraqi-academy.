@@ -471,10 +471,10 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
 
   if (selectedVideo) {
     return (
-      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col lg:flex-row animate-in fade-in transition-all overflow-hidden text-right" dir="rtl">
+      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col md:flex-row animate-in fade-in transition-all overflow-hidden text-right" dir="rtl">
         {/* Main Content Area */}
         <div className="w-full flex-1 flex flex-col overflow-y-auto custom-scrollbar">
-          <div className="w-full bg-black relative aspect-video lg:h-[70vh] flex-shrink-0 sticky top-0 z-30 shadow-md lg:shadow-none">
+          <div className="w-full bg-black relative aspect-video md:h-auto xl:h-[65vh] flex-shrink-0 sticky top-0 z-30 shadow-md md:shadow-none">
             <VideoPlayer
               material={selectedVideo}
               isPlaying={isModalPlaying && isPlayerReady}
@@ -553,7 +553,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
             </div>
 
             {/* Mobile-Only Lectures list - displayed nicely inside the scrollable container */}
-            <div className="lg:hidden mt-8 border-t-4 border-black dark:border-white pt-6">
+            <div className="md:hidden mt-8 border-t-4 border-black dark:border-white pt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-xl text-black dark:text-white">محاضرات الفصل ({chapter.name})</h3>
                 <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-lg border border-black/10 dark:border-white/10" dir="ltr">
@@ -591,15 +591,15 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
           </div>
         </div>
 
-        {/* Sidebar - Desktop Only */}
-        <div className="hidden lg:flex w-full lg:w-[400px] lg:max-w-md border-t-4 lg:border-t-0 lg:border-r-4 border-black dark:border-white bg-slate-50 dark:bg-[#1a1a1a] flex-col h-auto lg:h-full flex-shrink-0">
+        {/* Sidebar - Desktop & Tablet */}
+        <div className="hidden md:flex w-full md:w-[320px] lg:w-[400px] xl:max-w-md border-t-4 md:border-t-0 md:border-r-4 border-black dark:border-white bg-slate-50 dark:bg-[#1a1a1a] flex-col h-auto md:h-full flex-shrink-0">
           <div className="p-4 border-b-4 border-black dark:border-white bg-white dark:bg-black sticky top-0 z-20">
              <h2 className="font-black text-xl text-black dark:text-white">{chapter.name}</h2>
              <p className="text-sm font-bold text-slate-500 mt-2 flex items-center gap-2">
                 <Play size={16} fill="currentColor" /> {filteredMaterials.filter(m => m.type !== 'PDF' && m.type !== 'Ministerial').length} فيديو
              </p>
           </div>
-          <div className="flex-1 lg:overflow-y-auto custom-scrollbar flex flex-col pb-10 lg:pb-0">
+          <div className="flex-1 md:overflow-y-auto custom-scrollbar flex flex-col pb-10 md:pb-0">
             {filteredMaterials.filter(m => m.type !== 'PDF' && m.type !== 'Ministerial').map((m, idx) => {
               const isCompleted = completedIds.includes(m.id);
               const isActive = m.id === selectedVideo.id;
