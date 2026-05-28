@@ -1,0 +1,8 @@
+{
+	"appId": "com.iraqiacademy.app",
+	"appName": "الاكاديمية العراقية",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	}
+}

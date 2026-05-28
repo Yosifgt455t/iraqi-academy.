@@ -4,7 +4,7 @@ import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'fireb
 import { Material, Flashcard, Chapter, Grade, MinisterialQuestion, Teacher } from '../types';
 import { getAIClient } from '../services/aiService';
 import { Type } from "@google/genai";
-import { Bot, FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye, GraduationCap } from 'lucide-react';
+import { Bot, FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye, GraduationCap, Check, Bookmark } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
@@ -43,6 +43,11 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
   const [isEvaluationLoading, setIsEvaluationLoading] = useState(false);
   const [evaluationResult, setEvaluationResult] = useState<{ score: string, feedback: string } | null>(null);
   const [appFeatures, setAppFeatures] = useState({ hideMinisterial: false, hideFlashcards: false });
+  const [sharedCopied, setSharedCopied] = useState(false);
+  const [savedMaterialIds, setSavedMaterialIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`savedMaterials_${userId}`);
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
     const unsubFeatures = subscribeToFeatures((features) => {
@@ -76,6 +81,55 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
       setSelectedVideo(null);
       setIsPlayerReady(false);
     }, 300);
+  };
+
+  const handleShare = (material: Material) => {
+    const url = getMaterialUrl(material);
+    if (!url) return;
+    
+    const copyToClipboard = (text: string) => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          return Promise.resolve();
+        } catch (err) {
+          return Promise.reject(err);
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
+    };
+
+    copyToClipboard(url)
+      .then(() => {
+        setSharedCopied(true);
+        setTimeout(() => setSharedCopied(false), 2000);
+      })
+      .catch((err) => {
+        console.error("Failed to copy URL:", err);
+      });
+  };
+
+  const handleToggleSave = (materialId: string) => {
+    setSavedMaterialIds(prev => {
+      const isExist = prev.includes(materialId);
+      let newList;
+      if (isExist) {
+        newList = prev.filter(id => id !== materialId);
+      } else {
+        newList = [...prev, materialId];
+      }
+      localStorage.setItem(`savedMaterials_${userId}`, JSON.stringify(newList));
+      return newList;
+    });
   };
 
   useEffect(() => {
@@ -222,10 +276,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
     }, [isPlaying, isYoutube, isVk, material.id]);
 
     if (isYoutube || isVk) {
-      let finalSrc = isYoutube ? getYoutubeEmbedUrl(url) : getVkEmbedUrl(url);
-      if (!isPlaying) {
-         finalSrc = finalSrc.replace('autoplay=1', 'autoplay=0');
-      }
+      const finalSrc = isYoutube ? getYoutubeEmbedUrl(url) : getVkEmbedUrl(url);
       return (
         <iframe
           src={finalSrc}
@@ -420,9 +471,9 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
 
   if (selectedVideo) {
     return (
-      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col xl:flex-row animate-in fade-in transition-all overflow-hidden">
+      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col xl:flex-row animate-in fade-in transition-all overflow-hidden text-right" dir="rtl">
         {/* Main Content Area */}
-        <div className="w-full xl:flex-1 flex flex-col overflow-y-auto custom-scrollbar">
+        <div className="w-full flex-1 flex flex-col overflow-y-auto custom-scrollbar">
           <div className="w-full bg-black relative aspect-video xl:h-[70vh] flex-shrink-0 sticky top-0 z-30 shadow-md xl:shadow-none">
             <VideoPlayer
               material={selectedVideo}
@@ -442,13 +493,31 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
             </h1>
             
             <div className="flex items-center gap-4 border-b-2 border-black/10 dark:border-white/10 pb-4 mb-2 overflow-x-auto whitespace-nowrap">
-              <button className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors font-bold text-sm bg-slate-100 dark:bg-slate-800 p-2 sm:px-4 rounded-xl border-2 border-black/10 dark:border-white/10 hover:border-blue-600">
-                <ExternalLink size={18} />
-                <span className="hidden sm:inline">شارك</span>
+              <button 
+                onClick={() => handleShare(selectedVideo)}
+                className={`flex items-center gap-2 transition-all font-bold text-sm p-2 sm:px-4 rounded-xl border-2 relative select-none ${
+                  sharedCopied 
+                    ? 'bg-green-500/10 dark:bg-green-500/20 text-green-600 dark:text-green-400 border-green-500 shadow-[2px_2px_0px_0px_rgba(34,197,94,1)]' 
+                    : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 dark:bg-slate-800 border-black/10 dark:border-white/10 hover:border-blue-600'
+                }`}
+              >
+                {sharedCopied ? <Check size={18} className="animate-in zoom-in-50 duration-200" /> : <ExternalLink size={18} />}
+                <span>{sharedCopied ? 'تم نسخ الرابط!' : 'شارك المحاضرة'}</span>
               </button>
-              <button className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors font-bold text-sm bg-slate-100 dark:bg-slate-800 p-2 sm:px-4 rounded-xl border-2 border-black/10 dark:border-white/10 hover:border-blue-600">
-                <Award size={18} />
-                <span className="hidden sm:inline">حفظ</span>
+              <button 
+                onClick={() => handleToggleSave(selectedVideo.id)}
+                className={`flex items-center gap-2 transition-all font-bold text-sm p-2 sm:px-4 rounded-xl border-2 select-none ${
+                  savedMaterialIds.includes(selectedVideo.id)
+                    ? 'neo-bg-yellow border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-yellow-600 dark:hover:text-yellow-400 bg-slate-100 dark:bg-slate-800 border-black/10 dark:border-white/10 hover:border-yellow-600'
+                }`}
+              >
+                {savedMaterialIds.includes(selectedVideo.id) ? (
+                  <Bookmark size={18} fill="currentColor" className="animate-in zoom-in-50 duration-200" />
+                ) : (
+                  <Bookmark size={18} />
+                )}
+                <span>{savedMaterialIds.includes(selectedVideo.id) ? 'محفوظة في حسابك' : 'حفظ المحاضرة'}</span>
               </button>
             </div>
 
@@ -474,11 +543,48 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                 </button>
               )}
             </div>
+
+            {/* Mobile-Only Lectures list - displayed nicely inside the scrollable container */}
+            <div className="xl:hidden mt-8 border-t-4 border-black dark:border-white pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-black text-xl text-black dark:text-white">محاضرات الفصل ({chapter.name})</h3>
+                <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-lg border border-black/10 dark:border-white/10" dir="ltr">
+                  {filteredMaterials.filter(m => m.type !== 'PDF' && m.type !== 'Ministerial').length} فيديو
+                </span>
+              </div>
+              <div className="flex flex-col border-2 border-black dark:border-white rounded-2xl overflow-hidden bg-white dark:bg-[#1a1a1a] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_white]">
+                {filteredMaterials.filter(m => m.type !== 'PDF' && m.type !== 'Ministerial').map((m, idx) => {
+                  const isCompleted = completedIds.includes(m.id);
+                  const isActive = m.id === selectedVideo.id;
+                  return (
+                    <div 
+                      key={m.id} 
+                      className={`relative flex min-w-0 p-4 gap-4 border-b-2 border-black/10 last:border-b-0 dark:border-white/10 transition-all cursor-pointer ${isActive ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      onClick={() => openVideoModal(m)}
+                    >
+                      <div className={`w-10 h-10 flex-shrink-0 rounded-xl border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${isActive ? 'neo-bg-yellow' : 'bg-white dark:bg-black'}`}>
+                        <Play size={16} className={isActive ? 'text-black' : 'text-slate-400'} fill="currentColor" />
+                      </div>
+                      <div className="flex-1 overflow-hidden self-center text-right">
+                        <p className={`font-black text-sm truncate ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-black dark:text-white'}`}>
+                          {idx + 1}. {m.title}
+                        </p>
+                      </div>
+                      {isCompleted && (
+                        <div className="flex items-center pl-2">
+                          <CheckCircle2 size={16} className="text-green-500" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="w-full xl:w-[400px] xl:max-w-md border-t-4 xl:border-t-0 xl:border-r-4 border-black dark:border-white bg-slate-50 dark:bg-[#1a1a1a] flex flex-col h-auto xl:h-full flex-shrink-0">
+        {/* Sidebar - Desktop Only */}
+        <div className="hidden xl:flex w-full xl:w-[400px] xl:max-w-md border-t-4 xl:border-t-0 xl:border-r-4 border-black dark:border-white bg-slate-50 dark:bg-[#1a1a1a] flex-col h-auto xl:h-full flex-shrink-0">
           <div className="p-4 border-b-4 border-black dark:border-white bg-white dark:bg-black sticky top-0 z-20">
              <h2 className="font-black text-xl text-black dark:text-white">{chapter.name}</h2>
              <p className="text-sm font-bold text-slate-500 mt-2 flex items-center gap-2">

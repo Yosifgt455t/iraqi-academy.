@@ -8,9 +8,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "cap:add": "cap add android",
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android",
+    "build:android": "npm run build && cap sync"
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.4",
     "@google/genai": "^1.48.0",
     "@supabase/supabase-js": "^2.100.1",
     "@tailwindcss/vite": "^4.1.14",
@@ -35,6 +40,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/pdfjs-dist": "^2.10.377",
