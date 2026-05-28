@@ -471,15 +471,23 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
 
   if (selectedVideo) {
     return (
-      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col xl:flex-row animate-in fade-in transition-all overflow-hidden text-right" dir="rtl">
+      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col lg:flex-row animate-in fade-in transition-all overflow-hidden text-right" dir="rtl">
         {/* Main Content Area */}
         <div className="w-full flex-1 flex flex-col overflow-y-auto custom-scrollbar">
-          <div className="w-full bg-black relative aspect-video xl:h-[70vh] flex-shrink-0 sticky top-0 z-30 shadow-md xl:shadow-none">
+          <div className="w-full bg-black relative aspect-video lg:h-[70vh] flex-shrink-0 sticky top-0 z-30 shadow-md lg:shadow-none">
             <VideoPlayer
               material={selectedVideo}
               isPlaying={isModalPlaying && isPlayerReady}
               onReady={() => setIsPlayerReady(true)}
             />
+            {/* Absolute High-Visibility Close Button */}
+            <button 
+              onClick={closeVideoModal}
+              title="إغلاق"
+              className="absolute top-4 left-4 z-40 bg-white dark:bg-black text-black dark:text-white border-2 border-black dark:border-white p-2 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_white] hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+            >
+              <X size={20} />
+            </button>
           </div>
           <div className="p-4 md:p-8 flex flex-col gap-4 max-w-5xl w-full text-right self-center flex-shrink-0 relative z-20 bg-slate-50 dark:bg-slate-950">
             <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-500 flex-wrap pointer-events-none">
@@ -545,7 +553,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
             </div>
 
             {/* Mobile-Only Lectures list - displayed nicely inside the scrollable container */}
-            <div className="xl:hidden mt-8 border-t-4 border-black dark:border-white pt-6">
+            <div className="lg:hidden mt-8 border-t-4 border-black dark:border-white pt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-xl text-black dark:text-white">محاضرات الفصل ({chapter.name})</h3>
                 <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-lg border border-black/10 dark:border-white/10" dir="ltr">
@@ -584,14 +592,14 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
         </div>
 
         {/* Sidebar - Desktop Only */}
-        <div className="hidden xl:flex w-full xl:w-[400px] xl:max-w-md border-t-4 xl:border-t-0 xl:border-r-4 border-black dark:border-white bg-slate-50 dark:bg-[#1a1a1a] flex-col h-auto xl:h-full flex-shrink-0">
+        <div className="hidden lg:flex w-full lg:w-[400px] lg:max-w-md border-t-4 lg:border-t-0 lg:border-r-4 border-black dark:border-white bg-slate-50 dark:bg-[#1a1a1a] flex-col h-auto lg:h-full flex-shrink-0">
           <div className="p-4 border-b-4 border-black dark:border-white bg-white dark:bg-black sticky top-0 z-20">
              <h2 className="font-black text-xl text-black dark:text-white">{chapter.name}</h2>
              <p className="text-sm font-bold text-slate-500 mt-2 flex items-center gap-2">
                 <Play size={16} fill="currentColor" /> {filteredMaterials.filter(m => m.type !== 'PDF' && m.type !== 'Ministerial').length} فيديو
              </p>
           </div>
-          <div className="flex-1 xl:overflow-y-auto custom-scrollbar flex flex-col pb-10 xl:pb-0">
+          <div className="flex-1 lg:overflow-y-auto custom-scrollbar flex flex-col pb-10 lg:pb-0">
             {filteredMaterials.filter(m => m.type !== 'PDF' && m.type !== 'Ministerial').map((m, idx) => {
               const isCompleted = completedIds.includes(m.id);
               const isActive = m.id === selectedVideo.id;
