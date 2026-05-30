@@ -1558,11 +1558,6 @@ ${text}`,
                 label: "المراجعات المركزة",
               },
               {
-                id: "quiz",
-                icon: HelpCircle,
-                label: "مسابقة المليون",
-              },
-              {
                 id: "news",
                 icon: MessageSquare,
                 label: "أخر الأخبار",

@@ -65,6 +65,40 @@ export default function SmartAssistantView({ onBack, userId, isAdmin = false }: 
      language: 'العربية'
   });
 
+  const [examsTakenCount, setExamsTakenCount] = useState(0);
+
+  // Load initial daily count
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const dataStr = localStorage.getItem(`exam_limit_${userId}`);
+      if (dataStr) {
+        const data = JSON.parse(dataStr);
+        if (data.date === today) {
+          setExamsTakenCount(data.count || 0);
+        } else {
+          setExamsTakenCount(0);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [userId]);
+
+  const incrementDailyExamCount = () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const newCount = examsTakenCount + 1;
+      localStorage.setItem(`exam_limit_${userId}`, JSON.stringify({
+        date: today,
+        count: newCount
+      }));
+      setExamsTakenCount(newCount);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Admin AI text import state
   const handleAdminTextImport = async () => {
     if (!adminImportText.trim()) return;
@@ -288,6 +322,10 @@ ${adminImportText}`,
 
 
   const handleStartExam = async () => {
+    if (examsTakenCount >= 3 && !isAdmin) {
+      alert("لقد وصلت إلى الحد الأقصى لصناعة الامتحانات اليومية (3 امتحانات في اليوم). يرجى العودة غداً للمزيد!");
+      return;
+    }
     setLoading(true);
     try {
       // Fetch and filter locally to avoid single-field composite index issues initially
@@ -316,6 +354,7 @@ ${adminImportText}`,
       setAnswers({});
       setCurrentQuestionIndex(0);
       setExamState('taking');
+      incrementDailyExamCount();
     } catch (err) {
       console.error(err);
       alert("حدث خطأ أثناء تحميل الأسئلة.");
@@ -393,6 +432,10 @@ ${adminImportText}`,
 
   const handleGenerateFromSettings = async () => {
     if (!uploadedFileContent) return;
+    if (examsTakenCount >= 3 && !isAdmin) {
+      alert("لقد وصلت إلى الحد الأقصى لصناعة الامتحانات اليومية (3 امتحانات في اليوم). يرجى العودة غداً للمزيد!");
+      return;
+    }
     setIsUploading(true);
 
     try {
@@ -494,6 +537,7 @@ ${adminImportText}`,
       setAnswers({});
       setCurrentQuestionIndex(0);
       setExamState('taking');
+      incrementDailyExamCount();
 
     } catch (err: any) {
       console.error(err);
@@ -677,9 +721,9 @@ ${adminImportText}`,
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8">
-      <div className={`grid grid-cols-1 ${isAdmin ? 'lg:grid-cols-12 gap-8 items-start' : ''}`}>
-        {/* Admin AI Chat / Import Panel */}
-        {isAdmin && (
+      <div className="grid grid-cols-1">
+        {/* Admin AI Chat / Import Panel hidden as requested */}
+        {false && isAdmin && (
           <div className="lg:col-span-4 bg-white dark:bg-slate-900 border-2 border-purple-200 dark:border-purple-900 rounded-2xl p-6 shadow-sm sticky top-24">
             <div className="flex items-center gap-2 mb-4 text-purple-600 dark:text-purple-400">
               <Sparkles size={24} />
@@ -715,7 +759,7 @@ ${adminImportText}`,
           </div>
         )}
 
-        <div className={isAdmin ? "lg:col-span-8 shrink-0 space-y-6" : "space-y-6"}>
+        <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
         <button
@@ -737,6 +781,18 @@ ${adminImportText}`,
         مساعدك الشخصي للتحضير للامتحانات الوزارية بالذكاء الاصطناعي
       </div>
 
+      <div className="bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-500/30 p-4 rounded-xl flex items-center justify-between text-blue-800 dark:text-blue-200 text-sm font-bold">
+        <div className="flex items-center gap-2">
+          <BookOpen size={16} />
+          <span>الامتحانات اليومية المستهلكة:</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-xs font-black">
+            {examsTakenCount} / ٣ امتحانات
+          </span>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border-2 border-black/10 dark:border-white/10">
         <button
@@ -750,19 +806,6 @@ ${adminImportText}`,
           <FileText size={18} />
           من ملفاتي
         </button>
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'create'
-                ? 'bg-white dark:bg-slate-700 shadow-sm border-2 border-slate-200 dark:border-slate-600'
-                : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
-            }`}
-          >
-            <Brain size={18} />
-            اختر تحديك
-          </button>
-        )}
         <button
           onClick={() => setActiveTab('history')}
           className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
@@ -777,130 +820,6 @@ ${adminImportText}`,
       </div>
 
       <AnimatePresence mode="wait">
-        {activeTab === 'create' && (
-          <motion.div
-            key="create"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-6 bg-white dark:bg-slate-900 p-6 rounded-2xl neo-border"
-          >
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">الصف</label>
-                <select
-                  value={selectedGrade}
-                  onChange={(e) => {
-                    setSelectedGrade(e.target.value);
-                    setSelectedSubject('');
-                    setSelectedRound('');
-                    setSelectedYear('');
-                    setSelectedChapter('');
-                    setSelectedTopic('');
-                  }}
-                  className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold"
-                  dir="rtl"
-                >
-                  <option value="">-- اختر الصف --</option>
-                  {availableGrades.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">المادة الدراسية</label>
-                <select
-                  value={selectedSubject}
-                  onChange={(e) => {
-                    setSelectedSubject(e.target.value);
-                    setSelectedRound('');
-                    setSelectedYear('');
-                    setSelectedChapter('');
-                    setSelectedTopic('');
-                  }}
-                  disabled={!selectedGrade}
-                  className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
-                  dir="rtl"
-                >
-                  <option value="">-- اختر المادة --</option>
-                  {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">الفصل</label>
-                  <select
-                    value={selectedChapter}
-                    onChange={(e) => {
-                      setSelectedChapter(e.target.value);
-                      setSelectedTopic('');
-                    }}
-                    disabled={!selectedSubject || availableChapters.length === 0}
-                    className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
-                    dir="rtl"
-                  >
-                    <option value="">-- كل الفصول --</option>
-                    {availableChapters.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">الموضوع</label>
-                  <select
-                    value={selectedTopic}
-                    onChange={(e) => setSelectedTopic(e.target.value)}
-                    disabled={!selectedChapter || availableTopics.length === 0}
-                    className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
-                    dir="rtl"
-                  >
-                    <option value="">-- كل المواضيع --</option>
-                    {availableTopics.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">الدور</label>
-                  <select
-                    value={selectedRound}
-                    onChange={(e) => {
-                      setSelectedRound(e.target.value);
-                    }}
-                    disabled={!selectedSubject}
-                    className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
-                    dir="rtl"
-                  >
-                    <option value="">-- كل الأدوار --</option>
-                    {availableRounds.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2 text-right">السنة</label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    disabled={!selectedSubject}
-                    className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all appearance-none bg-slate-50 dark:bg-slate-800 dark:border-slate-600 font-bold disabled:opacity-50"
-                    dir="rtl"
-                  >
-                    <option value="">-- كل السنوات --</option>
-                    {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={handleStartExam}
-              disabled={loading || loadingConfig || !selectedSubject || !selectedGrade}
-              className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg transition-all shadow-[0_5px_0_0_#1d4ed8] hover:shadow-[0_2px_0_0_#1d4ed8] hover:translate-y-[3px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? <Loader2 size={24} className="animate-spin" /> : <BookOpen size={24} />}
-              {loading ? 'جاري التجهيز...' : 'ابدأ الامتحان'}
-            </button>
-          </motion.div>
-        )}
-
         {activeTab === 'upload' && examState !== 'fileSettings' && (
           <motion.div
             key="upload"
@@ -973,11 +892,17 @@ ${adminImportText}`,
                 <select
                   value={genSettings.questionCount}
                   onChange={(e) => setGenSettings({...genSettings, questionCount: e.target.value})}
-                  className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none font-bold bg-slate-50 dark:bg-slate-800"
+                  className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none font-bold bg-slate-50 dark:bg-slate-800 dark:border-slate-600 focus:border-blue-500/50"
+                  dir="rtl"
                 >
-                  <option value="5">5 أسئلة (قصير)</option>
-                  <option value="10">10 أسئلة (متوسط)</option>
-                  <option value="20">20 سؤال (شامل)</option>
+                  <option value="5">٥ أسئلة (قصير)</option>
+                  <option value="10">١٠ أسئلة (متوسط)</option>
+                  <option value="15">١٥ سؤالاً</option>
+                  <option value="20">٢٠ سؤالاً (شامل)</option>
+                  <option value="25">٢٥ سؤالاً</option>
+                  <option value="30">٣٠ سؤالاً</option>
+                  <option value="40">٤٠ سؤالاً</option>
+                  <option value="50">٥٠ سؤالاً (الحد الأقصى)</option>
                 </select>
               </div>
 

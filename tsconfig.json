@@ -23,5 +23,7 @@
     "allowImportingTsExtensions": true,
     "types": ["vite/client"],
     "noEmit": true
-  }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "android"]
 }

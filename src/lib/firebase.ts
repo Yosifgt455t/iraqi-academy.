@@ -9,7 +9,8 @@ const app = initializeApp(firebaseConfig);
 
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId);
+  useFetchStreams: false,
+} as any, firebaseConfig.firestoreDatabaseId);
 
 export const storage = getStorage(app);
 
@@ -173,8 +174,9 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMsg = error instanceof Error ? error.message : String(error);
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -189,8 +191,15 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+
+  console.warn('Firestore Error caught gracefully:', JSON.stringify(errInfo));
+
+  const isRead = operationType === OperationType.GET || operationType === OperationType.LIST;
+  const isOffline = errMsg.toLowerCase().includes('offline') || errMsg.toLowerCase().includes('unavailable');
+
+  if (!isRead && !isOffline) {
+    throw new Error(JSON.stringify(errInfo));
+  }
 }
 
 export const updateDailyStreak = async (uid: string) => {

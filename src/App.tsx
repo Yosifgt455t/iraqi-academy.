@@ -156,17 +156,15 @@ export default function App() {
       }
     };
 
-    // Logged in but No Grade set yet
-    if (!grade) {
+    // Logged in but No Grade set yet (and not a teacher)
+    if (!grade && profile?.role !== 'teacher') {
       return <GradeSelector userId={displayUser.id} onComplete={handleSetGrade} />;
     }
-
-    // Guest mode without grade
 
     return (
       <Dashboard 
         user={displayUser} 
-        grade={grade} 
+        grade={profile?.role === 'teacher' ? 'teacher' : grade!} 
         isAdmin={isAdmin}
         onChangeGrade={() => setGrade(null)} 
         onLogout={handleLogout} 

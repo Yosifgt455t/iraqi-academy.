@@ -1,5 +1,8 @@
 {
   "name": "عراقي أكاديمي",
   "description": "منصة تعليمية مركزية لطلاب الخامس والسادس العلمي في العراق، توفر وصولاً منظماً لمصادر اليوتيوب، الملازم، والأسئلة الوزارية.",
-  "requestFramePermissions": ["microphone"]
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

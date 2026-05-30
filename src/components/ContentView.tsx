@@ -84,8 +84,18 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
   };
 
   const handleShare = (material: Material) => {
-    const url = getMaterialUrl(material);
-    if (!url) return;
+    const subjectId = material.subjectId || (chapter.subjectIds && chapter.subjectIds[0]) || chapter.subjectId || "";
+    const teacherId = teacher?.id || material.teacherId || "";
+    const chapterId = chapter.id;
+    const materialId = material.id;
+
+    const queryParams = new URLSearchParams();
+    if (subjectId) queryParams.set("subjectId", subjectId);
+    if (chapterId) queryParams.set("chapterId", chapterId);
+    if (teacherId) queryParams.set("teacherId", teacherId);
+    if (materialId) queryParams.set("materialId", materialId);
+
+    const deepLink = `${window.location.origin}/?${queryParams.toString()}`;
     
     const copyToClipboard = (text: string) => {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -108,7 +118,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
       }
     };
 
-    copyToClipboard(url)
+    copyToClipboard(deepLink)
       .then(() => {
         setSharedCopied(true);
         setTimeout(() => setSharedCopied(false), 2000);
@@ -363,6 +373,29 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
         } else {
           const savedProgress = localStorage.getItem(`progress_${userId}`);
           if (savedProgress) setCompletedIds(JSON.parse(savedProgress));
+        }
+
+        // Check for deep-linked material to auto-open
+        const params = new URLSearchParams(window.location.search);
+        const materialId = params.get('materialId');
+        if (materialId) {
+          const autoMat = filteredMaterials.find(m => m.id === materialId);
+          if (autoMat) {
+            if (autoMat.type === 'PDF') {
+              setSelectedPdf(autoMat.url);
+            } else {
+              openVideoModal(autoMat);
+            }
+            // Clear URL search params clean and smooth
+            const searchParams = new URLSearchParams(window.location.search);
+            searchParams.delete('materialId');
+            searchParams.delete('subjectId');
+            searchParams.delete('chapterId');
+            searchParams.delete('teacherId');
+            const newSearch = searchParams.toString();
+            const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
+            window.history.replaceState({}, '', newUrl);
+          }
         }
       } catch (err: any) {
         console.error('Error fetching data from Firestore:', err);

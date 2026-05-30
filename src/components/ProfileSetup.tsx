@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { setUserProfile } from '../lib/firebase';
-import { User, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { User, CheckCircle2, Loader2, Sparkles, GraduationCap, Briefcase } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
 
 export default function ProfileSetup({ user, onComplete }: Props) {
   const [name, setName] = useState(user.displayName || '');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,7 +24,8 @@ export default function ProfileSetup({ user, onComplete }: Props) {
         email: user.email,
         displayName: name.trim(),
         photoURL: user.photoURL,
-        grade: null, // Will be set in next step
+        role: role,
+        grade: role === 'teacher' ? 'teacher' : null, // Will be set in next step for students
         xp: 0,
         level: 1,
         streak: { count: 0, lastUpdate: '' }
@@ -51,22 +53,56 @@ export default function ProfileSetup({ user, onComplete }: Props) {
           </div>
           
           <div className="space-y-2">
-            <h2 className="text-4xl font-black text-black dark:text-white">ما هو اسمك؟</h2>
-            <p className="text-black/80 dark:text-white/80 font-bold">من فضلك أدخل اسمك لنعرف كيف نناديك يا بطل.</p>
+            <h2 className="text-4xl font-black text-black dark:text-white">تجهيز حسابك</h2>
+            <p className="text-black/80 dark:text-white/80 font-bold">يرجى كتابة اسمك واختيار نوع الحساب لبدء الاستخدام</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8 pt-4">
-            <div className="relative">
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="مثال: يوسف حكيم"
-                className="w-full px-6 py-4 bg-white dark:bg-black border-2 border-black dark:border-white rounded-xl focus:outline-none transition-all text-center text-2xl font-black text-black dark:text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:translate-y-0.5"
-              />
-              <div className="absolute left-6 top-1/2 -translate-y-1/2 text-black dark:text-white">
-                <Sparkles size={24} />
+          <form onSubmit={handleSubmit} className="space-y-6 pt-4 text-right">
+            <div>
+              <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">الاسم الكامل</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="مثال: الأستاذ علي أحمد"
+                  className="w-full px-6 py-4 bg-white dark:bg-zinc-900 border-2 border-black dark:border-white rounded-xl focus:outline-none transition-all text-2xl font-black text-black dark:text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:translate-y-0.5"
+                />
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-black dark:text-white">
+                  <Sparkles size={24} />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-black text-slate-700 dark:text-slate-300">نوع الحساب</label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setRole('student')}
+                  className={`py-4 rounded-xl border-2 border-black dark:border-white font-black flex flex-col items-center justify-center gap-2 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] ${
+                    role === 'student'
+                      ? 'neo-bg-blue text-black scale-102 ring-2 ring-blue-400'
+                      : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-slate-300 opacity-80 hover:opacity-100'
+                  }`}
+                >
+                  <GraduationCap size={32} />
+                  <span>طالب علم</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRole('teacher')}
+                  className={`py-4 rounded-xl border-2 border-black dark:border-white font-black flex flex-col items-center justify-center gap-2 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] ${
+                    role === 'teacher'
+                      ? 'neo-bg-pink text-black scale-102 ring-2 ring-pink-400'
+                      : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-slate-300 opacity-80 hover:opacity-100'
+                  }`}
+                >
+                  <Briefcase size={32} />
+                  <span>مدرس / معلم</span>
+                </button>
               </div>
             </div>
 
@@ -79,7 +115,7 @@ export default function ProfileSetup({ user, onComplete }: Props) {
                 <Loader2 className="animate-spin" />
               ) : (
                 <>
-                  <span>تأكيد الاسم</span>
+                  <span>تأكيد الحساب</span>
                   <CheckCircle2 size={24} />
                 </>
               )}

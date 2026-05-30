@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { db } from '../lib/firebase';
-import { doc, onSnapshot, query, collection, orderBy, limit } from 'firebase/firestore';
+import { doc, onSnapshot, query, collection, orderBy, limit, getDoc } from 'firebase/firestore';
 import { Grade, Subject, Chapter, Teacher, Profile, NewsItem } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -54,12 +54,13 @@ import AboutUsModal from './AboutUsModal';
 import AccountSettingsModal from './AccountSettingsModal';
 import AdminDashboard from './AdminDashboard';
 import ReviewSection from './ReviewSection';
-import MillionaireHub from './MillionaireHub';
 import CommunityView from './CommunityView';
 import LeaderboardView from './LeaderboardView';
 import MultiplayerQuiz from './MultiplayerQuiz';
 import ActivitiesMenu from './ActivitiesMenu';
 import SmartAssistantView from './SmartAssistantView';
+import TeacherDashboard from './TeacherDashboard';
+import StudyWithFriend from './StudyWithFriend';
 
 import { useClasses } from '../hooks/useClasses';
 
@@ -73,7 +74,7 @@ interface Props {
 
 export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeGrade, onLogout }: Props) {
   const { getGradeName } = useClasses();
-  const [view, setView] = useState<'home' | 'todo' | 'admin' | 'reviews' | 'quiz' | 'community' | 'leaderboard' | 'multiplayer' | 'activities' | 'smart_assistant'>('home');
+  const [view, setView] = useState<'home' | 'todo' | 'admin' | 'reviews' | 'community' | 'leaderboard' | 'multiplayer' | 'activities' | 'smart_assistant' | 'study_friend'>('home');
   const [showExemptionCalculator, setShowExemptionCalculator] = useState(false);
   const [showImageToPdf, setShowImageToPdf] = useState(false);
   const [showTextToPdf, setShowTextToPdf] = useState(false);
@@ -103,6 +104,42 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
     }
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  // Handle Shared Deep-Link Lectures
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const subjectId = params.get('subjectId');
+    const teacherId = params.get('teacherId');
+    const chapterId = params.get('chapterId');
+
+    if (subjectId || teacherId || chapterId) {
+      const fetchDeepLinkData = async () => {
+        try {
+          if (subjectId) {
+            const subjectDoc = await getDoc(doc(db, 'subjects', subjectId));
+            if (subjectDoc.exists()) {
+              setCurrentSubject({ id: subjectDoc.id, ...subjectDoc.data() } as Subject);
+            }
+          }
+          if (teacherId) {
+            const teacherDoc = await getDoc(doc(db, 'teachers', teacherId));
+            if (teacherDoc.exists()) {
+              setCurrentTeacher({ id: teacherDoc.id, ...teacherDoc.data() } as Teacher);
+            }
+          }
+          if (chapterId) {
+            const chapterDoc = await getDoc(doc(db, 'chapters', chapterId));
+            if (chapterDoc.exists()) {
+              setCurrentChapter({ id: chapterDoc.id, ...chapterDoc.data() } as Chapter);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading shared deep-link content:", error);
+        }
+      };
+      fetchDeepLinkData();
+    }
+  }, []);
 
   useEffect(() => {
     if (!user.id) return;
@@ -167,6 +204,15 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
       <TodoPage
         userId={user.id}
         onBack={() => setView('home')}
+      />
+    );
+  }
+
+  if (userProfile && userProfile.role === 'teacher') {
+    return (
+      <TeacherDashboard 
+        user={user} 
+        onLogout={handleLogout} 
       />
     );
   }
@@ -306,8 +352,6 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
           <SmartAssistantView userId={user.id} isAdmin={currentIsAdmin} onBack={() => setView('home')} />
         ) : view === 'reviews' ? (
           <ReviewSection grade={grade} onBack={() => setView('home')} />
-        ) : view === 'quiz' ? (
-          <MillionaireHub user={user} userProfile={userProfile} onBack={() => setView('activities')} />
         ) : view === 'community' ? (
           <CommunityView user={user} />
         ) : view === 'multiplayer' ? (
@@ -315,6 +359,12 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
             user={user} 
             userProfile={userProfile} 
             onBack={() => setView('home')} 
+          />
+        ) : view === 'study_friend' ? (
+          <StudyWithFriend
+            user={user}
+            userProfile={userProfile}
+            onBack={() => setView('activities')}
           />
         ) : view === 'leaderboard' ? (
           <LeaderboardView />
@@ -368,7 +418,7 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
                   <Sparkles size={32} />
                 </div>
                 <div className="relative z-10">
-                  <h3 className="font-black text-black dark:text-white text-2xl">بوابة الوزاري الذكي</h3>
+                  <h3 className="font-black text-black dark:text-white text-2xl">اصنع امتحاناتك</h3>
                   <p className="text-sm font-bold text-blue-800 dark:text-blue-300 mt-2">مساعدك الشخصي للتحضير للامتحانات</p>
                 </div>
               </button>
