@@ -25,7 +25,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'materials' | 'flashcards' | 'ministerial'>('materials');
+  const [activeTab, setActiveTab] = useState<'lectures' | 'summaries' | 'flashcards' | 'ministerial'>('lectures');
   const [selectedVideo, setSelectedVideo] = useState<Material | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
   const [expandedMaterialId, setExpandedMaterialId] = useState<string | null>(null);
@@ -53,10 +53,10 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
     const unsubFeatures = subscribeToFeatures((features) => {
       setAppFeatures(features);
       if (features.hideFlashcards && activeTab === 'flashcards') {
-        setActiveTab('materials');
+        setActiveTab('lectures');
       }
       if (features.hideMinisterial && activeTab === 'ministerial') {
-        setActiveTab('materials');
+        setActiveTab('lectures');
       }
     });
     return () => unsubFeatures();
@@ -702,14 +702,22 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
         </div>
       </div>
 
-      <div className="flex bg-white dark:bg-[#1a1a1a] p-2 neo-border-sm max-w-lg mx-auto overflow-x-auto custom-scrollbar">
+      <div className="flex bg-white dark:bg-[#1a1a1a] p-2 neo-border-sm max-w-2xl mx-auto overflow-x-auto custom-scrollbar">
         <button
-          onClick={() => setActiveTab('materials')}
+          onClick={() => setActiveTab('lectures')}
           className={`flex-1 py-3 px-4 rounded-lg text-sm font-black transition-all whitespace-nowrap border-2 ${
-            activeTab === 'materials' ? 'neo-bg-yellow border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+            activeTab === 'lectures' ? 'neo-bg-yellow border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          المصادر والمحاضرات
+          المحاضرات المرئية
+        </button>
+        <button
+          onClick={() => setActiveTab('summaries')}
+          className={`flex-1 py-3 px-4 rounded-lg text-sm font-black transition-all whitespace-nowrap border-2 ${
+            activeTab === 'summaries' ? 'neo-bg-blue border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          الملخصات والمصادر
         </button>
         {isMinisterialGrade && !appFeatures.hideMinisterial && (
           <button
@@ -748,15 +756,15 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
               <p className="text-black font-bold font-mono">{dbError}</p>
             </div>
           </motion.div>
-        ) : activeTab === 'materials' ? (
+        ) : activeTab === 'lectures' ? (
           <motion.div
-            key="materials"
+            key="lectures"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            {filteredMaterials.filter(m => m.type !== 'Ministerial').length > 0 ? (
+            {filteredMaterials.filter(m => m.type !== 'Ministerial' && m.type !== 'PDF').length > 0 ? (
               <>
                 {teacher && (
                   <div className="flex items-center justify-between mb-4 px-2">
@@ -770,16 +778,15 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                           </div>
                         )}
                       </div>
-                      <span className="text-base font-black text-black dark:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg border-2 border-black dark:border-white">شرح أ. {teacher.name}</span>
+                      <span className="text-base font-black text-black dark:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg border-2 border-black dark:border-white">من محاضرات أ. {teacher.name}</span>
                     </div>
                   </div>
                 )}
                 
                 {(() => {
-                  const filtered = filteredMaterials.filter(m => m.type !== 'Ministerial');
+                  const filtered = filteredMaterials.filter(m => m.type !== 'Ministerial' && m.type !== 'PDF');
                   const youtubeVids = filtered.filter(m => m.type === 'Video' || !m.type || m.type === ('YouTube' as any));
                   const vkDocs = filtered.filter(m => m.type === 'VK');
-                  const pdfs = filtered.filter(m => m.type === 'PDF');
 
                   const renderMaterial = (m: Material) => {
                     const isCompleted = completedIds.includes(m.id);
@@ -795,24 +802,20 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                           >
                             <CheckCircle size={18} />
                           </button>
-                          <div className={`p-4 rounded-xl transition-colors flex-shrink-0 border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] ${
-                            m.type === 'PDF' ? 'neo-bg-blue text-black' : 'neo-bg-pink text-black'
-                          }`}>
-                            {m.type === 'PDF' ? <FileText size={28} /> : <Play size={28} />}
+                          <div className={`p-4 rounded-xl transition-colors flex-shrink-0 border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] neo-bg-pink text-black`}>
+                            <Play size={28} />
                           </div>
                           <div className="flex-1 min-w-0 pr-1">
                             <h4 className={`font-black text-lg line-clamp-2 ${isCompleted ? 'line-through text-slate-500' : 'text-black dark:text-white'}`}>
                               {m.title}
                             </h4>
-                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">{m.type === 'PDF' ? 'ملف PDF قابل للتحميل' : (m.type === 'VK' ? 'محاضرة فيديو VK' : 'محاضرة فيديو يوتيوب')}</p>
-                            {m.type !== 'PDF' && (
-                              <div className="mt-3 w-full max-w-[200px] border-2 border-black dark:border-white bg-white dark:bg-black rounded-full h-3 overflow-hidden shadow-inner">
-                                <div 
-                                  className={`h-full border-l-2 border-black dark:border-white transition-all duration-300 ${isCompleted ? 'neo-bg-teal' : 'neo-bg-yellow'}`}
-                                  style={{ width: `${isCompleted ? 100 : Math.min(100, Math.max(0, videoProgress[m.id] || 0))}%` }}
-                                />
-                              </div>
-                            )}
+                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">{m.type === 'VK' ? 'محاضرة فيديو VK' : 'محاضرة فيديو يوتيوب'}</p>
+                            <div className="mt-3 w-full max-w-[200px] border-2 border-black dark:border-white bg-white dark:bg-black rounded-full h-3 overflow-hidden shadow-inner">
+                              <div 
+                                className={`h-full border-l-2 border-black dark:border-white transition-all duration-300 ${isCompleted ? 'neo-bg-teal' : 'neo-bg-yellow'}`}
+                                style={{ width: `${isCompleted ? 100 : Math.min(100, Math.max(0, videoProgress[m.id] || 0))}%` }}
+                              />
+                            </div>
                           </div>
                           <div className="flex flex-col items-center gap-3 flex-shrink-0 mt-8 sm:mt-0">
                             <button
@@ -822,23 +825,13 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                             >
                               <Eye size={18} />
                             </button>
-                            {m.type === 'PDF' ? (
-                              <button
-                                onClick={() => setSelectedPdf(getMaterialUrl(m))}
-                                className="w-10 h-10 flex items-center justify-center rounded-xl border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] bg-white dark:bg-black text-black dark:text-white hover:-translate-y-1 transition-all"
-                                title="عرض بشاشة كاملة"
-                              >
-                                <ExternalLink size={18} />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => openVideoModal(m)}
-                                className="w-10 h-10 flex items-center justify-center rounded-xl border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] bg-white dark:bg-black text-black dark:text-white hover:-translate-y-1 transition-all"
-                                title="عرض بشاشة كاملة"
-                              >
-                                <Play size={18} />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => openVideoModal(m)}
+                              className="w-10 h-10 flex items-center justify-center rounded-xl border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] bg-white dark:bg-black text-black dark:text-white hover:-translate-y-1 transition-all"
+                              title="عرض بشاشة كاملة"
+                            >
+                              <Play size={18} />
+                            </button>
                           </div>
                         </div>
                         <AnimatePresence>
@@ -850,20 +843,12 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                               className="bg-slate-50 dark:bg-black border-t-2 border-black dark:border-white"
                             >
                               <div className="p-4">
-                                {m.type === 'PDF' ? (
-                                  <iframe
-                                    src={getPdfSource(m.url || (m as any).content)}
-                                    className="w-full h-80 sm:h-96 rounded-xl border-2 border-black dark:border-white"
-                                    title="PDF Quick View"
-                                  ></iframe>
-                                ) : (
-                                  <div className="aspect-video bg-black rounded-xl overflow-hidden border-2 border-black dark:border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] relative">
-                                    <VideoPlayer
-                                      material={m}
-                                      isPlaying={false}
-                                    />
-                                  </div>
-                                )}
+                                <div className="aspect-video bg-black rounded-xl overflow-hidden border-2 border-black dark:border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] relative">
+                                  <VideoPlayer
+                                    material={m}
+                                    isPlaying={false}
+                                  />
+                                </div>
                               </div>
                             </motion.div>
                           )}
@@ -891,15 +876,6 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                           </div>
                         </div>
                       )}
-                      
-                      {pdfs.length > 0 && (
-                        <div className="space-y-4">
-                          <h3 className="text-xl font-black border-r-4 border-emerald-500 pr-3">ملفات PDF</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {pdfs.map(renderMaterial)}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })()}
@@ -914,8 +890,128 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
                   <Sparkles size={32} />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-2xl font-black text-black dark:text-white">سيتم إضافة المحاضرات والامتحانات قريباً</h3>
-                  <p className="text-black/80 dark:text-white/80 font-bold">انتظرونا، نحن نعمل على توفير أفضل المحتويات التعليمية لك.</p>
+                  <h3 className="text-2xl font-black text-black dark:text-white">سيتم إضافة المحاضرات قريباً</h3>
+                  <p className="text-black/80 dark:text-white/80 font-bold">انتظرونا، نحن نعمل على توفير أفضل المناهج والشروحات المرئية لك.</p>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        ) : activeTab === 'summaries' ? (
+          <motion.div
+            key="summaries"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            {filteredMaterials.filter(m => m.type === 'PDF').length > 0 ? (
+              <>
+                {teacher && (
+                  <div className="flex items-center justify-between mb-4 px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] bg-white">
+                        {teacher.avatar ? (
+                          <img src={teacher.avatar} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-400">
+                            <GraduationCap size={20} />
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-base font-black text-black dark:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg border-2 border-black dark:border-white">مصادر وملخصات أ. {teacher.name}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {(() => {
+                  const pdfs = filteredMaterials.filter(m => m.type === 'PDF');
+
+                  const renderMaterial = (m: Material) => {
+                    const isCompleted = completedIds.includes(m.id);
+                    return (
+                      <div key={m.id} className={`bg-white dark:bg-[#1a1a1a] flex flex-col relative overflow-hidden transition-all neo-border ${isCompleted ? 'opacity-80' : 'neo-hover'}`}>
+                        <div className="p-4 sm:p-5 flex items-start sm:items-center gap-4 sm:gap-6 relative z-10 w-full">
+                          <button
+                            onClick={() => toggleCompletion(m.id)}
+                            className={`absolute top-2 left-2 p-2 rounded-xl border-2 border-black dark:border-white transition-all z-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] ${
+                              isCompleted ? 'neo-bg-teal text-white' : 'bg-white dark:bg-black text-black dark:text-white hover:bg-slate-100'
+                            }`}
+                            title={isCompleted ? 'تم الإكمال' : 'تحديد كمكتمل'}
+                          >
+                            <CheckCircle size={18} />
+                          </button>
+                          <div className={`p-4 rounded-xl transition-colors flex-shrink-0 border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] neo-bg-blue text-black`}>
+                            <FileText size={28} />
+                          </div>
+                          <div className="flex-1 min-w-0 pr-1">
+                            <h4 className={`font-black text-lg line-clamp-2 ${isCompleted ? 'line-through text-slate-500' : 'text-black dark:text-white'}`}>
+                              {m.title}
+                            </h4>
+                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">ملف PDF ملخص للمطالعة والتحميل</p>
+                          </div>
+                          <div className="flex flex-col items-center gap-3 flex-shrink-0 mt-8 sm:mt-0">
+                            <button
+                              onClick={() => setExpandedMaterialId(expandedMaterialId === m.id ? null : m.id)}
+                              className={`w-10 h-10 flex items-center justify-center rounded-xl border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] transition-all hover:-translate-y-1 ${expandedMaterialId === m.id ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-black text-black dark:text-white'}`}
+                              title="عرض سريع"
+                            >
+                              <Eye size={18} />
+                            </button>
+                            <button
+                              onClick={() => setSelectedPdf(getMaterialUrl(m))}
+                              className="w-10 h-10 flex items-center justify-center rounded-xl border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] bg-white dark:bg-black text-black dark:text-white hover:-translate-y-1 transition-all"
+                              title="عرض بشاشة كاملة"
+                            >
+                              <ExternalLink size={18} />
+                            </button>
+                          </div>
+                        </div>
+                        <AnimatePresence>
+                          {expandedMaterialId === m.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="bg-slate-50 dark:bg-black border-t-2 border-black dark:border-white"
+                            >
+                              <div className="p-4">
+                                <iframe
+                                  src={getPdfSource(m.url || (m as any).content)}
+                                  className="w-full h-80 sm:h-96 rounded-xl border-2 border-black dark:border-white"
+                                  title="PDF Quick View"
+                                ></iframe>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div className="space-y-8">
+                      <div className="space-y-4">
+                        <h3 className="text-xl font-black border-r-4 border-emerald-500 pr-3">المصادر والملخصات (PDF)</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {pdfs.map(renderMaterial)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-16 bg-white dark:bg-black neo-border space-y-4"
+              >
+                <div className="w-16 h-16 neo-bg-yellow border-2 border-black dark:border-white text-black rounded-xl flex items-center justify-center mx-auto shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
+                  <Sparkles size={32} />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black text-black dark:text-white">سيتم إضافة الملخصات والمصادر التعليمية قريباً</h3>
+                  <p className="text-black/80 dark:text-white/80 font-bold">انتظرونا، نحن نعمل على توفير أفضل الملازم والملخصات لتبسيط المادة لك.</p>
                 </div>
               </motion.div>
             )}

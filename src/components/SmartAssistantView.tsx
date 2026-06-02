@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowRight, FileText, Brain, History, Sparkles, BookOpen, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, FileText, Brain, History, Sparkles, BookOpen, AlertCircle, Loader2, Trash2, Check, X, Award, TrendingUp, ChevronRight, HelpCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getFirestore, collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -26,8 +26,79 @@ interface ExamHistoryEntry {
 
 type ExamState = 'setup' | 'taking' | 'result' | 'fileSettings';
 
+const SEED_INCORRECT_QUESTIONS = [
+  {
+    id: "seed_1",
+    question: "يعود السبب في بياض درة الايطاليا إلى وجود...",
+    subject: "امتحان أحياء",
+    type: "MCQ",
+    options: [
+      "البروتينات الهيكلية الحرة",
+      "عدم وجود الأوعية الدموية المغذية",
+      "ترسيب الكيراتين والسيليكا بتركيزات عالية",
+      "تراكم الشبه الفلزات في السيتوبلازم"
+    ],
+    correctAnswer: 2
+  },
+  {
+    id: "seed_2",
+    question: "أحيي، عالم تجده في حلة ثانية حيث قام...",
+    subject: "عربي واجتماعيات",
+    type: "MCQ",
+    options: [
+      "ابن مسكوية والتوحيدي",
+      "ابن خلدون في مقدمته الشهيرة",
+      "الجاحظ في كتاب البيان والتبيين",
+      "الفارابي في آراء أهل المدينة الفاضلة"
+    ],
+    correctAnswer: 1
+  },
+  {
+    id: "seed_3",
+    question: "تم فحص عينات من نبات الطماطم وتبين وجود نقص حاد في مركب الفوسفات...",
+    subject: "امتحان أحياء",
+    type: "MCQ",
+    options: [
+      "نقص مركب الفوسفات المتوفر",
+      "عدم كفاية الكلوروفيل للتنفس الخلوي",
+      "زيادة تركيز أيونات الكالسيوم في الجذور",
+      "ظهور أعراض العفن البكتيري المبكر"
+    ],
+    correctAnswer: 0
+  },
+  {
+    id: "seed_4",
+    question: "توجد الأنزيمات المسؤولة عن اختزال ثنائي النيوكليوتيد في...",
+    subject: "امتحان أحياء",
+    type: "MCQ",
+    options: [
+      "حشوة البلاستيدة الخضراء (الستروما)",
+      "الغشاء الخارجي للميتوكندريا",
+      "تجاويف الثايلوكويد الداخلي للكلوروفيل",
+      "غشاء السايتوبلازم المبطن"
+    ],
+    correctAnswer: 0
+  },
+  {
+    id: "seed_5",
+    question: "أثاء فحص مجهري لعينات بيولوجية مختلفة، رصد الباحث خلايا غربالية مرافقة في...",
+    subject: "امتحان أحياء",
+    type: "MCQ",
+    options: [
+      "الخشب الثانوي الأولي النشط",
+      "الأوعية الغربالية والخلية الوعائية للحاء",
+      "القصيبات الوعائية واللحاء المتصل",
+      "الخلية البدائية الحية والروابط البلازمية"
+    ],
+    correctAnswer: 1
+  }
+];
+
 export default function SmartAssistantView({ onBack, userId, isAdmin = false }: Props) {
-  const [activeTab, setActiveTab] = useState<'create' | 'upload' | 'history' | 'admin_import'>('upload');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'create' | 'upload' | 'history' | 'admin_import'>('dashboard');
+  const [incorrectQuestions, setIncorrectQuestions] = useState<any[]>([]);
+  const [reviewingExam, setReviewingExam] = useState<any>(null);
+  const [studentName, setStudentName] = useState('يوسف');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
@@ -58,6 +129,7 @@ export default function SmartAssistantView({ onBack, userId, isAdmin = false }: 
   const [isUploading, setIsUploading] = useState(false);
   
   const [uploadedFileContent, setUploadedFileContent] = useState<{text?: string, base64?: string, mimeType?: string, fileName?: string} | null>(null);
+  const [uploadedFilesList, setUploadedFilesList] = useState<Array<{text?: string, base64?: string, mimeType?: string, fileName?: string}>>([]);
   const [genSettings, setGenSettings] = useState({
      examName: '',
      questionCount: '10',
@@ -67,7 +139,7 @@ export default function SmartAssistantView({ onBack, userId, isAdmin = false }: 
 
   const [examsTakenCount, setExamsTakenCount] = useState(0);
 
-  // Load initial daily count
+  // Load initial daily count and incorrect questions list
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     try {
@@ -83,6 +155,28 @@ export default function SmartAssistantView({ onBack, userId, isAdmin = false }: 
     } catch (e) {
       console.error(e);
     }
+
+    // Load incorrect questions
+    try {
+      const stored = localStorage.getItem(`incorrect_questions_${userId}`);
+      if (stored) {
+        setIncorrectQuestions(JSON.parse(stored));
+      } else {
+        localStorage.setItem(`incorrect_questions_${userId}`, JSON.stringify(SEED_INCORRECT_QUESTIONS));
+        setIncorrectQuestions(SEED_INCORRECT_QUESTIONS);
+      }
+    } catch (e) {
+      console.error("Error loading incorrect questions", e);
+    }
+
+    // Load student name from local profile or auth
+    try {
+      const storedProfile = localStorage.getItem('user_profile');
+      if (storedProfile) {
+        const p = JSON.parse(storedProfile);
+        if (p.name) setStudentName(p.name);
+      }
+    } catch(e) {}
   }, [userId]);
 
   const incrementDailyExamCount = () => {
@@ -286,31 +380,30 @@ ${adminImportText}`,
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'history') {
-      const fetchHistory = async () => {
-        setLoadingHistory(true);
-        try {
-          const q = query(
-            collection(db, "exam_history"),
-            where("userId", "==", userId)
-          );
-          const snap = await getDocs(q);
-          const history = snap.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          } as ExamHistoryEntry));
-          
-          history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          setExamHistoryList(history);
-        } catch (err) {
-          console.error("Error fetching exam history:", err);
-        } finally {
-          setLoadingHistory(false);
-        }
-      };
-      fetchHistory();
-    }
-  }, [activeTab, userId]);
+    if (!userId) return;
+    const fetchHistory = async () => {
+      setLoadingHistory(true);
+      try {
+        const q = query(
+          collection(db, "exam_history"),
+          where("userId", "==", userId)
+        );
+        const snap = await getDocs(q);
+        const history = snap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as ExamHistoryEntry));
+        
+        history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setExamHistoryList(history);
+      } catch (err) {
+        console.error("Error fetching exam history:", err);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+    fetchHistory();
+  }, [userId]);
 
   const availableGrades = Array.from(new Set(allQuestions.map(q => String(q.grade || '').trim()))).filter(Boolean).sort();
   const availableSubjects = Array.from(new Set(allQuestions.filter(q => String(q.grade || '').trim() === String(selectedGrade).trim() || !selectedGrade).map(q => String(q.subject || '').trim()))).filter(Boolean).sort();
@@ -365,63 +458,70 @@ ${adminImportText}`,
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Limit file size to 5MB to prevent mobile browser memory crashes
-    const MAX_FILE_SIZE = 5 * 1024 * 1024;
-    if (file.size > MAX_FILE_SIZE) {
-       alert("حجم الملف كبير جداً. يرجى رفع ملف حجمه أقل من 5 ميجابايت.");
-       if (fileInputRef.current) fileInputRef.current.value = '';
-       return;
-    }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
     
     // Allow UI to render the loading state before heavy processing blocks the main thread
     await new Promise(resolve => setTimeout(resolve, 100));
 
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    const newUploadedFiles: Array<{text?: string, base64?: string, mimeType?: string, fileName?: string}> = [];
+
     try {
-      let fileText = '';
-      if (file.type === 'application/pdf') {
-         fileText = await extractTextFromPDF(file);
-      } else if (file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.type === 'application/msword') {
-         const arrayBuffer = await file.arrayBuffer();
-         const result = await mammoth.extractRawText({ arrayBuffer });
-         fileText = result.value;
-         if (fileText.length > 150000) {
-             fileText = fileText.substring(0, 150000);
-         }
-      } else if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-         fileText = await file.text();
-         if (fileText.length > 150000) {
-             fileText = fileText.substring(0, 150000);
-         }
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > MAX_FILE_SIZE) {
+           alert(`حجم الملف "${file.name}" كبير جداً. يرجى رفع ملفات بحجم أقل من 5 ميجابايت.`);
+           continue;
+        }
+
+        let fileText = '';
+        if (file.type === 'application/pdf') {
+           fileText = await extractTextFromPDF(file);
+        } else if (file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.type === 'application/msword') {
+           const arrayBuffer = await file.arrayBuffer();
+           const result = await mammoth.extractRawText({ arrayBuffer });
+           fileText = result.value;
+           if (fileText.length > 150000) {
+              fileText = fileText.substring(0, 150000);
+           }
+        } else if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+           fileText = await file.text();
+           if (fileText.length > 150000) {
+              fileText = fileText.substring(0, 150000);
+           }
+        }
+
+        if (fileText) {
+           newUploadedFiles.push({ text: fileText, mimeType: file.type, fileName: file.name });
+        } else if (file.type.startsWith('image/')) {
+           const reader = new FileReader();
+           const base64Promise = new Promise<string>((resolve) => {
+             reader.onload = () => resolve((reader.result as string).split(',')[1]);
+             reader.readAsDataURL(file);
+           });
+           
+           const base64Data = await base64Promise;
+           newUploadedFiles.push({ base64: base64Data, mimeType: file.type, fileName: file.name });
+        } else {
+           alert(`نوع الملف "${file.name}" غير مدعوم. نرجو رفع صورة، PDF، أو ملف نصي (Word/TXT).`);
+        }
       }
 
-      if (fileText) {
-          setUploadedFileContent({ text: fileText, mimeType: file.type, fileName: file.name });
-      } else if (file.type.startsWith('image/')) {
-         const reader = new FileReader();
-         const base64Promise = new Promise<string>((resolve) => {
-           reader.onload = () => resolve((reader.result as string).split(',')[1]);
-           reader.readAsDataURL(file);
-         });
-         
-         const base64Data = await base64Promise;
-         setUploadedFileContent({ base64: base64Data, mimeType: file.type, fileName: file.name });
-      } else {
-         alert("نوع الملف غير مدعوم. نرجو رفع صورة، PDF، أو ملف نصي (Word/TXT).");
-         setIsUploading(false);
-         return;
+      if (newUploadedFiles.length > 0) {
+         setUploadedFilesList(prev => [...prev, ...newUploadedFiles]);
+         if (newUploadedFiles.length > 0) {
+           setUploadedFileContent(newUploadedFiles[0]);
+         }
+         setActiveTab('upload');
+         setExamState('fileSettings'); // Use fileSettings to show the form
       }
-
-      setActiveTab('upload');
-      setExamState('fileSettings'); // Use fileSettings to show the form
 
     } catch (err: any) {
       console.error(err);
-      alert("فشل في تحليل الملف. يرجى التأكد من أن الملف مقروء.");
+      alert("فشل في تحليل الملفات. يرجى التأكد من أن الملفات مقروءة.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -455,7 +555,10 @@ ${adminImportText}`,
               items: { type: Type.STRING }, 
               description: "Four options for MCQ. Two options (صح/خطأ) for TrueFalse. Empty for Essay." 
             },
-            correctAnswer: { type: Type.STRING, description: "The correct option index as a string for MCQ/TrueFalse, or the model answer for Essay" }
+            correctAnswer: { 
+              type: Type.STRING, 
+              description: "For MCQ/TrueFalse questions, this MUST be the EXACT option index as a string (e.g. '0' for first option, '1' for second option, '2' for third option, '3' for fourth option). Do NOT make off-by-one errors. For Essay, output the model answer text." 
+            }
           },
           required: ["id", "type", "question", "correctAnswer"]
         }
@@ -476,56 +579,130 @@ ${adminImportText}`,
       لغة الأسئلة: ${genSettings.language}
       أنواع الأسئلة المطلوبة: ${typesString}
 
-      تعليمات هامة:
-      - إذا كان النص يحتوي على أسئلة جاهزة استخرجها إن أمكن، وإذا لم تكن كافية قم بتأليف أسئلة تقيس الفهم.
-      - يجب أن يتناسب عدد الأسئلة مع العدد المطلوب تقريباً.
-      - تنويع الأسئلة بحسب الأنواع المطلوبة.
-      - سؤال الصح والخطأ يجب أن يحتوي خيارين فقط في options وهما "صح" و "خطأ".
-      - بالنسبة للـ Essay، ضع الإجابة النموذجية المأخوذة من النص للتقييم.
+      تعليمات هامة وجوهرية لتحديد الإجابة الصحيحة:
+      1. إذا كان النص يحتوي على أسئلة جاهزة استخرجها إن أمكن، وإذا لم تكن كافية قم بتأليف أسئلة دقيقة تقيس وتحلل فهم المستند بشكل علمي ومتقن.
+      2. تجنب اختيار أو وضع إجابة خاطئة كإجابة نموذجية صحيحة. يرجى مراجعة كل سؤال للتأكد من الموثوقية العلمية 100%.
+      3. سياق الترقيم للـ MCQ و TrueFalse: يجب تحديد دليل الخيار الصحيح (0-based Index) بدقة تامة في حقل correctAnswer:
+         - "0" يشير للخيار الأول في قائمة الاختيارات (options[0])
+         - "1" يشير للخيار الثاني (options[1])
+         - "2" يشير للخيار الثالث (options[2])
+         - "3" يشير للخيار الرابع (options[3])
+      4. سؤال الصح والخطأ يجب أن يحتوي خيارين فقط في options وهما "صح" ثم "خطأ" (بحيث يكون "صح" هو الخيار 0 و"خطأ" هو الخيار 1). حدد correctAnswer بدقة "0" (صح) أو "1" (خطأ).
+      5. بالنسبة للـ Essay، ضع الإجابة النموذجية التفصيلية لتقييم الطالب لاحقاً.
       `;
 
-      if (uploadedFileContent.text) {
-         let text = uploadedFileContent.text;
-         if (text.length > 50000) text = text.substring(0, 50000);
-         
-         const prompt = `${promptTemplate}\nالنص المطلوب استخراج/توليد الأسئلة منه:\n${text}`;
+      // Extract combined text from all text-based uploads, and collect all image files
+      const textFiles = uploadedFilesList.filter(f => f.text);
+      const imageFiles = uploadedFilesList.filter(f => f.base64 && f.mimeType);
 
-         const response = await ai.models.generateContent({
-           model: 'gemini-2.5-flash',
-           contents: prompt,
-           config: {
-             responseMimeType: "application/json",
-             responseSchema: questionSchema,
-           }
-         });
-         responseText = response.text || "[]";
-      } else if (uploadedFileContent.base64 && uploadedFileContent.mimeType) {
-         const prompt = `${promptTemplate}\nالصورة المرفقة تحتوي على المحتوى المطلوب استخراج/توليد الأسئلة منه.`;
-
-         const response = await ai.models.generateContent({
-           model: 'gemini-2.5-flash',
-           contents: [
-             prompt,
-             { inlineData: { data: uploadedFileContent.base64, mimeType: uploadedFileContent.mimeType } }
-           ],
-           config: {
-             responseMimeType: "application/json",
-             responseSchema: questionSchema,
-           }
-         });
-         responseText = response.text || "[]";
+      // Fallback in case uploadedFilesList is somehow empty but uploadedFileContent is present
+      if (textFiles.length === 0 && imageFiles.length === 0 && uploadedFileContent) {
+        if (uploadedFileContent.text) textFiles.push(uploadedFileContent);
+        else if (uploadedFileContent.base64) imageFiles.push(uploadedFileContent);
       }
+
+      let combinedText = "";
+      if (textFiles.length > 0) {
+        combinedText = textFiles.map(f => `--- محتوى الملف (${f.fileName || 'مستند'}) ---\n${f.text}`).join('\n\n');
+        if (combinedText.length > 80000) {
+          combinedText = combinedText.substring(0, 80000);
+        }
+      }
+
+      let prompt = promptTemplate;
+      if (combinedText) {
+        prompt += `\nالنص والمستندات المطلوب استخراج/توليد الأسئلة منها:\n${combinedText}`;
+      }
+      
+      if (imageFiles.length > 0) {
+        prompt += `\nالصور المرفقة تحتوي على محتوى السؤال أو المادة المطلوب استخراج/توليد الأسئلة منها. يرجى قراءة كافة الصور المرفقة والتنقل بينها لتجميع الفهم الكامل للمعلومات وتوليد الأسئلة المطلوبة بدقة بالغة.`;
+      }
+
+      const contentsArray: any[] = [prompt];
+
+      // Add each image to the contents list
+      imageFiles.forEach(img => {
+        contentsArray.push({
+          inlineData: {
+            data: img.base64,
+            mimeType: img.mimeType
+          }
+        });
+      });
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: contentsArray,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: questionSchema,
+        }
+      });
+      responseText = response.text || "[]";
 
       const generatedQuestions = JSON.parse(responseText);
       
-      const formattedQ = generatedQuestions.map((q: any, index: number) => ({
-        ...q,
-        id: q.id || `gen_${index}_${Date.now()}`,
-        grade: 'عام',
-        subject: genSettings.examName || uploadedFileContent.fileName || 'امتحان مخصص',
-        options: q.options || [],
-        correctAnswer: (q.type === 'MCQ' || q.type === 'TrueFalse') ? parseInt(q.correctAnswer) || 0 : q.correctAnswer
-      }));
+      const formattedQ = generatedQuestions.map((q: any, index: number) => {
+        let finalCorrectAnswer = q.correctAnswer;
+        if (q.type === 'MCQ' || q.type === 'TrueFalse') {
+          const rawAnswer = String(q.correctAnswer).trim();
+          const parsed = parseInt(rawAnswer, 10);
+          
+          if (!isNaN(parsed) && parsed >= 0 && parsed < (q.options?.length || 4)) {
+            finalCorrectAnswer = parsed;
+          } else if (q.options && q.options.length > 0) {
+            // Find option matches (case-insensitive and trimmed)
+            const foundIndex = q.options.findIndex((opt: string) => {
+              const cleanedOpt = opt.trim().toLowerCase();
+              const cleanedAns = rawAnswer.toLowerCase();
+              return cleanedOpt === cleanedAns || 
+                     cleanedAns.includes(cleanedOpt) || 
+                     cleanedOpt.includes(cleanedAns);
+            });
+            if (foundIndex !== -1) {
+              finalCorrectAnswer = foundIndex;
+            } else {
+              const letterMap: Record<string, number> = {
+                'أ': 0, 'ب': 1, 'ج': 2, 'د': 3,
+                'a': 0, 'b': 1, 'c': 2, 'd': 3,
+                'A': 0, 'B': 1, 'C': 2, 'D': 3,
+                '1': 0, '2': 1, '3': 2, '4': 3
+              };
+              if (rawAnswer in letterMap) {
+                finalCorrectAnswer = letterMap[rawAnswer];
+              } else {
+                let bestIdx = 0;
+                let maxMatches = 0;
+                q.options.forEach((opt: string, optIdx: number) => {
+                  const optWords = opt.trim().split(/\s+/);
+                  let matches = 0;
+                  optWords.forEach(w => {
+                    if (w.length > 1 && rawAnswer.includes(w)) {
+                      matches++;
+                    }
+                  });
+                  if (matches > maxMatches) {
+                    maxMatches = matches;
+                    bestIdx = optIdx;
+                  }
+                });
+                finalCorrectAnswer = bestIdx;
+              }
+            }
+          } else {
+            finalCorrectAnswer = 0;
+          }
+        }
+
+        return {
+          ...q,
+          id: q.id || `gen_${index}_${Date.now()}`,
+          grade: 'عام',
+          subject: genSettings.examName || uploadedFileContent.fileName || 'امتحان مخصص',
+          options: q.options || [],
+          correctAnswer: finalCorrectAnswer
+        };
+      });
 
       if(formattedQ.length === 0) {
         alert("لم نتمكن من استخراج أسئلة من هذا الملف.");
@@ -585,6 +762,36 @@ ${adminImportText}`,
     setScore(currentScore);
     setExamState('result');
 
+    // Collect newly incorrect questions to add to "مراجعة يومية"
+    const newlyIncorrectTemp: any[] = [];
+    questions.forEach(q => {
+      const isScorable = q.type === 'MCQ' || q.type === 'TrueFalse';
+      const isCorrect = isScorable && answers[q.id] === q.correctAnswer;
+      if (isScorable && !isCorrect) {
+         newlyIncorrectTemp.push({
+           id: q.id + "_" + Date.now(),
+           question: q.question,
+           subject: q.subject || selectedSubject || genSettings.examName || "امتحان مخصص",
+           type: q.type,
+           options: q.options || [],
+           correctAnswer: q.correctAnswer
+         });
+      }
+    });
+
+    if (newlyIncorrectTemp.length > 0) {
+      setIncorrectQuestions(prev => {
+        const filteredPrev = prev.filter(p => !newlyIncorrectTemp.some(n => n.question === p.question));
+        const updated = [...newlyIncorrectTemp, ...filteredPrev];
+        try {
+          localStorage.setItem(`incorrect_questions_${userId}`, JSON.stringify(updated));
+        } catch(e) {
+          console.error(e);
+        }
+        return updated;
+      });
+    }
+
     if (userId) {
        try {
            await addDoc(collection(db, "exam_history"), {
@@ -593,8 +800,32 @@ ${adminImportText}`,
                totalScorable: scorableQuestions,
                totalQuestions: questions.length,
                subject: selectedSubject || genSettings.examName || "امتحان مخصص",
-               date: new Date().toISOString()
+               date: new Date().toISOString(),
+               questions: questions.map(q => ({
+                 id: q.id,
+                 question: q.question,
+                 type: q.type,
+                 options: q.options || [],
+                 correctAnswer: q.correctAnswer,
+                 image: q.image || "",
+                 subject: q.subject || selectedSubject || "امتحان"
+               })),
+               userAnswers: answers
            });
+
+           // Reload history list instantly
+           const q = query(
+             collection(db, "exam_history"),
+             where("userId", "==", userId)
+           );
+           const snap = await getDocs(q);
+           const history = snap.docs.map(doc => ({
+             id: doc.id,
+             ...doc.data()
+           } as ExamHistoryEntry));
+           
+           history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+           setExamHistoryList(history);
        } catch (error) {
            console.error("Error saving exam result:", error);
        }
@@ -719,311 +950,647 @@ ${adminImportText}`,
     )
   }
 
+  const handleRemoveIncorrect = (id: string) => {
+    setIncorrectQuestions(prev => {
+      const updated = prev.filter(q => q.id !== id);
+      try {
+        localStorage.setItem(`incorrect_questions_${userId}`, JSON.stringify(updated));
+      } catch(e) {}
+      return updated;
+    });
+  };
+
+  const handleStartDailyReview = () => {
+    if (incorrectQuestions.length === 0) return;
+    const formatted = incorrectQuestions.map((q, idx) => ({
+      id: q.id || `incorrect_${idx}_${Date.now()}`,
+      type: q.type || "MCQ",
+      question: q.question,
+      options: q.options || [],
+      correctAnswer: q.correctAnswer,
+      subject: q.subject || "مراجعة يومية"
+    }));
+    setQuestions(formatted);
+    setAnswers({});
+    setCurrentQuestionIndex(0);
+    setExamState('taking');
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-8">
       <div className="grid grid-cols-1">
-        {/* Admin AI Chat / Import Panel hidden as requested */}
-        {false && isAdmin && (
-          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border-2 border-purple-200 dark:border-purple-900 rounded-2xl p-6 shadow-sm sticky top-24">
-            <div className="flex items-center gap-2 mb-4 text-purple-600 dark:text-purple-400">
-              <Sparkles size={24} />
-              <h3 className="font-black text-xl">مساعد الذكاء الاصطناعي (إدارة)</h3>
-            </div>
-            <p className="text-sm font-bold text-slate-500 mb-6 text-right leading-relaxed">
-              نافذة ذكية تقسم بوابة الوزاري. أرسل الأسئلة أو التعليمات النصية هنا، وسيقوم الذكاء الاصطناعي بتحليلها وإضافتها مباشرة إلى الأسئلة الوزارية.
-            </p>
-            
-            <textarea 
-              value={adminImportText}
-              onChange={(e) => setAdminImportText(e.target.value)}
-              placeholder="مثال: ضف هذه الأسئلة لمادة الرياضيات للصف السادس الإعدادي سنة 2024 الدور الأول، مبرهنة رول..."
-              className="w-full min-h-[250px] p-4 bg-purple-50 focus:bg-white dark:bg-slate-800 border-2 border-purple-100 focus:border-purple-500 rounded-xl outline-none transition-colors resize-y font-medium text-right mb-4 shadow-inner"
-              dir="rtl"
-            />
-
-            {adminImportProgress && (
-              <div className="bg-purple-100 text-purple-800 p-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 mb-4">
-                {adminImportLoading && <Loader2 size={14} className="animate-spin" />}
-                {adminImportProgress}
-              </div>
-            )}
-
-            <button
-              onClick={handleAdminTextImport}
-              disabled={adminImportLoading || !adminImportText.trim()}
-              className="w-full py-4 bg-gradient-to-l from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-black text-lg transition-all shadow-[0_5px_0_0_#4f46e5] hover:shadow-[0_2px_0_0_#4f46e5] hover:-translate-y-[3px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-               {adminImportLoading ? <Loader2 size={24} className="animate-spin" /> : <Brain size={24} />}
-               إرسال وإضافة
-            </button>
-          </div>
-        )}
-
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-slate-600 hover:text-black dark:text-slate-400 dark:hover:text-white transition-colors font-bold group"
-        >
-          <ArrowRight className="group-hover:-translate-x-1 transition-transform" />
-          العودة
-        </button>
-        <div className="flex items-center justify-end gap-3 text-2xl font-black text-black dark:text-white">
-          <h2 className="text-right">جاهزية الوزاري</h2>
-          <div className="w-10 h-10 neo-bg-blue border-2 border-black rounded-xl flex items-center justify-center">
-            <Sparkles size={24} className="text-black" />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 p-4 rounded-xl text-yellow-800 dark:text-yellow-200 text-sm font-bold text-center">
-        مساعدك الشخصي للتحضير للامتحانات الوزارية بالذكاء الاصطناعي
-      </div>
-
-      <div className="bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-500/30 p-4 rounded-xl flex items-center justify-between text-blue-800 dark:text-blue-200 text-sm font-bold">
-        <div className="flex items-center gap-2">
-          <BookOpen size={16} />
-          <span>الامتحانات اليومية المستهلكة:</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-xs font-black">
-            {examsTakenCount} / ٣ امتحانات
-          </span>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border-2 border-black/10 dark:border-white/10">
-        <button
-          onClick={() => setActiveTab('upload')}
-          className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-            activeTab === 'upload'
-              ? 'bg-white dark:bg-slate-700 shadow-sm border-2 border-slate-200 dark:border-slate-600'
-              : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          <FileText size={18} />
-          من ملفاتي
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-            activeTab === 'history'
-              ? 'bg-white dark:bg-slate-700 shadow-sm border-2 border-slate-200 dark:border-slate-600'
-              : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          <History size={18} />
-          لوحة الأداء
-        </button>
-      </div>
-
-      <AnimatePresence mode="wait">
-        {activeTab === 'upload' && examState !== 'fileSettings' && (
-          <motion.div
-            key="upload"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-slate-900 rounded-2xl neo-border border-dashed"
-          >
-            <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-              {isUploading ? (
-                <Loader2 size={32} className="text-blue-600 animate-spin" />
-              ) : (
-                <FileText size={32} className="text-slate-400" />
-              )}
-            </div>
-            <h3 className="text-xl font-black mb-2">
-               {isUploading ? 'جاري تجهيز الملف...' : 'ارفع ملفك الخاص'}
-            </h3>
-            <p className="text-slate-500 font-bold mb-6 max-w-sm">
-              {isUploading 
-                ? 'جاري قراءة الملف وتجهيزه. نرجو الانتظار'
-                : 'ارفع ملف PDF أو صورة أو Word واستخرج منها أسئلة امتحان مخصصة باستخدام الذكاء الاصطناعي'
-              }
-            </p>
-            <input 
-              type="file" 
-              accept=".pdf,image/*,.doc,.docx,.txt" 
-              ref={fileInputRef} 
-              className="hidden" 
-              onChange={handleFileUpload}
-            />
-            <button 
-              type="button"
-              disabled={isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="px-8 py-4 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-              {isUploading ? 'أرجو الانتظار...' : 'اختر ملفاً للرفع'}
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 text-slate-600 hover:text-black dark:text-slate-400 dark:hover:text-white transition-colors font-bold group"
+            >
+              <ArrowRight className="group-hover:-translate-x-1 transition-transform" />
+              العودة
             </button>
-          </motion.div>
-        )}
-
-        {activeTab === 'upload' && examState === 'fileSettings' && (
-          <motion.div
-            key="fileSettings"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="bg-white dark:bg-slate-900 p-8 rounded-2xl neo-border text-right"
-            dir="rtl"
-          >
-            <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
-              <FileText className="text-blue-600" />
-              إعدادات الامتحان المستخرج
-            </h2>
-
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">اسم الامتحان <span className="text-slate-400 text-xs font-normal">(اختياري)</span></label>
-                <input
-                  type="text"
-                  placeholder="مثال: امتحان الفصل الأول - رياضيات"
-                  value={genSettings.examName}
-                  onChange={(e) => setGenSettings({...genSettings, examName: e.target.value})}
-                  className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none font-bold bg-slate-50 dark:bg-slate-800"
-                />
+            <div className="flex items-center justify-end gap-3 text-2xl font-black text-black dark:text-white">
+              <h2 className="text-right">صناعة ومراجعة الامتحان</h2>
+              <div className="w-10 h-10 neo-bg-blue border-2 border-black rounded-xl flex items-center justify-center">
+                <Sparkles size={24} className="text-black" />
               </div>
-
-              <div>
-                <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">عدد الأسئلة المستهدفة</label>
-                <select
-                  value={genSettings.questionCount}
-                  onChange={(e) => setGenSettings({...genSettings, questionCount: e.target.value})}
-                  className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none font-bold bg-slate-50 dark:bg-slate-800 dark:border-slate-600 focus:border-blue-500/50"
-                  dir="rtl"
-                >
-                  <option value="5">٥ أسئلة (قصير)</option>
-                  <option value="10">١٠ أسئلة (متوسط)</option>
-                  <option value="15">١٥ سؤالاً</option>
-                  <option value="20">٢٠ سؤالاً (شامل)</option>
-                  <option value="25">٢٥ سؤالاً</option>
-                  <option value="30">٣٠ سؤالاً</option>
-                  <option value="40">٤٠ سؤالاً</option>
-                  <option value="50">٥٠ سؤالاً (الحد الأقصى)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">أنواع الأسئلة (يمكن اختيار أكثر من نوع)</label>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
-                      checked={genSettings.types.mcq}
-                      onChange={(e) => setGenSettings({...genSettings, types: {...genSettings.types, mcq: e.target.checked}})}
-                    />
-                    <span className="font-bold text-slate-700 dark:text-slate-300">اختيارات متعددة (MCQ)</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
-                      checked={genSettings.types.tf}
-                      onChange={(e) => setGenSettings({...genSettings, types: {...genSettings.types, tf: e.target.checked}})}
-                    />
-                    <span className="font-bold text-slate-700 dark:text-slate-300">صح أو خطأ</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
-                      checked={genSettings.types.essay}
-                      onChange={(e) => setGenSettings({...genSettings, types: {...genSettings.types, essay: e.target.checked}})}
-                    />
-                    <span className="font-bold text-slate-700 dark:text-slate-300">كتابة إجابة (مقالي)</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4">
-                <button
-                  onClick={handleGenerateFromSettings}
-                  disabled={isUploading || (!genSettings.types.mcq && !genSettings.types.tf && !genSettings.types.essay)}
-                  className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-[0_5px_0_0_#1d4ed8] hover:translate-y-[3px] hover:shadow-[0_2px_0_0_#1d4ed8] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isUploading ? <Loader2 size={24} className="animate-spin" /> : <Sparkles size={24} />}
-                  {isUploading ? 'جاري تحضير الامتحان...' : 'توليد الامتحان الآن'}
-                </button>
-                <button
-                  onClick={() => {
-                     setUploadedFileContent(null);
-                     setExamState('setup');
-                  }}
-                  className="px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-all"
-                >
-                  إلغاء
-                </button>
-              </div>
-
             </div>
-          </motion.div>
-        )}
+          </div>
 
-        {activeTab === 'history' && (
-          <motion.div
-            key="history"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
-          >
-            {loadingHistory ? (
-              <div className="flex justify-center p-12">
-                <Loader2 size={48} className="text-blue-500 animate-spin" />
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl neo-border text-center">
-                    <div className="text-3xl font-black text-blue-600 mb-1">{examHistoryList.length}</div>
-                    <div className="text-sm font-bold text-slate-500">امتحانات مكتملة</div>
-                  </div>
-                  <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl neo-border text-center">
-                    <div className="text-3xl font-black text-green-500 mb-1">
-                      {examHistoryList.reduce((acc, curr) => acc + curr.totalScorable, 0) > 0 
-                        ? Math.round((examHistoryList.reduce((acc, curr) => acc + curr.score, 0) / examHistoryList.reduce((acc, curr) => acc + curr.totalScorable, 0)) * 100)
-                        : '--'}%
+          <div className="bg-[#FFFDF0] dark:bg-yellow-950/20 border-2 border-yellow-400 p-4 rounded-xl text-yellow-800 dark:text-yellow-200 text-sm font-bold text-center">
+            مرحباً بك، {studentName} 🌟 مساعدك الذكي لتكرار الأسئلة الخاطئة وتحليل مستواك الدراسي
+          </div>
+
+          {/* User performance message */}
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border-2 border-black/10 dark:border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 text-right" dir="rtl">
+            <div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">مرحباً بك، {studentName}</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-bold mt-1">نظرة عامة على أدائك الدراسي ومراجعاتك النشطة لتقليل النسيان.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-2 border-black px-3 py-1.5 rounded-xl text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1">
+                <Clock size={14} /> {examsTakenCount} / ٣ امتحانات لليوم
+              </span>
+            </div>
+          </div>
+
+          {/* New Tab Switcher */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border-2 border-black/10 dark:border-white/10" dir="rtl">
+            <button
+              onClick={() => { setActiveTab('dashboard'); setReviewingExam(null); }}
+              className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'dashboard'
+                  ? 'bg-white dark:bg-slate-700 shadow-sm border-2 border-slate-200 dark:border-slate-600 font-black text-black dark:text-white'
+                  : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
+              }`}
+            >
+              <Award size={18} />
+              لوحة الأداء والخطأ
+            </button>
+            <button
+              onClick={() => { setActiveTab('upload'); setReviewingExam(null); }}
+              className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'upload'
+                  ? 'bg-white dark:bg-slate-700 shadow-sm border-2 border-slate-200 dark:border-slate-600 font-black text-black dark:text-white'
+                  : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
+              }`}
+            >
+              <FileText size={18} />
+              من ملفاتي
+            </button>
+            <button
+              onClick={() => { setActiveTab('history'); setReviewingExam(null); }}
+              className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'history'
+                  ? 'bg-white dark:bg-slate-700 shadow-sm border-2 border-slate-200 dark:border-slate-600 font-black text-black dark:text-white'
+                  : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
+              }`}
+            >
+              <History size={18} />
+              سجل الامتحانات الكامل
+            </button>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {/* Tab 1: Dashboard View */}
+            {activeTab === 'dashboard' && (
+              <motion.div
+                key="dashboard-tab"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
+                {/* Check if user wants to review a single exam */}
+                {reviewingExam ? (
+                  <div className="bg-[#FAF9F6] dark:bg-slate-900 border-4 border-black p-6 rounded-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] text-right" dir="rtl">
+                    <div className="flex justify-between items-center border-b-2 border-black pb-4 mb-6">
+                      <div>
+                        <span className="text-xs bg-blue-100 text-blue-900 border-2 border-black px-2 py-0.5 rounded font-black mb-1 inline-block">تحليل أكاديمي</span>
+                        <h3 className="text-2xl font-black">{reviewingExam.subject}</h3>
+                        <p className="text-xs text-slate-500 mt-1">{new Date(reviewingExam.date).toLocaleString('ar-IQ')}</p>
+                      </div>
+                      <button
+                        onClick={() => setReviewingExam(null)}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 border-2 border-black rounded-xl text-sm font-black transition-all"
+                      >
+                        إغلاق وحفظ النتيجة
+                      </button>
                     </div>
-                    <div className="text-sm font-bold text-slate-500">نسبة الجاهزية</div>
-                  </div>
-                </div>
-                
-                {examHistoryList.length === 0 ? (
-                  <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl neo-border flex flex-col items-center text-center">
-                    <Sparkles size={48} className="text-yellow-400 mb-4" />
-                    <h3 className="text-xl font-black mb-2">خريطتك للنجاح فارغة</h3>
-                    <p className="text-slate-500 font-bold max-w-xs">
-                      أكمل امتحانات وزارية من خلال قسم "اختر تحديك" لنقوم بتحليل أدائك وتقديم نصائح مخصصة.
-                    </p>
+
+                    <div className="grid grid-cols-3 gap-4 mb-6 text-center">
+                      <div className="p-3 bg-white dark:bg-slate-800 border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <div className="text-xl font-black text-blue-600">{reviewingExam.score}/{reviewingExam.totalScorable}</div>
+                        <div className="text-xs font-bold text-slate-500">الدرجة النهائية</div>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-800 border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <div className="text-xl font-black text-teal-600">
+                          {reviewingExam.totalScorable > 0 ? Math.round((reviewingExam.score / reviewingExam.totalScorable) * 100) : 100}%
+                        </div>
+                        <div className="text-xs font-bold text-slate-500">الجاهزية والنسبة</div>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-800 border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <div className="text-xl font-black text-purple-600">{reviewingExam.totalQuestions}</div>
+                        <div className="text-xs font-bold text-slate-500 font-sans">عدد الأسئلة</div>
+                      </div>
+                    </div>
+
+                    <h4 className="text-lg font-black mb-4 text-slate-700 dark:text-slate-300">مراجعة ورقة الامتحان والأسئلة</h4>
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                      {reviewingExam.questions && Array.isArray(reviewingExam.questions) ? (
+                        reviewingExam.questions.map((q: any, idx: number) => {
+                          const userAns = reviewingExam.userAnswers?.[q.id];
+                          const isCorrect = q.type === 'MCQ' || q.type === 'TrueFalse' ? userAns === q.correctAnswer : false;
+                          const isEssay = q.type === 'Essay';
+
+                          return (
+                            <div key={q.id} className={`p-4 rounded-xl border-2 border-black text-right ${isEssay ? 'bg-slate-50 dark:bg-slate-800' : isCorrect ? 'bg-green-50/50 dark:bg-green-950/20' : 'bg-red-50/50 dark:bg-red-950/20'}`} dir="rtl">
+                              <div className="flex items-center gap-2 mb-2 font-bold text-black dark:text-white">
+                                <span className="bg-white border border-black px-2 py-0.5 rounded text-xs text-slate-600">{idx + 1}</span>
+                                <span>{q.question}</span>
+                              </div>
+
+                              {!isEssay ? (
+                                <div className="space-y-2 pl-4 mt-2">
+                                  {q.options && q.options.map((opt: string, optIdx: number) => {
+                                    const isChosen = userAns === optIdx;
+                                    const isThisCorrect = q.correctAnswer === optIdx;
+                                    return (
+                                      <div
+                                        key={optIdx}
+                                        className={`p-2 rounded border text-xs font-bold flex items-center justify-between ${
+                                          isThisCorrect 
+                                            ? 'bg-green-100 text-green-900 border-green-400' 
+                                            : isChosen 
+                                              ? 'bg-red-100 text-red-900 border-red-400' 
+                                              : 'bg-white dark:bg-slate-800 border-slate-200 text-slate-700 dark:text-slate-300'
+                                        }`}
+                                      >
+                                        <span>{opt}</span>
+                                        {isThisCorrect && <Check size={14} className="text-green-700" />}
+                                        {isChosen && !isThisCorrect && <X size={14} className="text-red-700" />}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="space-y-2 mt-2">
+                                  <div className="bg-white dark:bg-slate-800 p-2 text-xs rounded border border-black/10">
+                                    <span className="font-black text-slate-400">إجابتك:</span> {userAns || 'لم تتم الكتابة'}
+                                  </div>
+                                  <div className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 p-2 text-xs rounded border border-emerald-200">
+                                    <span className="font-black">الإجابة النموذجية:</span> {q.correctAnswer}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-slate-400 text-center py-4 font-bold">عفواً، لم نتمكن من العثور على تفاصيل الأسئلة المخزنة لهذا المعيار القديم.</p>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-black text-right" dir="rtl">سجلات الامتحانات</h3>
-                    {examHistoryList.map(history => (
-                      <div key={history.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl neo-border flex items-center justify-between" dir="rtl">
-                        <div>
-                          <h4 className="font-bold text-lg">{history.subject}</h4>
-                          <p className="text-sm text-slate-500">{new Date(history.date).toLocaleDateString('ar-IQ')} • {history.totalQuestions} أسئلة</p>
-                        </div>
-                        <div className="bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg text-center">
-                          <div className="text-lg font-black text-blue-600">
-                            {history.score}/{history.totalScorable}
-                          </div>
-                          <div className="text-xs font-bold text-slate-500">النتيجة</div>
-                        </div>
+                  /* Standard Dashboard columns layout */
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" dir="rtl">
+                    
+                    {/* Column 1: Recently Studied Exams (Right) */}
+                    <div className="col-span-1 lg:col-span-7 bg-white dark:bg-[#111] rounded-2xl border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,0.15)] flex flex-col min-h-[500px]">
+                      <div className="flex items-center justify-between pb-4 border-b-2 border-black mb-6">
+                        <span className="bg-[#E8F5E9] text-emerald-700 border-2 border-black px-3 py-1 rounded-xl text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center">
+                          {examHistoryList.length} امتحان
+                        </span>
+                        <h3 className="text-lg font-black text-black dark:text-white flex items-center gap-2">
+                          <History size={18} className="text-emerald-500" />
+                          ما تمت دراسته مؤخراً
+                        </h3>
                       </div>
-                    ))}
+
+                      {/* List of recent exams */}
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1 flex-1 custom-scrollbar text-right">
+                        {examHistoryList.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400">
+                            <HelpCircle size={40} className="mb-2" />
+                            <p className="font-bold text-sm">ليس لديك أي امتحانات مضافة بعد.</p>
+                            <p className="text-xs text-slate-400 mt-1">ابدأ برفع ملف دراسي واستخراج الأسئلة بالذكاء الاصطناعي</p>
+                          </div>
+                        ) : (
+                          examHistoryList.slice(0, 5).map(history => {
+                            const scorePct = history.totalScorable > 0 
+                              ? Math.round((history.score / history.totalScorable) * 100) 
+                              : 100;
+                            return (
+                              <div 
+                                key={history.id} 
+                                className="bg-slate-50 dark:bg-slate-900 border-2 border-black p-4 rounded-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.05)] hover:-translate-y-0.5 transition-all text-right flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                              >
+                                <div>
+                                  <h4 className="font-black text-sm text-slate-950 dark:text-white line-clamp-1">{history.subject}</h4>
+                                  <p className="text-[11px] font-bold text-slate-400 mt-1">
+                                    {new Date(history.date).toLocaleDateString('ar-IQ')} • {history.totalQuestions} أسئلة
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-4 justify-between self-stretch sm:self-auto">
+                                  {/* Progress bar info */}
+                                  <div className="w-24 sm:w-28 text-right">
+                                    <div className="flex justify-between items-center text-[10px] font-black text-slate-600 dark:text-slate-300 mb-1">
+                                      <span>{scorePct}% جاهزية</span>
+                                      <span>مكتمل</span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 dark:bg-slate-700 border border-black rounded-full h-2.5 overflow-hidden shadow-inner">
+                                      <div 
+                                        className={`h-full duration-500 transition-all ${
+                                          scorePct === 100 ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 
+                                          scorePct >= 75 ? 'bg-gradient-to-r from-blue-400 to-indigo-500' :
+                                          'bg-gradient-to-r from-yellow-400 to-amber-500'
+                                        }`}
+                                        style={{ width: `${scorePct}%` }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    onClick={() => setReviewingExam(history)}
+                                    className="bg-blue-50 text-blue-800 border-2 border-black hover:bg-blue-100 text-xs font-black px-3 py-1.5 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all hover:-translate-y-0.5"
+                                  >
+                                    مراجعة
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Action trigger for new exam */}
+                      <div className="pt-6 border-t-2 border-black mt-4">
+                        <button
+                          onClick={() => setActiveTab('upload')}
+                          className="w-full py-3.5 bg-yellow-300 hover:bg-yellow-400 text-black border-4 border-black rounded-xl font-black text-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all flex items-center justify-center gap-2"
+                        >
+                          <Sparkles size={16} />
+                          إنشاء وصناعة امتحان جديد بالذكاء الاصطناعي 🚀
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Column 2: Daily Review / Spaced Repetition (Left) */}
+                    <div className="col-span-1 lg:col-span-5 bg-white dark:bg-[#111] rounded-2xl border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,0.15)] flex flex-col min-h-[500px]">
+                      <div className="flex items-center justify-between pb-4 border-b-2 border-black mb-4">
+                        <span className="bg-[#FFE5EC] text-pink-600 border-2 border-black px-3 py-1 rounded-xl text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center">
+                          {incorrectQuestions.length} سؤال
+                        </span>
+                        <h3 className="text-lg font-black text-black dark:text-white flex items-center gap-2">
+                          <Brain size={18} className="text-pink-500" />
+                          مراجعة يومية
+                        </h3>
+                      </div>
+
+                      <p className="text-slate-500 dark:text-slate-400 font-bold mb-4 text-xs leading-relaxed text-right">
+                        يركز التعليم المتباعد على مراجعة الأسئلة الخاطئة والحفاظ على فترات متباعدة لتقليل النسيان واسترجاع المعلومات بكفاءة.
+                      </p>
+
+                      {/* Incorrect list */}
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 flex-1 custom-scrollbar mb-4 text-right">
+                        {incorrectQuestions.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center p-8 text-center text-emerald-500 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-dashed border-emerald-300">
+                            <Award size={32} className="mb-2" />
+                            <p className="font-bold text-xs">عمل رائع! صندق مراجعتك اليومية فارغ.</p>
+                            <p className="text-[10px] text-slate-400 mt-1">كافة أخطائك تم تصحيحها وحفظها.</p>
+                          </div>
+                        ) : (
+                          incorrectQuestions.map((item, idx) => (
+                            <div 
+                              key={item.id || idx} 
+                              className="bg-red-50/40 dark:bg-red-950/10 border-2 border-black/80 p-3.5 rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-2.5"
+                            >
+                              <div className="font-bold text-xs text-black dark:text-white leading-relaxed line-clamp-2">
+                                {item.question}
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-black/50 text-[9px] font-bold px-2 py-0.5 rounded">
+                                  {item.subject || "أحياء"}
+                                </span>
+                                <button 
+                                  onClick={() => handleRemoveIncorrect(item.id)}
+                                  className="text-[10px] bg-rose-100 dark:bg-rose-950/50 hover:bg-rose-200 text-rose-700 dark:text-rose-300 border border-black px-2 py-0.5 rounded shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                >
+                                  تخطي
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleStartDailyReview}
+                        disabled={incorrectQuestions.length === 0}
+                        className="w-full py-4 bg-emerald-400 hover:bg-emerald-500 text-black border-4 border-black rounded-xl font-black text-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        <Brain size={18} />
+                        ابدأ المراجعة اليومية ({incorrectQuestions.length} سؤال) 🔥
+                      </button>
+                    </div>
+
                   </div>
                 )}
-              </>
+
+                {/* Monthly limit widget */}
+                <div className="bg-slate-50 dark:bg-slate-900 border-2 border-black p-4 rounded-xl flex items-center justify-between font-bold text-xs max-w-2xl mx-auto mt-6" dir="rtl">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="text-black dark:text-white">الاستخدام الشهري الحالي</span>
+                  </div>
+                  <div className="flex gap-4 text-xs font-black">
+                    <span className="bg-blue-100 text-blue-800 border-2 border-black px-2 py-1 rounded">إنشاء امتحان: {examHistoryList.length} / ١٠</span>
+                    <span className="bg-yellow-105 text-yellow-800 border-2 border-black px-2 py-1 rounded">امتحان وزاري متباعد: ٠ / ١٠</span>
+                  </div>
+                </div>
+              </motion.div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            {/* Tab 2: Upload View */}
+            {activeTab === 'upload' && examState !== 'fileSettings' && (
+              <motion.div
+                key="upload"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-slate-900 rounded-2xl neo-border border-dashed"
+              >
+                <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                  {isUploading ? (
+                    <Loader2 size={32} className="text-blue-600 animate-spin" />
+                  ) : (
+                    <FileText size={32} className="text-slate-400" />
+                  )}
+                </div>
+                <h3 className="text-xl font-black mb-2">
+                   {isUploading ? 'جاري تجهيز الملف...' : 'ارفع ملفك الدراسي الخاص'}
+                </h3>
+                <p className="text-slate-500 font-bold mb-6 max-w-sm">
+                  {isUploading 
+                    ? 'جاري قراءة الملف وتجهيزه. نرجو الانتظار'
+                    : 'ارفع ملف PDF أو صورة أو Word واستخرج منها أسئلة امتحان مخصصة بالذكاء الاصطناعي متبوع بتحليل فوري'
+                  }
+                </p>
+                <input 
+                  type="file" 
+                  accept=".pdf,image/*,.doc,.docx,.txt" 
+                  multiple={true}
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                />
+                <button 
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-8 py-4 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isUploading ? 'أرجو الانتظار...' : 'اختر ملفاً للرفع'}
+                </button>
+              </motion.div>
+            )}
+
+            {activeTab === 'upload' && examState === 'fileSettings' && (
+              <motion.div
+                key="fileSettings"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-white dark:bg-slate-900 p-8 rounded-2xl neo-border text-right"
+                dir="rtl"
+              >
+                <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
+                  <FileText className="text-blue-600" />
+                  إعدادات الامتحان المستخرج من المحتوى
+                </h2>
+
+                <div className="space-y-6">
+                  {/* Uploaded Files Section */}
+                  <div className="bg-slate-50 dark:bg-slate-800/80 border-2 border-black p-4 rounded-xl">
+                    <div className="flex justify-between items-center mb-4">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-3 py-1.5 bg-yellow-300 hover:bg-yellow-400 text-black border-2 border-black text-xs font-black rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.15)] transition-all flex items-center gap-1"
+                      >
+                        + إضافة ملف/صورة أخرى
+                      </button>
+                      <label className="block text-sm font-black text-slate-800 dark:text-slate-100">المستندات والصور المرفوعة ({uploadedFilesList.length})</label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar text-right">
+                      {uploadedFilesList.map((fileObj, fIdx) => (
+                        <div 
+                          key={fIdx} 
+                          className="bg-white dark:bg-slate-900 border-2 border-black p-2 rounded-lg flex items-center justify-between gap-3 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.15)]"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = uploadedFilesList.filter((_, idx) => idx !== fIdx);
+                              setUploadedFilesList(updated);
+                              if (updated.length === 0) {
+                                setUploadedFileContent(null);
+                                setExamState('setup');
+                              } else {
+                                setUploadedFileContent(updated[0]);
+                              }
+                            }}
+                            className="p-1 hover:bg-red-100 hover:text-red-700 text-slate-400 rounded-md transition-colors border border-transparent hover:border-black"
+                            title="حذف"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+
+                          <div className="flex items-center gap-2 overflow-hidden flex-1 justify-end">
+                            <span className="text-[11px] font-bold truncate text-slate-700 dark:text-slate-300">
+                              {fileObj.fileName || 'ملف غير مسمى'}
+                            </span>
+                            {fileObj.base64 ? (
+                              <img 
+                                src={`data:${fileObj.mimeType};base64,${fileObj.base64}`} 
+                                alt="file preview" 
+                                className="w-8 h-8 object-cover rounded border border-black"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded border border-black flex items-center justify-center font-black text-xs">
+                                DOC
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">اسم الامتحان <span className="text-slate-400 text-xs font-normal">(اختياري)</span></label>
+                    <input
+                      type="text"
+                      placeholder="مثال: امتحان الفصل الأول - أحياء أو رياضيات"
+                      value={genSettings.examName}
+                      onChange={(e) => setGenSettings({...genSettings, examName: e.target.value})}
+                      className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none font-bold bg-slate-50 dark:bg-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">عدد الأسئلة المستهدفة</label>
+                    <select
+                      value={genSettings.questionCount}
+                      onChange={(e) => setGenSettings({...genSettings, questionCount: e.target.value})}
+                      className="w-full text-right p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none font-bold bg-slate-50 dark:bg-slate-800 dark:border-slate-600 focus:border-blue-500/50"
+                      dir="rtl"
+                    >
+                      <option value="5">٥ أسئلة (قصير)</option>
+                      <option value="10">١٠ أسئلة (متوسط)</option>
+                      <option value="15">١٥ سؤالاً</option>
+                      <option value="20">٢٠ سؤالاً (شامل)</option>
+                      <option value="25">٢٥ سؤالاً</option>
+                      <option value="35">٣٥ سؤالاً</option>
+                      <option value="50">٥٠ سؤالاً (الحد الأقصى)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">أنواع الأسئلة</label>
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                          checked={genSettings.types.mcq}
+                          onChange={(e) => setGenSettings({...genSettings, types: {...genSettings.types, mcq: e.target.checked}})}
+                        />
+                        <span className="font-bold text-slate-700 dark:text-slate-300">اختيارات متعددة (MCQ)</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                          checked={genSettings.types.tf}
+                          onChange={(e) => setGenSettings({...genSettings, types: {...genSettings.types, tf: e.target.checked}})}
+                        />
+                        <span className="font-bold text-slate-700 dark:text-slate-300">صح أو خطأ</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                          checked={genSettings.types.essay}
+                          onChange={(e) => setGenSettings({...genSettings, types: {...genSettings.types, essay: e.target.checked}})}
+                        />
+                        <span className="font-bold text-slate-700 dark:text-slate-300">كتابة إجابة (مقالي)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4">
+                    <button
+                      onClick={handleGenerateFromSettings}
+                      disabled={isUploading || (!genSettings.types.mcq && !genSettings.types.tf && !genSettings.types.essay)}
+                      className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-[0_5px_0_0_#1d4ed8] hover:translate-y-[3px] hover:shadow-[0_2px_0_0_#1d4ed8] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isUploading ? <Loader2 size={24} className="animate-spin" /> : <Sparkles size={24} />}
+                      {isUploading ? 'جاري تحضير الامتحان...' : 'توليد الامتحان الآن'}
+                    </button>
+                    <button
+                      onClick={() => {
+                         setUploadedFileContent(null);
+                         setUploadedFilesList([]);
+                         setExamState('setup');
+                      }}
+                      className="px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-all"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+
+                </div>
+              </motion.div>
+            )}
+
+            {/* Tab 3: History View */}
+            {activeTab === 'history' && (
+              <motion.div
+                key="history"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
+                {loadingHistory ? (
+                  <div className="flex justify-center p-12">
+                    <Loader2 size={48} className="text-blue-500 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl neo-border text-center">
+                        <div className="text-3xl font-black text-blue-600 mb-1">{examHistoryList.length}</div>
+                        <div className="text-sm font-bold text-slate-500">امتحانات مكتملة بالكامل</div>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl neo-border text-center">
+                        <div className="text-3xl font-black text-green-500 mb-1">
+                          {examHistoryList.reduce((acc, curr) => acc + curr.totalScorable, 0) > 0 
+                            ? Math.round((examHistoryList.reduce((acc, curr) => acc + curr.score, 0) / examHistoryList.reduce((acc, curr) => acc + curr.totalScorable, 0)) * 100)
+                            : '--'}%
+                        </div>
+                        <div className="text-sm font-bold text-slate-500">معدل الجاهزية الحالي</div>
+                      </div>
+                    </div>
+                    
+                    {examHistoryList.length === 0 ? (
+                      <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl neo-border flex flex-col items-center text-center">
+                        <Sparkles size={48} className="text-yellow-400 mb-4" />
+                        <h3 className="text-xl font-black mb-2">سجلتت للنجاح فارغة</h3>
+                        <p className="text-slate-500 font-bold max-w-xs">
+                          أنشئ امتحانات من ملفاتك الدراسية لنقوم بحفظ تقدمك وعرض أوراق الإجابات النموذجية كاملة هنا.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <h3 className="text-xl font-black text-right" dir="rtl">سجلات الامتحانات التاريخية</h3>
+                        {examHistoryList.map(history => {
+                          const scorePct = history.totalScorable > 0 
+                            ? Math.round((history.score / history.totalScorable) * 100) 
+                            : 100;
+                          return (
+                            <div key={history.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl neo-border flex items-center justify-between" dir="rtl">
+                              <div>
+                                <h4 className="font-bold text-lg">{history.subject}</h4>
+                                <p className="text-sm text-slate-500">{new Date(history.date).toLocaleDateString('ar-IQ')} • {history.totalQuestions} أسئلة</p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className="bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg text-center">
+                                  <div className="text-lg font-black text-blue-600">
+                                    {history.score}/{history.totalScorable}
+                                  </div>
+                                  <div className="text-xs font-bold text-slate-500">النتيجة ({scorePct}%)</div>
+                                </div>
+                                <button
+                                  onClick={() => { setReviewingExam(history); setActiveTab('dashboard'); }}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-lg border-2 border-black text-xs transition-all hover:-translate-y-0.5"
+                                >
+                                  عرض ورقة الامتحان
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

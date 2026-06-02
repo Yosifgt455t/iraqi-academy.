@@ -136,9 +136,9 @@ export interface QuizQuestion {
 export interface ExamQuestion {
   id: string;
   subject: string;
-  grade: string;
-  round: string;
-  year: string;
+  grade?: string;
+  round?: string;
+  year?: string;
   chapter?: string;
   topic?: string;
   type: 'MCQ' | 'Essay' | 'TrueFalse';

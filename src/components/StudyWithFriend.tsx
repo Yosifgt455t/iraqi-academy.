@@ -1282,6 +1282,7 @@ export default function StudyWithFriend({ user, userProfile, onBack }: Props) {
                              materials
                                .filter(m => m.chapterId === selChapter.id || (m.chapterIds && m.chapterIds.includes(selChapter.id)))
                                .filter(m => !selTeacher || m.teacherId === selTeacher.id)
+                               .filter(m => m.type === 'Video' || m.type === 'VK')
                                .map(m => (
                                  <button
                                    key={m.id}
