@@ -138,10 +138,32 @@ export default function SmartAssistantView({ onBack, userId, isAdmin = false }: 
   });
 
   const [examsTakenCount, setExamsTakenCount] = useState(0);
+  const [credits, setCredits] = useState<number>(600);
+
+  const updateCredits = (newCredits: number) => {
+    setCredits(newCredits);
+    try {
+      localStorage.setItem(`credits_${userId}`, String(newCredits));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Load initial daily count and incorrect questions list
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
+    try {
+      const storedCredits = localStorage.getItem(`credits_${userId}`);
+      if (storedCredits !== null) {
+        setCredits(parseInt(storedCredits, 10));
+      } else {
+        localStorage.setItem(`credits_${userId}`, '600');
+        setCredits(600);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
     try {
       const dataStr = localStorage.getItem(`exam_limit_${userId}`);
       if (dataStr) {
@@ -532,6 +554,13 @@ ${adminImportText}`,
 
   const handleGenerateFromSettings = async () => {
     if (!uploadedFileContent) return;
+    const calculatedCost = 30 + (parseInt(genSettings.questionCount, 10) || 10) * 4;
+
+    if (credits < calculatedCost && !isAdmin) {
+      alert(`عذراً، رصيدك الحالي من النقاط (${credits} نقطة) لا يكفي لإنشاء هذا الامتحان. التكلفة المطلوبة هي ${calculatedCost} نقطة. يمكنك شحن رصيدك مجاناً عبر زر "شحن الرصيد مجاناً" المتواجد في الأعلى أو بصفحة الإعدادات!`);
+      return;
+    }
+
     if (examsTakenCount >= 3 && !isAdmin) {
       alert("لقد وصلت إلى الحد الأقصى لصناعة الامتحانات اليومية (3 امتحانات في اليوم). يرجى العودة غداً للمزيد!");
       return;
@@ -715,6 +744,9 @@ ${adminImportText}`,
       setCurrentQuestionIndex(0);
       setExamState('taking');
       incrementDailyExamCount();
+      if (!isAdmin) {
+        updateCredits(Math.max(0, credits - calculatedCost));
+      }
 
     } catch (err: any) {
       console.error(err);
@@ -1007,7 +1039,19 @@ ${adminImportText}`,
               <h3 className="text-xl font-black text-slate-900 dark:text-white">مرحباً بك، {studentName}</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 font-bold mt-1">نظرة عامة على أدائك الدراسي ومراجعاتك النشطة لتقليل النسيان.</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 border-2 border-black px-3 py-1.5 rounded-xl text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1">
+                <Sparkles size={14} className="text-amber-600 animate-pulse" /> رصيد النقاط: {credits} نقطة
+              </span>
+              <button
+                onClick={() => {
+                  updateCredits(credits + 600);
+                  alert("تم شحن حسابك مجاناً بـ 600 نقطة إضافية بنجاح! 🎉");
+                }}
+                className="px-3 py-1.5 bg-green-300 hover:bg-green-400 text-black border-2 border-black text-xs font-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-1"
+              >
+                + شحن مجاني
+              </button>
               <span className="bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-2 border-black px-3 py-1.5 rounded-xl text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1">
                 <Clock size={14} /> {examsTakenCount} / ٣ امتحانات لليوم
               </span>
@@ -1490,6 +1534,40 @@ ${adminImportText}`,
                       </label>
                     </div>
                   </div>
+
+                  {/* Dynamic Credits Cost Estimator Widget */}
+                  {(() => {
+                    const cost = 30 + (parseInt(genSettings.questionCount, 10) || 10) * 4;
+                    const isSufficient = credits >= cost || isAdmin;
+                    return (
+                      <div className={`p-4 rounded-xl border-2 text-right ${
+                        isSufficient 
+                          ? 'bg-blue-50/50 border-blue-400 dark:bg-blue-950/20 dark:border-blue-800' 
+                          : 'bg-red-50/50 border-red-400 dark:bg-red-950/20 dark:border-red-900'
+                      }`} dir="rtl">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                          <div>
+                            <h4 className="font-black text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                              <Sparkles size={16} className="text-amber-500" />
+                              تكلفة استهلاك النقاط لهذا الامتحان
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-1">
+                              المعالجة الأساسية للمستندات/الصور: <span className="underline">30 نقطة</span> + <span className="underline">4 نقاط لكل سؤال</span> مطلوب.
+                            </p>
+                            {!isSufficient && (
+                              <p className="text-xs text-red-600 dark:text-red-400 font-extrabold mt-1.5">
+                                رصيدك الحالي ({credits} نقطة) لا يكفي لتغطية تكلفة هذا الامتحان! يرجى تقليل عدد الأسئلة أو شحن نقاطك مجاناً.
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex sm:flex-col items-center justify-between sm:justify-center bg-white dark:bg-slate-950 px-4 py-2 rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.1)] min-w-[110px] w-full sm:w-auto">
+                            <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{cost}</span>
+                            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">نقطة ذكية</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4">
                     <button
