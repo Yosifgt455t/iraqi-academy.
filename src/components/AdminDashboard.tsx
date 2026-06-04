@@ -26,7 +26,8 @@ import {
   GraduationCap,
   MessageSquare,
   Upload,
-  Hash
+  Hash,
+  Sparkles
 } from "lucide-react";
 import {
   collection,
@@ -51,6 +52,8 @@ import { getAIClient, shouldSwitchKey } from "../services/aiService";
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { getAdmins, addAdmin, removeAdmin } from "../services/adminService";
 import * as XLSX from "xlsx";
+import { seedIslamiaData } from "../utils/seedIslamia";
+import { migrateHashemiLectures } from "../utils/seedHashemi";
 
 interface Subject {
   id: string;
@@ -222,6 +225,8 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [seedingIslamia, setSeedingIslamia] = useState(false);
+  const [seedingHashemi, setSeedingHashemi] = useState(false);
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [showExcelImport, setShowExcelImport] = useState(false);
   const [isYoutubeMode, setIsYoutubeMode] = useState(false); // NEW
@@ -231,6 +236,10 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
   const [bulkInput, setBulkInput] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Admin credits management state
+  const [adminTargetUserId, setAdminTargetUserId] = useState("");
+  const [adminPointsInput, setAdminPointsInput] = useState("600");
 
   // Filtering states for forms
   const [formGradeFilter, setFormGradeFilter] = useState<Grade | "">("");
@@ -1845,6 +1854,84 @@ ${text}`,
                       </div>
                     </div>
 
+                    {/* Student Credits Management Section */}
+                    <div className="bg-white p-8 rounded-xl neo-border space-y-6 text-right" dir="rtl">
+                      <div className="flex items-center gap-3 border-r-[6px] border-black pr-4">
+                        <Sparkles className="text-black animate-pulse" size={28} strokeWidth={2.5} />
+                        <h3 className="text-2xl font-black text-black">
+                          إدارة رصيد نقاط الطلاب (امتحانات الذكاء الاصطناعي)
+                        </h3>
+                      </div>
+                      <p className="text-sm font-bold text-black/60 leading-relaxed">
+                        بما أن استهلاك النقاط يعتمد على عدد الأسئلة المطلوبة لكل امتحان، يمكنك كمسؤول التحكم مباشرة في رصيد أي طالب وإضافة أو إعادة تعيين رصيده اليومي من النقاط.
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-black text-black mb-2">مُعرّف الطالب المستهدف (User ID / Student ID)</label>
+                          <input
+                            type="text"
+                            value={adminTargetUserId}
+                            onChange={(e) => setAdminTargetUserId(e.target.value)}
+                            placeholder="اكتب المعرف الفريد للطالب (مثال: guest_user)"
+                            className="w-full p-4 bg-white border-4 border-black rounded-xl outline-none focus:neo-bg-yellow font-black text-base shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-right"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-black text-black mb-2 font-mono">النقاط المدخلة</label>
+                          <input
+                            type="number"
+                            value={adminPointsInput}
+                            onChange={(e) => setAdminPointsInput(e.target.value)}
+                            placeholder="مثال: 600"
+                            className="w-full p-4 bg-white border-4 border-black rounded-xl outline-none focus:neo-bg-yellow font-black text-base shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                        <button
+                          onClick={() => {
+                            if (!adminTargetUserId) {
+                              alert("يرجى إدخال معرّف الطالب المستهدف أولاً!");
+                              return;
+                            }
+                            const newPts = parseInt(adminPointsInput, 10);
+                            if (isNaN(newPts) || newPts < 0) {
+                              alert("يرجى إدخال عدد نقاط صحيح وموجب!");
+                              return;
+                            }
+                            localStorage.setItem(`credits_${adminTargetUserId}`, String(newPts));
+                            alert(`تم إعادة تعيين نقاط الطالب (${adminTargetUserId}) بنجاح إلى ${newPts} نقطة! 🎯`);
+                          }}
+                          className="flex-1 py-4 px-6 neo-bg-teal border-4 border-black text-black rounded-xl font-black text-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 active:translate-y-0 active:shadow-none transition-all"
+                        >
+                          ضبط نقاط هذا الطالب
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!adminTargetUserId) {
+                              alert("يرجى إدخال معرّف الطالب المستهدف أولاً!");
+                              return;
+                            }
+                            const pointsToAdd = parseInt(adminPointsInput, 10);
+                            if (isNaN(pointsToAdd) || pointsToAdd <= 0) {
+                              alert("يرجى إدخال عدد نقاط موجب للإضافة!");
+                              return;
+                            }
+                            const currentStored = localStorage.getItem(`credits_${adminTargetUserId}`);
+                            const parsedCurrent = currentStored ? parseInt(currentStored, 10) : 600;
+                            const added = parsedCurrent + pointsToAdd;
+                            localStorage.setItem(`credits_${adminTargetUserId}`, String(added));
+                            alert(`تم بنجاح إضافة ${pointsToAdd} نقطة! رصيد الطالب الجديد هو ${added} نقطة. 🚀`);
+                          }}
+                          className="flex-1 py-4 px-6 neo-bg-green border-4 border-black text-black rounded-xl font-black text-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 active:translate-y-0 active:shadow-none transition-all"
+                        >
+                          + إضافة رصيد إضافي
+                        </button>
+                      </div>
+                    </div>
+
                     {isSuperAdmin && (
                       <div className="bg-white p-8 rounded-xl neo-border space-y-8">
                         <div className="flex items-center gap-3 border-r-[6px] border-black pr-4">
@@ -2569,6 +2656,90 @@ ${getExcelConfig('exam_questions')?.cols.join(' | ')}
                                 : "إضافة المادة للقائمة"}
                           </button>
                         </form>
+                      )}
+
+                      {activeTab === "subjects" && (
+                        <div className="mt-8 pt-8 border-t-2 border-slate-100 space-y-4 text-right" dir="rtl">
+                          <div className="neo-bg-[#10b981] p-6 rounded-2xl border-2 border-black flex flex-col md:flex-row items-center justify-between gap-4 text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            <div className="space-y-1">
+                              <h4 className="text-xl font-black flex items-center gap-2">
+                                <Sparkles size={22} className="text-yellow-300 fill-yellow-300" />
+                                تثبيت منهج التربية الإسلامية والأستاذ ساجد العكيلي تلقائياً
+                              </h4>
+                              <p className="text-sm font-bold opacity-90">
+                                سيقوم هذا الخيار تلقائياً بإضافة مادة "التربية الإسلامية"، "الوحدة الأولى"، الأستاذ "ساجد العكيلي" ومحاضرات منصة VK الثمانية لقائمة السادس الإعدادي.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={seedingIslamia}
+                              onClick={async () => {
+                                setSeedingIslamia(true);
+                                const success = await seedIslamiaData();
+                                setSeedingIslamia(false);
+                                if (success) {
+                                  showToast("success", "تم تثبيت وتعريف مادة التربية الإسلامية ومحاضراتها بنجاح! 🎉");
+                                  fetchSubjects();
+                                } else {
+                                  showToast("error", "حدث فشل أثناء تثبيت المادة، يرجى مراجعة الصلاحيات.");
+                                }
+                              }}
+                              className="px-6 py-4 bg-white hover:bg-slate-100 border-2 border-black rounded-xl font-bold flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 transition-all text-black self-stretch md:self-auto cursor-pointer"
+                            >
+                              {seedingIslamia ? (
+                                <>
+                                  <Loader2 className="animate-spin" size={20} />
+                                  جاري التثبيت...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles size={20} />
+                                  تثبيت المنهج الآن
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="neo-bg-[#3b82f6] p-6 rounded-2xl border-2 border-black flex flex-col md:flex-row items-center justify-between gap-4 text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mt-4">
+                            <div className="space-y-1">
+                              <h4 className="text-xl font-black flex items-center gap-2">
+                                <Sparkles size={22} className="text-yellow-300 fill-yellow-300" />
+                                تحديث محاضرات الأستاذ حسين الهاشمي (الفصل الأول)
+                              </h4>
+                              <p className="text-sm font-bold opacity-90">
+                                يقوم هذا الخيار باستبدال محاضرات الأستاذ حسين الهاشمي بالفصل الأول ومزامنها مع قائمة تشغيل VK الجديدة (16 محاضرة كاملة).
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={seedingHashemi}
+                              onClick={async () => {
+                                setSeedingHashemi(true);
+                                const success = await migrateHashemiLectures();
+                                setSeedingHashemi(false);
+                                if (success) {
+                                  showToast("success", "تم تحديث واستبدال محاضرات الأستاذ حسين الهاشمي بنجاح! 🎉");
+                                  fetchSubjects();
+                                } else {
+                                  showToast("error", "حدث فشل أثناء تحديث المحاضرات، يرجى المحاولة لاحقاً.");
+                                }
+                              }}
+                              className="px-6 py-4 bg-white hover:bg-slate-100 border-2 border-black rounded-xl font-bold flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 transition-all text-black self-stretch md:self-auto cursor-pointer"
+                            >
+                              {seedingHashemi ? (
+                                <>
+                                  <Loader2 className="animate-spin" size={20} />
+                                  جاري التحرير...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles size={20} />
+                                  تحديث المحاضرات الآن
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
                       )}
 
                       {activeTab === "chapters" && (

@@ -139,6 +139,8 @@ export default function SmartAssistantView({ onBack, userId, isAdmin = false }: 
 
   const [examsTakenCount, setExamsTakenCount] = useState(0);
   const [credits, setCredits] = useState<number>(600);
+  const [adminTargetUserId, setAdminTargetUserId] = useState(userId || '');
+  const [adminPointsInput, setAdminPointsInput] = useState('600');
 
   const updateCredits = (newCredits: number) => {
     setCredits(newCredits);
@@ -154,10 +156,18 @@ export default function SmartAssistantView({ onBack, userId, isAdmin = false }: 
     const today = new Date().toISOString().split('T')[0];
     try {
       const storedCredits = localStorage.getItem(`credits_${userId}`);
-      if (storedCredits !== null) {
+      const lastResetDate = localStorage.getItem(`credits_date_${userId}`);
+      
+      if (lastResetDate !== today) {
+        // A new day has arrived! Reset credits to exactly 600
+        localStorage.setItem(`credits_${userId}`, '600');
+        localStorage.setItem(`credits_date_${userId}`, today);
+        setCredits(600);
+      } else if (storedCredits !== null) {
         setCredits(parseInt(storedCredits, 10));
       } else {
         localStorage.setItem(`credits_${userId}`, '600');
+        localStorage.setItem(`credits_date_${userId}`, today);
         setCredits(600);
       }
     } catch (e) {
@@ -1043,15 +1053,6 @@ ${adminImportText}`,
               <span className="bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 border-2 border-black px-3 py-1.5 rounded-xl text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1">
                 <Sparkles size={14} className="text-amber-600 animate-pulse" /> رصيد النقاط: {credits} نقطة
               </span>
-              <button
-                onClick={() => {
-                  updateCredits(credits + 600);
-                  alert("تم شحن حسابك مجاناً بـ 600 نقطة إضافية بنجاح! 🎉");
-                }}
-                className="px-3 py-1.5 bg-green-300 hover:bg-green-400 text-black border-2 border-black text-xs font-black rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-1"
-              >
-                + شحن مجاني
-              </button>
               <span className="bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-2 border-black px-3 py-1.5 rounded-xl text-xs font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1">
                 <Clock size={14} /> {examsTakenCount} / ٣ امتحانات لليوم
               </span>

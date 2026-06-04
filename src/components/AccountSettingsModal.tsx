@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { updateUserProfile } from '../lib/firebase';
-import { X, User, Mail, Save, Loader2, Camera, LogOut, Trash2 } from 'lucide-react';
+import { X, User, Mail, Save, Loader2, Camera, LogOut, Trash2, Hash, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Props {
@@ -15,6 +15,7 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
   const [avatarUrl, setAvatarUrl] = useState(user.photoURL || user.user_metadata?.avatar_url || '');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,6 +171,46 @@ export default function AccountSettingsModal({ user, isOpen, onClose, onLogout }
                     />
                   </div>
                 )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 mr-2 flex items-center gap-1">
+                    <Hash size={12} /> مُعرّف الطالب (ID الخاص بك)
+                  </label>
+                  <div className="relative flex items-center" dir="ltr">
+                    <input
+                      type="text"
+                      readOnly
+                      value={user.id || ''}
+                      className="w-full bg-slate-100 border border-slate-200 rounded-2xl pl-28 pr-4 py-3 text-xs text-slate-700 font-mono font-bold min-w-0 text-left select-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          navigator.clipboard.writeText(user.id || '');
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        } catch (err) {
+                          console.error('Failed to copy: ', err);
+                        }
+                      }}
+                      className="absolute left-2 px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-black transition-all flex items-center gap-1 shadow-sm"
+                    >
+                      {copied ? (
+                        <>
+                          <Check size={12} className="text-green-400" />
+                          <span>تم النسخ</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={12} />
+                          <span>نسخ المعرف</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-bold mr-2 text-right" dir="rtl">أرسل هذا المعرّف الفريد للأستاذ أو الإدارة لشحن رصيد نقاطك يدوياً.</p>
+                </div>
 
                 <button
                   type="submit"

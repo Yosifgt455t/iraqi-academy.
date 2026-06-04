@@ -12,12 +12,16 @@ import {
   Clock, 
   School, 
   User,
-  Layout
+  Layout,
+  FileText,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { EnglishExamData, EnglishExamPdf, EnglishExamEditor, defaultEnglishExam } from './EnglishExamUI';
+import { createGoogleDocFromExam } from '../utils/googleDocsExport';
 
 interface Props {
   onClose: () => void;
@@ -37,6 +41,10 @@ interface Question {
 
 export default function ExamBuilderModal({ onClose }: Props) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExportingDocs, setIsExportingDocs] = useState(false);
+  const [generatedDocUrl, setGeneratedDocUrl] = useState<string | null>(null);
+  const [docsError, setDocsError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     schoolName: '',
     academicYear: '2025-2026',
@@ -55,6 +63,28 @@ export default function ExamBuilderModal({ onClose }: Props) {
   const [engExam, setEngExam] = useState<EnglishExamData>(defaultEnglishExam);
 
   const printRef = useRef<HTMLDivElement>(null);
+
+  const handleExportToGoogleDocs = async () => {
+    if (isExportingDocs) return;
+    setIsExportingDocs(true);
+    setDocsError(null);
+    setGeneratedDocUrl(null);
+
+    try {
+      const url = await createGoogleDocFromExam(
+        formData,
+        questions,
+        engExam,
+        formData.language === 'en'
+      );
+      setGeneratedDocUrl(url);
+    } catch (error: any) {
+      console.error('Error exporting to Google Docs:', error);
+      setDocsError(error?.message || (formData.language === 'en' ? 'Failed to export to Google Docs.' : 'فشل تصدير الأسئلة إلى مستندات Google.'));
+    } finally {
+      setIsExportingDocs(false);
+    }
+  };
 
   const addQuestion = () => setQuestions([...questions, { type: 'standard', text: '', branches: [], fillInWords: '', matchingList1: '', matchingList2: '' }]);
   const removeQuestion = (index: number) => {
@@ -590,24 +620,74 @@ export default function ExamBuilderModal({ onClose }: Props) {
               )}
           </div>
 
-          <div className="p-6 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-4 items-center justify-end shrink-0">
-            <button
-              onClick={generatePdf}
-              disabled={isGenerating || !formData.schoolName || !formData.subject}
-              className="w-full sm:w-auto px-10 py-3.5 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:bg-slate-300 transition-all uppercase tracking-wide disabled:cursor-not-allowed"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  <span>{isEn ? 'Processing...' : 'جاري المعالجة...'}</span>
-                </>
-              ) : (
-                <>
-                  <Download size={20} />
-                  <span>{isEn ? 'Save as PDF' : 'حفظ كملف PDF'}</span>
-                </>
-              )}
-            </button>
+          <div className="p-6 border-t border-slate-200 bg-white flex flex-col gap-4 shrink-0">
+            {docsError && (
+              <div className="text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-xs font-bold text-center">
+                {docsError}
+              </div>
+            )}
+            
+            {generatedDocUrl && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-white">
+                    <Check size={12} />
+                  </span>
+                  <p className="text-xs font-bold text-emerald-800">
+                    {isEn 
+                      ? 'Exam has been exported successfully to Google Docs!' 
+                      : 'تم تصدير الأسئلة بنجاح إلى مستندات Google!'}
+                  </p>
+                </div>
+                <a
+                  href={generatedDocUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 font-bold text-xs transition-colors"
+                >
+                  {isEn ? 'Open Document' : 'فتح المستند'}
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-end">
+              <button
+                onClick={handleExportToGoogleDocs}
+                disabled={isExportingDocs || isGenerating || !formData.schoolName || !formData.subject}
+                className="w-full sm:w-auto px-6 py-3.5 bg-amber-500 text-slate-900 rounded-xl font-bold flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/20 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 transition-all uppercase tracking-wide disabled:cursor-not-allowed cursor-pointer"
+              >
+                {isExportingDocs ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    <span>{isEn ? 'Exporting...' : 'جاري التصدير...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText size={20} />
+                    <span>{isEn ? 'Export to Docs' : 'تصدير إلى Google Docs'}</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={generatePdf}
+                disabled={isGenerating || isExportingDocs || !formData.schoolName || !formData.subject}
+                className="w-full sm:w-auto px-10 py-3.5 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:bg-slate-300 transition-all uppercase tracking-wide disabled:cursor-not-allowed cursor-pointer"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    <span>{isEn ? 'Processing...' : 'جاري المعالجة...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={20} />
+                    <span>{isEn ? 'Save as PDF' : 'حفظ كملف PDF'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

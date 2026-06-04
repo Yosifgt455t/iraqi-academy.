@@ -246,11 +246,22 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
     if (url.includes('video_ext.php')) {
       return url + (url.includes('?') ? '&autoplay=1' : '?autoplay=1');
     }
+    
+    // Format: https://vkvideo.ru/video/playlist/-230336496_29
+    // or https://vk.com/video/playlist/-230336496_29
+    const playlistMatch = url.match(/playlist\/(-?\d+)_(\d+)/);
+    if (playlistMatch) {
+      return `https://vk.com/video_ext.php?oid=${playlistMatch[1]}&playlist_id=${playlistMatch[2]}&autoplay=1`;
+    }
+
     // Format: https://m.vkvideo.ru/video-230336496_456239691
     // or https://vk.com/video-230336496_456239691
     const match = url.match(/video(-?\d+)_(\d+)/);
     if (match) {
-      return `https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}&autoplay=1`;
+      // Check if there is a playlist ID in the URL to append it (useful for playlist context)
+      const listMatch = url.match(/[?&](playlist_id|list)=(-?\d+)_?(\d+)?/);
+      const playlistParam = listMatch ? `&playlist_id=${listMatch[3] || listMatch[2]}` : '';
+      return `https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}${playlistParam}&autoplay=1`;
     }
     return url;
   };

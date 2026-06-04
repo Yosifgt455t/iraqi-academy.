@@ -59,6 +59,17 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (isAdmin) {
+      import('./utils/seedIslamia').then(({ seedIslamiaData }) => {
+        seedIslamiaData();
+      });
+      import('./utils/seedHashemi').then(({ migrateHashemiLectures }) => {
+        migrateHashemiLectures();
+      });
+    }
+  }, [isAdmin]);
+
   const handleSetGrade = async (newGrade: Grade) => {
     setGrade(newGrade);
     localStorage.setItem('savedGrade', newGrade);

@@ -10,11 +10,11 @@ const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   useFetchStreams: false,
-} as any, firebaseConfig.firestoreDatabaseId);
+} as any, (firebaseConfig as any).firestoreDatabaseId);
 
 export const storage = getStorage(app);
 
-console.log("Firestore initialized with DB ID:", firebaseConfig.firestoreDatabaseId);
+console.log("Firestore initialized with DB ID:", (firebaseConfig as any).firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
