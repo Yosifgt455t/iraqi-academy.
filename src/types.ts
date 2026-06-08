@@ -8,6 +8,7 @@ export interface Profile {
   role?: 'student' | 'teacher';
   grade: Grade | null;
   completed_materials?: string[];
+  custom_schedule?: any;
   xp?: number;
   level?: number;
   streak?: {
@@ -105,6 +106,7 @@ export interface MinisterialQuestion {
   url?: string;
   type?: string;
   order_index?: number;
+  topic?: string;
 }
 
 export interface ReviewSubject {

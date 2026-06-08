@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { db, awardXP, subscribeToFeatures, updateDailyStreak } from '../lib/firebase';
-import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { db, awardXP, subscribeToFeatures, updateDailyStreak, auth } from '../lib/firebase';
+import { collection, query, where, getDocs, updateDoc, doc, getDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Material, Flashcard, Chapter, Grade, MinisterialQuestion, Teacher } from '../types';
 import { getAIClient } from '../services/aiService';
 import { Type } from "@google/genai";
-import { Bot, FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye, GraduationCap, Check, Bookmark } from 'lucide-react';
+import { Bot, FileText, Play, BrainCircuit, ExternalLink, Loader2, ChevronRight, ChevronLeft, RefreshCcw, HelpCircle, CheckCircle2, X, CheckCircle, Sparkles, Award, Eye, GraduationCap, Check, Bookmark, BookOpen } from 'lucide-react';
+import { staticMinisterialQuestions, BIOLOGY_CHAPTER_1_ID, BIOLOGY_TOPICS } from '../data/ministerials';
 
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
@@ -16,16 +17,21 @@ interface Props {
   userId: string;
   grade: Grade;
   teacher?: Teacher | null;
+  initialMaterialId?: string | null;
+  onClearInitialMaterialId?: () => void;
 }
 
-export default function ContentView({ chapter, userId, grade, teacher }: Props) {
+export default function ContentView({ chapter, userId, grade, teacher, initialMaterialId, onClearInitialMaterialId }: Props) {
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [ministerialQuestions, setMinisterialQuestions] = useState<MinisterialQuestion[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'lectures' | 'summaries' | 'flashcards' | 'ministerial'>('lectures');
+  const [selectedTopic, setSelectedTopic] = useState<string>('الكل');
   const [selectedVideo, setSelectedVideo] = useState<Material | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
   const [expandedMaterialId, setExpandedMaterialId] = useState<string | null>(null);
@@ -278,26 +284,28 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
     }
     const isYoutube = url.includes('youtube.com') || url.includes('youtu.be') || url.length === 11;
     const isVk = url.includes('vkvideo.ru') || url.includes('vk.com/');
+    const isDailymotion = url.includes('dailymotion.com');
+    const isIframeVideo = isYoutube || isVk || isDailymotion;
 
-    // Trigger onReady for Youtube and Vk since it's a raw iframe
+    // Trigger onReady for Youtube, Vk and Dailymotion since it's a raw iframe
     useEffect(() => {
-      if ((isYoutube || isVk) && onReady) {
+      if (isIframeVideo && onReady) {
         onReady();
       }
-    }, [isYoutube, isVk, onReady]);
+    }, [isIframeVideo, onReady]);
 
     // Use a timer to mark as completed since we can't easily track progress in a raw iframe without postMessage
     useEffect(() => {
-      if (isPlaying && (isYoutube || isVk) && !completedIds.includes(material.id)) {
+      if (isPlaying && isIframeVideo && !completedIds.includes(material.id)) {
         const timer = setTimeout(() => {
           markAsCompleted(material.id);
         }, 120000); // Mark as completed after 2 minutes of "watching"
         return () => clearTimeout(timer);
       }
-    }, [isPlaying, isYoutube, isVk, material.id]);
+    }, [isPlaying, isIframeVideo, material.id]);
 
-    if (isYoutube || isVk) {
-      const finalSrc = isYoutube ? getYoutubeEmbedUrl(url) : getVkEmbedUrl(url);
+    if (isIframeVideo) {
+      const finalSrc = isYoutube ? getYoutubeEmbedUrl(url) : (isVk ? getVkEmbedUrl(url) : url);
       return (
         <iframe
           src={finalSrc}
@@ -337,6 +345,7 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
   const [isFlipped, setIsFlipped] = useState(false);
 
   useEffect(() => {
+    setSelectedTopic('الكل');
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -386,26 +395,36 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
           if (savedProgress) setCompletedIds(JSON.parse(savedProgress));
         }
 
-        // Check for deep-linked material to auto-open
+        // Check for deep-linked material or passed initialMaterialId to auto-open
         const params = new URLSearchParams(window.location.search);
-        const materialId = params.get('materialId');
-        if (materialId) {
-          const autoMat = filteredMaterials.find(m => m.id === materialId);
+        const urlMaterialId = params.get('materialId');
+        const targetMaterialId = urlMaterialId || initialMaterialId;
+
+        if (targetMaterialId) {
+          const autoMat = filteredMaterials.find(m => m.id === targetMaterialId);
           if (autoMat) {
             if (autoMat.type === 'PDF') {
               setSelectedPdf(autoMat.url);
             } else {
               openVideoModal(autoMat);
             }
-            // Clear URL search params clean and smooth
-            const searchParams = new URLSearchParams(window.location.search);
-            searchParams.delete('materialId');
-            searchParams.delete('subjectId');
-            searchParams.delete('chapterId');
-            searchParams.delete('teacherId');
-            const newSearch = searchParams.toString();
-            const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
-            window.history.replaceState({}, '', newUrl);
+            
+            // Clear URL search params clean and smooth if it was URL *deep-link* based
+            if (urlMaterialId) {
+              const searchParams = new URLSearchParams(window.location.search);
+              searchParams.delete('materialId');
+              searchParams.delete('subjectId');
+              searchParams.delete('chapterId');
+              searchParams.delete('teacherId');
+              const newSearch = searchParams.toString();
+              const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
+              window.history.replaceState({}, '', newUrl);
+            }
+
+            // Call the callback to clear the parent state so it doesn't relaunch when doing internal actions
+            if (initialMaterialId && onClearInitialMaterialId) {
+              onClearInitialMaterialId();
+            }
           }
         }
       } catch (err: any) {
@@ -416,7 +435,109 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
       }
     };
     fetchData();
-  }, [chapter, userId]);
+  }, [chapter, userId, initialMaterialId]);
+
+  const handleSyncBiologyMinisterials = async () => {
+    setIsSyncing(true);
+    setSyncMsg("جاري حذف الأسئلة الوزارية السابقة لتنظيف قاعدة البيانات...");
+    try {
+      const collRef = collection(db, 'ministerial_questions');
+      const qSnap = await getDocs(collRef);
+      for (const docSnap of qSnap.docs) {
+        await deleteDoc(doc(db, 'ministerial_questions', docSnap.id));
+      }
+
+      setSyncMsg("تم التطهير الكامل! جاري إضافة الأسئلة الوزارية الجديدة بنسق سؤال وجواب...");
+
+      const biologyQuestions = [
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "ما هي أهم مساهمات وأعمال العالم الألماني ماثياس شلايدن في علم الخلية؟ (وزاري مكرر)",
+          answer: "توصل العالم الألماني ماثياس شلايدن في عام 1838م إلى أن جميع النباتات تتكون من خلايا، مما ساهم لاحقاً في صياغة الأسس العامة لنظرية الخلية.",
+          year: "2015 دور أول",
+          order_index: 1
+        },
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "ما هي مساهمة العالم ثيودور شوان في تطوير علم الخلية؟ (وزاري مكرر)",
+          answer: "أعلن عالم الحيوان الألماني ثيودور شوان في عام 1839م أن جميع الحيوانات تتكون من خلايا، وتشارك مع شلايدن في وضع أسس نظرية الخلية.",
+          year: "2016 دور ثاني",
+          order_index: 2
+        },
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "من هو العالم الذي اكتشف نواة الخلية وقدم وصفاً لها؟ وفي أي عام؟ (وزاري)",
+          answer: "اكتشف نواة الخلية وقدم وصفاً كاملاً وعلمياً لها العالم الاسكتلندي روبرت براون في عام 1831م.",
+          year: "2019 دور ثالث",
+          order_index: 3
+        },
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "كيف عرّف العالم روبرت هوك الخلية؟ وما هي أهم ملاحظاته؟ (وزاري مكرر)",
+          answer: "عرّف الخلية بأنها: 'ردهة هوائية تشبه تجويف خلية شمع العسل'. وهو أول من استخدم مصطلح مسمى 'خلية' (Cell) بعد أن فحص نسيج الفلين ووصف الوحدات الفلينية فيه.",
+          year: "2018 دور أول",
+          order_index: 4
+        },
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "ما الذي تميز به العالم أنتوني فان ليفنهوك في تاريخ علم الخلية؟ (وزاري)",
+          answer: "هو أول شخص استطاع أن يرى الخلية الحية تحت المجهر بعد أن قام بصنع مجهره البسيط (الذي يكبر الأشياء لـ 270 مرة)، وقام بوصف خلايا الدم الحمراء والحيوانات المنوية والكائنات الدقيقة.",
+          year: "2017 تمهيدي",
+          order_index: 5
+        },
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "عرّف نظرية الخلية (Cell Theory)، واذكر العالمَيْن اللذين صاغا أسسها. (وزاري مكرر)",
+          answer: "هي نظرية تصف الخلية بأنها الوحدة الأساسية والتركيبية والوظيفية لجميع الكائنات الحية. صاغ أسسها العالمان الألمانيان ماثياس شلايدن وثيودور شوان، وتعتمد على أن جميع الكائنات تتكون من خلايا مستحوذة على القدرة على الانقسام.",
+          year: "2020 دور أول",
+          order_index: 6
+        },
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "ما هي الأسس الإستراتيجية الثلاثة التي ترتكز عليها نظرية الخلية؟ (وزاري مكرر)",
+          answer: "ترتكز نظرية الخلية على ثلاثة أسس رئيسية:\n1. جميع الكائنات الحية تتكون من خلايا.\n2. الخلايا هي الوحدات الأساسية والتركيبية والوظيفية لجميع الكائنات الحية.\n3. الخلايا تنتج وتنشأ دائماً من خلايا أخرى سابقة لها من خلال عملية انقسامها.",
+          year: "2022 تمهيدي",
+          order_index: 7
+        },
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "ما منشأ ومصدر الخلايا الجديدة وفق البند الثالث لنظرية الخلية؟ (وزاري مكرر)",
+          answer: "منشأ الخلايا هو دائماً من خلايا أخرى سابقة لها، وتنتج وتتشكل من خلال انقسام تلك الخلايا السابقة علمياً.",
+          year: "2013 دور ثاني",
+          order_index: 8
+        },
+        {
+          chapterIds: ["yj6AYJI3QUn0tOH9zTal"],
+          question: "سؤال وزاري: من هما العالمان اللذان وضعا وصاغا البنية النظرية لنظرية الخلية؟ (وزاري)",
+          answer: "هما العالمان الألمانيان: ماثياس شلايدن (عالم النبات الذي أثبت تكوين النباتات من خلايا عام 1838م)، وتيودور شوان (عالم الحيوان الذي أثبت تكوين الحيوانات من خلايا عام 1839م).",
+          year: "2021 دور ثاني",
+          order_index: 9
+        }
+      ];
+
+      for (const q of biologyQuestions) {
+        await addDoc(collRef, q);
+      }
+
+      setSyncMsg("تم تحديث أسئلة 'علماء ونظرية الخلية' بنجاح باهر! جاري تحديث الشاشة...");
+      
+      const updatedList = biologyQuestions.map((q, idx) => ({ id: `temp_${idx}`, ...q }));
+      setMinisterialQuestions(updatedList);
+      
+      setTimeout(() => {
+        setIsSyncing(false);
+        setSyncMsg(null);
+      }, 2000);
+
+    } catch (err: any) {
+      console.error("Error syncing ministerials:", err);
+      setSyncMsg(`خطأ أثناء المزامنة: ${err.message}`);
+      setTimeout(() => {
+        setIsSyncing(false);
+        setSyncMsg(null);
+      }, 5000);
+    }
+  };
 
   const toggleCompletion = async (materialId: string) => {
     const isCompleted = completedIds.includes(materialId);
@@ -1035,79 +1156,202 @@ export default function ContentView({ chapter, userId, grade, teacher }: Props) 
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            {ministerialQuestions.length > 0 ? (
-              <>
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 neo-bg-pink p-6 neo-border">
-                  <div className="text-right">
-                    <h3 className="text-2xl font-black text-black">المراجع والأسئلة الوزارية ({ministerialQuestions.length})</h3>
-                    <p className="text-black/80 font-bold text-sm mt-1">تصفح الأسئلة التي وردت في الامتحانات الوزارية لسنوات سابقة</p>
-                  </div>
-                </div>
+            {(() => {
+              const isBiologyCh1 = chapter.id === BIOLOGY_CHAPTER_1_ID;
+              
+              const staticQuests = isBiologyCh1 ? staticMinisterialQuestions[BIOLOGY_CHAPTER_1_ID] : [];
+              const otherQuests = isBiologyCh1
+                ? ministerialQuestions.filter(q => q.id && !q.id.startsWith("bm_") && (!q.question || q.type === 'PDF' || q.type === 'Video'))
+                : ministerialQuestions;
 
-                <div className="space-y-4">
-                  {ministerialQuestions.map((q, idx) => {
-                    const QType = q.type || 'PDF';
-                    return (
-                      <div key={q.id} className="bg-white dark:bg-[#1a1a1a] neo-border overflow-hidden transition-all neo-hover">
-                        <div className="p-5 flex flex-col gap-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-4">
-                              <div className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white rounded-xl flex items-center justify-center flex-shrink-0 font-black text-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
-                                {idx + 1}
-                              </div>
-                              <div className="space-y-2 pt-1">
-                                {q.year && (
-                                  <p className="text-xs font-black text-black dark:text-white neo-bg-yellow px-2 py-0.5 border-2 border-black dark:border-white rounded-md inline-block neo-border-sm">
-                                    {q.year}
-                                  </p>
-                                )}
-                                <h4 className="font-black text-black dark:text-white leading-relaxed text-xl">
-                                  {q.title || q.question}
-                                </h4>
-                                <p className="text-xs text-slate-500 font-bold mt-1">{QType === 'PDF' ? 'ملف PDF قابل للتحميل' : 'فيديو'}</p>
-                              </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
-                              {QType === 'PDF' ? (
-                                <button
-                                  onClick={() => setSelectedPdf(getMaterialUrl(q))}
-                                  className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white hover:neo-bg-blue hover:text-black rounded-xl transition-all font-black flex items-center justify-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1"
-                                  title="فتح الملف"
-                                >
-                                  <ExternalLink size={24} />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => openVideoModal({ ...q, type: 'Video' } as any)}
-                                  className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white hover:neo-bg-red hover:text-white rounded-xl transition-all font-black flex items-center justify-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1"
-                                  title="تشغيل الفيديو"
-                                >
-                                  <Play size={24} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
+              const displayedQuestions = isBiologyCh1 ? [...staticQuests, ...otherQuests] : ministerialQuestions;
+
+              const filteredQuestions = displayedQuestions.filter((q) => {
+                if (!isBiologyCh1) return true;
+                if (selectedTopic === "الكل") return true;
+                if (!q.topic) return false;
+                return q.topic === selectedTopic;
+              });
+
+              return (
+                <>
+                  {isBiologyCh1 && (
+                    <div className="bg-white dark:bg-[#111111] p-5 neo-border text-right space-y-4" dir="rtl">
+                      <div className="flex items-center gap-2 pb-3 border-b-2 border-black dark:border-white">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500 border-2 border-black flex items-center justify-center text-white shadow-[1px_1px_0px_rgba(0,0,0,1)]">
+                          <BookOpen size={16} />
+                        </div>
+                        <h4 className="font-black text-lg text-black dark:text-white">اختر موضوع مراجعة الوزاريات:</h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {["الكل", ...BIOLOGY_TOPICS].map((topic) => {
+                          const isSelected = selectedTopic === topic;
+                          return (
+                            <button
+                              key={topic}
+                              onClick={() => setSelectedTopic(topic)}
+                              className={`px-4 py-2 text-sm font-black rounded-xl border-2 border-black dark:border-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-0.5 active:translate-y-0.5 ${
+                                isSelected
+                                  ? "bg-[#6366f1] text-white shadow-none translate-y-0.5"
+                                  : "bg-white dark:bg-black text-black dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900"
+                              }`}
+                            >
+                              {topic}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredQuestions.length > 0 ? (
+                    <>
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 neo-bg-pink p-6 neo-border">
+                        <div className="text-right w-full">
+                          <h3 className="text-2xl font-black text-black">المراجع والأسئلة الوزارية ({filteredQuestions.length})</h3>
+                          <p className="text-black/80 font-bold text-sm mt-1">
+                            {isBiologyCh1 
+                              ? `تصفح أسئلة موضوع (${selectedTopic}) لسنوات سابقة مع الأجوبة النموذجية`
+                              : "تصفح الأسئلة التي وردت في الامتحانات الوزارية لسنوات سابقة"}
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            ) : (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-16 bg-white dark:bg-black neo-border space-y-4 neo-bg-pink"
-              >
-                <div className="w-16 h-16 bg-white border-2 border-black text-black rounded-xl flex items-center justify-center mx-auto shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
-                  <Award size={32} />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-black text-black dark:text-white">سيتم إضافة المراجع الوزارية قريباً</h3>
-                  <p className="font-bold text-black/80 dark:text-white/80">نحن نجمع لك كافة الأسئلة والمراجع الوزارية هنا.</p>
-                </div>
-              </motion.div>
-            )}
+
+                      <div className="space-y-4">
+                        {filteredQuestions.map((q, idx) => {
+                          const hasAnswer = !!q.answer;
+                          const isRevealed = !!revealedAnswers[q.id];
+
+                          if (q.question && hasAnswer) {
+                            return (
+                              <div key={q.id || `min_${idx}`} className="bg-white dark:bg-[#1a1a1a] neo-border overflow-hidden transition-all text-right" dir="rtl">
+                                <div className="p-5 flex flex-col gap-4">
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-4">
+                                      <div className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white rounded-xl flex items-center justify-center flex-shrink-0 font-black text-xl shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,1)]">
+                                        {idx + 1}
+                                      </div>
+                                      <div className="space-y-2 pt-1 text-right">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          {q.year && (
+                                            <span className="text-xs font-black text-black dark:text-white neo-bg-yellow px-2 md:px-3 py-1 border-2 border-black dark:border-white rounded-md inline-block">
+                                              {q.year}
+                                            </span>
+                                          )}
+                                          {q.topic && (
+                                            <span className="text-xs font-black text-white bg-indigo-600 px-2 md:px-3 py-1 border-2 border-black dark:border-white rounded-md inline-block">
+                                              {q.topic}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <h4 className="font-black text-black dark:text-white leading-relaxed text-xl mt-1">
+                                          {q.question}
+                                        </h4>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex justify-end pt-2">
+                                    <button
+                                      onClick={() => {
+                                        setRevealedAnswers(prev => ({
+                                          ...prev,
+                                          [q.id]: !prev[q.id]
+                                        }));
+                                      }}
+                                      className="px-5 py-2.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 text-amber-950 dark:text-amber-200 border-2 border-black dark:border-white rounded-xl font-black text-sm flex items-center gap-2 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-0.5 active:translate-y-0.5"
+                                    >
+                                      {isRevealed ? "إخفاء الجواب المعروض 🙈" : "أظهر الجواب النموذجي 👁️"}
+                                    </button>
+                                  </div>
+                                  
+                                  <AnimatePresence>
+                                    {isRevealed && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="mt-2 p-5 bg-emerald-50 dark:bg-emerald-950/20 border-2 border-emerald-500 rounded-xl relative text-right">
+                                          <p className="text-xs font-black text-emerald-800 dark:text-emerald-400 mb-2">الجواب الدراسي النموذجي:</p>
+                                          <p className="text-base font-bold text-black dark:text-white leading-relaxed whitespace-pre-wrap">
+                                            {q.answer}
+                                          </p>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          const QType = q.type || 'PDF';
+                          return (
+                            <div key={q.id || `min_${idx}`} className="bg-white dark:bg-[#1a1a1a] neo-border overflow-hidden transition-all neo-hover text-right" dir="rtl">
+                              <div className="p-5 flex flex-col gap-4">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex items-start gap-4">
+                                    <div className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white rounded-xl flex items-center justify-center flex-shrink-0 font-black text-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
+                                      {idx + 1}
+                                    </div>
+                                    <div className="space-y-2 pt-1 text-right">
+                                      {q.year && (
+                                        <p className="text-xs font-black text-black dark:text-white neo-bg-yellow px-2 py-0.5 border-2 border-black dark:border-white rounded-md inline-block neo-border-sm">
+                                          {q.year}
+                                        </p>
+                                      )}
+                                      <h4 className="font-black text-black dark:text-white leading-relaxed text-xl">
+                                        {q.title || q.question}
+                                      </h4>
+                                      <p className="text-xs text-slate-500 font-bold mt-1">{QType === 'PDF' ? 'ملف PDF قابل للتحميل' : 'فيديو'}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0 mr-auto">
+                                    {QType === 'PDF' ? (
+                                      <button
+                                        onClick={() => setSelectedPdf(getMaterialUrl(q))}
+                                        className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white hover:neo-bg-blue hover:text-black rounded-xl transition-all font-black flex items-center justify-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1"
+                                        title="فتح الملف"
+                                      >
+                                        <ExternalLink size={24} />
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => openVideoModal({ ...q, type: 'Video' } as any)}
+                                        className="w-12 h-12 bg-white dark:bg-black border-2 border-black dark:border-white text-black dark:text-white hover:neo-bg-red hover:text-white rounded-xl transition-all font-black flex items-center justify-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1"
+                                        title="تشغيل الفيديو"
+                                      >
+                                        <Play size={24} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-center py-16 bg-white dark:bg-black neo-border space-y-4 neo-bg-pink"
+                    >
+                      <div className="w-16 h-16 bg-white border-2 border-black text-black rounded-xl flex items-center justify-center mx-auto shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
+                        <Award size={32} />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-2xl font-black text-black dark:text-white">لا توجد أسئلة لهذا المبحث الوزاري حالياً</h3>
+                        <p className="font-bold text-black/80 dark:text-white/80">سنعمل على رفد هذا القسم وتحديث أسئلته قريباً!</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </>
+              );
+            })()}
           </motion.div>
         ) : (
           <motion.div

@@ -1,60 +1,60 @@
-import { collection, query, where, getDocs, addDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 interface MaterialSeed {
   title: string;
   url: string;
-  type: 'VK';
+  type: 'VK' | 'Video';
   order_index: number;
 }
 
 const LECTURES: MaterialSeed[] = [
   {
-    title: "المحاضرة 1: أحكام التلاوة - أحكام لام ال التعريف",
-    url: "https://m.vkvideo.ru/video-230336496_456239081",
-    type: 'VK',
+    title: "أساسيات 1 الأستاذ ساجد العكيلي",
+    url: "https://geo.dailymotion.com/player.html?video=k7GmLdJPHyyfQTGcx34",
+    type: 'Video',
     order_index: 1
   },
   {
-    title: "المحاضرة 2: من القرآن الكريم - سورة البقرة (شرح آيات الحفظ والمناقشة)",
-    url: "https://m.vkvideo.ru/video-230336496_456239082",
-    type: 'VK',
+    title: "أساسيات 2 الأستاذ ساجد العكيلي",
+    url: "https://geo.dailymotion.com/player.html?video=k2bouBY9vwoqkSGcxys",
+    type: 'Video',
     order_index: 2
   },
   {
-    title: "المحاضرة 3: من الحديث الشريف - التعاون بين المسلمين ومحاسبة النفس",
-    url: "https://m.vkvideo.ru/video-230336496_456239083",
-    type: 'VK',
+    title: "أساسيات 3 الأستاذ ساجد العكيلي",
+    url: "https://geo.dailymotion.com/player.html?video=k4mVZ6P5HUIOiDGcy52",
+    type: 'Video',
     order_index: 3
   },
   {
-    title: "المحاضرة 4: من القصص - قصة أصحاب الكهف والعبر المستوحاة",
-    url: "https://m.vkvideo.ru/video-230336496_456239084",
-    type: 'VK',
+    title: "المحاضرة 1 الأستاذ ساجد العكيلي",
+    url: "https://geo.dailymotion.com/player.html?video=k79qUVGWaqVel4GdlVa",
+    type: 'Video',
     order_index: 4
   },
   {
-    title: "المحاضرة 5: من الأبحاث الاقتصادية - وظائف الدولة في الاقتصاد ومسؤوليتها",
-    url: "https://m.vkvideo.ru/video-230336496_456239085",
-    type: 'VK',
+    title: "المحاضرة 2 الأستاذ ساجد العكيلي",
+    url: "https://geo.dailymotion.com/player.html?video=k4xloCO8w9AqpUGdlVg",
+    type: 'Video',
     order_index: 5
   },
   {
-    title: "المحاضرة 6: من التهذيب - صفة الغضب أسبابه وعلاجه والأسئلة الوزارية",
-    url: "https://m.vkvideo.ru/video-230336496_456239086",
-    type: 'VK',
+    title: "المحاضرة 3 الأستاذ ساجد العكيلي",
+    url: "https://geo.dailymotion.com/player.html?video=k6rl908kHJjPoTGdlVe",
+    type: 'Video',
     order_index: 6
   },
   {
-    title: "المحاضرة 7: من التهذيب - صفة الكبر والنتائج السلبية للفرد والمجتمع",
-    url: "https://m.vkvideo.ru/video-230336496_456239087",
-    type: 'VK',
+    title: "المحاضرة 4 الأستاذ ساجد العكيلي",
+    url: "https://geo.dailymotion.com/player.html?video=kRl8BUOMCebL5UGdlVi",
+    type: 'Video',
     order_index: 7
   },
   {
-    title: "المحاضرة المتكاملة: قائمة تشغيل التربية الإسلامية - الأستاذ ساجد العكيلي",
-    url: "https://m.vkvideo.ru/playlist/-230336496_33",
-    type: 'VK',
+    title: "المحاضرة 5 الأستاذ ساجد العكيلي",
+    url: "https://geo.dailymotion.com/player.html?video=k3QZvTfyEYKXZqGdlVc",
+    type: 'Video',
     order_index: 8
   }
 ];
@@ -154,8 +154,24 @@ export async function seedIslamiaData() {
       console.log("[Islamia Seeder] Existing Teacher ID found:", teacherId);
     }
 
-    // 4. Seeding Lectures/Materials
+    // 3.5. Clean up legacy VK lectures for this teacher and chapter if any exist
     const materialsCol = collection(db, 'materials');
+    const oldMaterialsQuery = query(
+      materialsCol,
+      where('teacherId', '==', teacherId),
+      where('chapterId', '==', chapterId),
+      where('type', '==', 'VK')
+    );
+    const oldMaterialsSnap = await getDocs(oldMaterialsQuery);
+    if (!oldMaterialsSnap.empty) {
+      console.log(`[Islamia Seeder] Found ${oldMaterialsSnap.size} legacy VK materials to delete. Cleaning up...`);
+      for (const d of oldMaterialsSnap.docs) {
+        await deleteDoc(doc(db, 'materials', d.id));
+        console.log(`[Islamia Seeder] Deleted legacy material: "${d.data().title}"`);
+      }
+    }
+
+    // 4. Seeding Lectures/Materials
     
     for (const lecture of LECTURES) {
       const matQuery = query(

@@ -49,7 +49,62 @@ export default function HistoryModal({ isOpen, onClose, completedMaterialIds }: 
       // Sort to match the order of recentIds
       allMaterials.sort((a, b) => recentIds.indexOf(a.id) - recentIds.indexOf(b.id));
 
-      setMaterials(allMaterials);
+      // Fetch subjects, chapters, and teachers in parallel to resolve their names
+      const [subjectsSnap, chaptersSnap, teachersSnap] = await Promise.all([
+        getDocs(collection(db, 'subjects')),
+        getDocs(collection(db, 'chapters')),
+        getDocs(collection(db, 'teachers'))
+      ]);
+
+      const subjectsMap = new Map();
+      subjectsSnap.docs.forEach(doc => {
+        subjectsMap.set(doc.id, doc.data());
+      });
+
+      const chaptersMap = new Map();
+      chaptersSnap.docs.forEach(doc => {
+        chaptersMap.set(doc.id, doc.data());
+      });
+
+      const teachersMap = new Map();
+      teachersSnap.docs.forEach(doc => {
+        teachersMap.set(doc.id, doc.data());
+      });
+
+      const enrichedMaterials = allMaterials.map(m => {
+        let sName = 'مادة عامة';
+        if (m.subjectId) {
+          const sObj = subjectsMap.get(m.subjectId);
+          if (sObj) sName = sObj.name;
+        } else if (m.subjectIds && m.subjectIds.length > 0) {
+          const sObj = subjectsMap.get(m.subjectIds[0]);
+          if (sObj) sName = sObj.name;
+        }
+
+        let cName = 'غير محدد';
+        if (m.chapterId) {
+          const cObj = chaptersMap.get(m.chapterId);
+          if (cObj) cName = cObj.name;
+        } else if (m.chapterIds && m.chapterIds.length > 0) {
+          const cObj = chaptersMap.get(m.chapterIds[0]);
+          if (cObj) cName = cObj.name;
+        }
+
+        let tName = 'غير محدد';
+        if (m.teacherId) {
+          const tObj = teachersMap.get(m.teacherId);
+          if (tObj) tName = tObj.name;
+        }
+
+        return {
+          ...m,
+          subjectName: sName,
+          chapterName: cName,
+          teacherName: tName
+        };
+      });
+
+      setMaterials(enrichedMaterials);
     } catch (error) {
       console.error("Error fetching history:", error);
     } finally {
@@ -103,21 +158,38 @@ export default function HistoryModal({ isOpen, onClose, completedMaterialIds }: 
             ) : (
               <div className="space-y-4 relative z-10">
                 {materials.map((material) => (
-                  <div key={material.id} className="bg-white dark:bg-[#1a1a1a] p-4 rounded-xl border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] flex items-center justify-between gap-4 group">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div key={material.id} className="bg-white dark:bg-[#1a1a1a] p-5 rounded-xl border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] flex flex-col gap-4 group">
+                    <div className="flex items-start gap-4 w-full">
                       <div className={`w-12 h-12 shrink-0 rounded-xl border-2 border-black dark:border-white flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
-                        material.type === 'video' ? 'neo-bg-pink text-black' : 
-                        material.type === 'pdf' ? 'neo-bg-blue text-black' : 
+                        (material.type?.toLowerCase() === 'video' || material.type?.toLowerCase() === 'vk') ? 'neo-bg-pink text-black' : 
+                        material.type?.toLowerCase() === 'pdf' ? 'neo-bg-blue text-black' : 
                         'neo-bg-yellow text-black'
                       }`}>
-                        {material.type === 'video' ? <PlayCircle size={24} strokeWidth={2.5} /> : 
-                         material.type === 'pdf' ? <FileText size={24} strokeWidth={2.5} /> : 
+                        {(material.type?.toLowerCase() === 'video' || material.type?.toLowerCase() === 'vk') ? <PlayCircle size={24} strokeWidth={2.5} /> : 
+                         material.type?.toLowerCase() === 'pdf' ? <FileText size={24} strokeWidth={2.5} /> : 
                          <Link2 size={24} strokeWidth={2.5} />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-black text-black dark:text-white truncate text-base">{material.title}</h4>
-                        <p className="text-sm font-bold text-black/60 dark:text-white/60 truncate mt-1">
-                          {material.type === 'video' ? 'فيديو تعليمي' : material.type === 'pdf' ? 'ملف PDF' : 'رابط خارجي'}
+                        {/* Tags with details */}
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          <span className="text-[10px] sm:text-xs font-black bg-[#E0F2FE] text-[#0369A1] dark:bg-[#0369A1]/20 dark:text-[#7DD3FC] px-2 py-0.5 rounded border border-[#BAE6FD] dark:border-[#0369A1]/30">
+                            المادة: {material.subjectName}
+                          </span>
+                          <span className="text-[10px] sm:text-xs font-black bg-[#F3E8FF] text-[#7E22CE] dark:bg-[#7E22CE]/20 dark:text-[#C084FC] px-2 py-0.5 rounded border border-[#E9D5FF] dark:border-[#7E22CE]/30">
+                            الأستاذ: {material.teacherName}
+                          </span>
+                          <span className="text-[10px] sm:text-xs font-black bg-[#FEF3C7] text-[#D97706] dark:bg-[#D97706]/20 dark:text-[#FCD34D] px-2 py-0.5 rounded border border-[#FDE68A] dark:border-[#D97706]/30">
+                            الفصل: {material.chapterName}
+                          </span>
+                        </div>
+                        
+                        <h4 className="font-black text-black dark:text-white text-base leading-snug break-words">
+                          {material.title}
+                        </h4>
+                        
+                        <p className="text-xs font-bold text-black/50 dark:text-white/50 mt-1.5 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                          {(material.type?.toLowerCase() === 'video' || material.type?.toLowerCase() === 'vk') ? 'فيديو تعليمي' : material.type?.toLowerCase() === 'pdf' ? 'ملف PDF' : 'رابط خارجي'}
                         </p>
                       </div>
                     </div>

@@ -12,12 +12,14 @@ export default function ProfileSetup({ user, onComplete }: Props) {
   const [name, setName] = useState(user.displayName || '');
   const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
     setLoading(true);
+    setError(null);
     try {
       await setUserProfile(user.uid, {
         uid: user.uid,
@@ -31,8 +33,18 @@ export default function ProfileSetup({ user, onComplete }: Props) {
         streak: { count: 0, lastUpdate: '' }
       });
       onComplete(name.trim());
-    } catch (error) {
-      console.error('Error saving profile:', error);
+    } catch (err: any) {
+      console.error('Error saving profile:', err);
+      let errMsg = 'حدث خطأ أثناء حفظ الملف الشخصي. يرجى المحاولة مرة أخرى.';
+      if (err instanceof Error) {
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed.error) errMsg = `خطأ في قاعدة البيانات: ${parsed.error}`;
+        } catch {
+          errMsg = err.message;
+        }
+      }
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -106,8 +118,14 @@ export default function ProfileSetup({ user, onComplete }: Props) {
               </div>
             </div>
 
+            {error && (
+              <div className="p-4 bg-red-50 border-2 border-red-500 text-red-700 rounded-xl font-bold text-sm text-center shadow-md">
+                {error}
+              </div>
+            )}
+
             <button
-              type="submit"
+               type="submit"
               disabled={loading || !name.trim()}
               className="w-full py-4 neo-bg-teal border-2 border-black dark:border-white text-black rounded-xl font-black text-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-1 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,1)] active:translate-y-1 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 disabled:grayscale"
             >

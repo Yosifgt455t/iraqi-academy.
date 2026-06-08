@@ -20,6 +20,7 @@ interface Props {
   onOpenImageToPdf: () => void;
   onOpenTextToPdf: () => void;
   onOpenExamBuilder: () => void;
+  onOpenScheduleMaker?: () => void;
 }
 
 export default function ToolsModal({ 
@@ -29,7 +30,8 @@ export default function ToolsModal({
   onOpenTodo, 
   onOpenImageToPdf, 
   onOpenTextToPdf,
-  onOpenExamBuilder
+  onOpenExamBuilder,
+  onOpenScheduleMaker
 }: Props) {
   return (
     <AnimatePresence>
@@ -77,6 +79,23 @@ export default function ToolsModal({
                   <ChevronDown size={12} />
                 </motion.div>
               </motion.div>
+
+              <button
+                onClick={() => { onOpenScheduleMaker && onOpenScheduleMaker(); onClose(); }}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-yellow-50 hover:border-yellow-200 transition-all group"
+              >
+                <div className="w-12 h-12 bg-yellow-400 text-black rounded-xl flex items-center justify-center shadow-lg shadow-yellow-105">
+                  <Sparkles size={24} className="fill-current" />
+                </div>
+                <div className="flex-1 text-right">
+                  <div className="flex items-center gap-2 justify-end">
+                    <span className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">ذكي AI</span>
+                    <h3 className="font-bold text-slate-900">صانع الجدول الدراسي الذكي</h3>
+                  </div>
+                  <p className="text-xs text-slate-500">صمم وزرع حصصك الدراسية مع مدرسيك المفضلين</p>
+                </div>
+                <ChevronLeft size={18} className="text-slate-300 group-hover:text-yellow-600 group-hover:-translate-x-1 transition-all" />
+              </button>
 
               <button
                 onClick={() => { onOpenExamBuilder(); onClose(); }}
