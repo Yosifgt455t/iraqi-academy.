@@ -639,7 +639,7 @@ export default function ContentView({ chapter, userId, grade, teacher, initialMa
       <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 w-full h-[100dvh] flex flex-col md:flex-row animate-in fade-in transition-all overflow-hidden text-right" dir="rtl">
         {/* Main Content Area */}
         <div className="w-full flex-1 flex flex-col overflow-y-auto custom-scrollbar">
-          <div className="w-full bg-black relative aspect-video md:h-auto xl:h-[65vh] flex-shrink-0 sticky top-0 z-30 shadow-md md:shadow-none">
+          <div className="w-full bg-black relative aspect-video flex-shrink-0 sticky top-0 z-30 shadow-md md:shadow-none">
             <VideoPlayer
               material={selectedVideo}
               isPlaying={isModalPlaying && isPlayerReady}

@@ -1474,7 +1474,7 @@ ${text}`,
 
   return (
     <div
-      className="min-h-screen bg-slate-50 dark:bg-black font-sans selection:bg-yellow-300 selection:text-black"
+      className="min-h-screen bg-slate-50 dark:bg-black font-sans selection:bg-yellow-300 selection:text-black overflow-x-hidden w-full relative"
       dir="rtl"
     >
       {/* Mobile Header */}
