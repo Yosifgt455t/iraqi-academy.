@@ -71,7 +71,7 @@ interface Chapter {
 interface Material {
   id: string;
   title: string;
-  type: "Video" | "VK" | "PDF" | "Ministerial";
+  type: "Video" | "VK" | "PDF" | "Ministerial" | "CustomPlayer";
   url: string;
   chapterIds: string[];
   order_index?: number;
@@ -178,7 +178,7 @@ export default function AdminDashboard({ user, onBack }: AdminDashboardProps) {
 
   const [materialTitle, setMaterialTitle] = useState("");
   const [materialType, setMaterialType] = useState<
-    "Video" | "VK" | "PDF" | "Ministerial"
+    "Video" | "VK" | "PDF" | "Ministerial" | "CustomPlayer"
   >("Video");
   const [materialUrl, setMaterialUrl] = useState("");
   const [materialFile, setMaterialFile] = useState<File | null>(null);
@@ -3054,6 +3054,7 @@ ${getExcelConfig('exam_questions')?.cols.join(' | ')}
                                 >
                                   <option value="Video">فيديو (يوتيوب)</option>
                                   <option value="VK">فيديو (VK)</option>
+                                  <option value="CustomPlayer">مشغل خاص (سيرفر مباشر / MP4 / HLS) 🔮</option>
                                   <option value="PDF">ملف (PDF)</option>
                                 </select>
                               </div>
@@ -4470,15 +4471,25 @@ ${getExcelConfig('exam_questions')?.cols.join(' | ')}
                                 >
                                   <div className="flex items-center justify-between w-full">
                                     <div className="flex items-center gap-3">
-                                      {m.type === "Video" ? (
+                                      {m.type === "CustomPlayer" ? (
+                                        <Sparkles
+                                          size={18}
+                                          className="group-hover:text-white text-indigo-500 animate-pulse"
+                                        />
+                                      ) : m.type === "Video" ? (
                                         <Youtube
                                           size={18}
                                           className="group-hover:text-white text-red-500"
                                         />
+                                      ) : m.type === "VK" ? (
+                                        <Youtube
+                                          size={18}
+                                          className="group-hover:text-white text-blue-500"
+                                        />
                                       ) : (
                                         <FileText
                                           size={18}
-                                          className="group-hover:text-white text-blue-500"
+                                          className="group-hover:text-white text-purple-500"
                                         />
                                       )}
                                       <span className="font-bold">

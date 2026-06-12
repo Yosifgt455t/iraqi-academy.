@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Subject, Chapter, Teacher, Material } from '../types';
+import CustomVideoPlayer from './CustomVideoPlayer';
 
 interface Props {
   user: any;
@@ -75,7 +76,7 @@ interface StudyRoom {
   
   activeMaterialId?: string;
   activeMaterialTitle?: string;
-  activeMaterialType?: 'Video' | 'PDF' | 'VK' | 'Ministerial';
+  activeMaterialType?: 'Video' | 'PDF' | 'VK' | 'Ministerial' | 'CustomPlayer';
   activeMaterialUrl?: string;
   
   // Synchronized controls
@@ -730,7 +731,7 @@ export default function StudyWithFriend({ user, userProfile, onBack }: Props) {
       activeMaterialType: material.type,
       activeMaterialUrl: material.url,
 
-      videoPlaying: material.type === 'Video' || material.type === 'VK' ? true : false,
+      videoPlaying: material.type === 'Video' || material.type === 'VK' || material.type === 'CustomPlayer' ? true : false,
       pdfPage: 1,
 
       lastActionBy: user.id,
@@ -1324,10 +1325,19 @@ export default function StudyWithFriend({ user, userProfile, onBack }: Props) {
                    </div>
 
                    {/* Main viewports based on material type */}
-                   {activeRoom.activeMaterialType === 'Video' || activeRoom.activeMaterialType === 'VK' ? (
+                   {activeRoom.activeMaterialType === 'Video' || activeRoom.activeMaterialType === 'VK' || activeRoom.activeMaterialType === 'CustomPlayer' ? (
                      <div className="space-y-4">
                        <div className={`w-full bg-black relative rounded-2xl border-4 border-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 ${isCinemaMode ? 'aspect-[21/10] h-[55vh] md:h-[70vh]' : 'aspect-video'}`}>
                          {/* Embed Iframe for Shared Youtube or VK video */}
+                          {activeRoom.activeMaterialType === 'CustomPlayer' ? (
+                            <CustomVideoPlayer
+                              url={activeRoom.activeMaterialUrl || ''}
+                              title={activeRoom.activeMaterialTitle || ''}
+                              isPlaying={activeRoom.videoPlaying}
+                              onProgress={() => {}}
+                              onCompleted={() => {}}
+                            />
+                          ) : (
                          <iframe
                            src={
                              activeRoom.activeMaterialUrl?.includes('youtube.com') || activeRoom.activeMaterialUrl?.includes('youtu.be')
@@ -1340,6 +1350,7 @@ export default function StudyWithFriend({ user, userProfile, onBack }: Props) {
                            allow="autoplay; encrypted-media; picture-in-picture"
                            allowFullScreen
                          ></iframe>
+                          )}
 
                           {/* Overlay when lecture is PAUSED */}
                           {!activeRoom.videoPlaying && (
@@ -1502,7 +1513,7 @@ export default function StudyWithFriend({ user, userProfile, onBack }: Props) {
 
                       {/* Right: Direct Lecture Playback Sync / Actions status */}
                       <div className="flex items-center gap-3">
-                        {activeRoom.activeMaterialType === 'Video' || activeRoom.activeMaterialType === 'VK' ? (
+                        {activeRoom.activeMaterialType === 'Video' || activeRoom.activeMaterialType === 'VK' || activeRoom.activeMaterialType === 'CustomPlayer' ? (
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleTogglePlay(!activeRoom.videoPlaying)}

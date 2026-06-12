@@ -9,6 +9,7 @@ import { staticMinisterialQuestions, BIOLOGY_CHAPTER_1_ID, BIOLOGY_TOPICS } from
 
 import { motion, AnimatePresence } from 'motion/react';
 import ReactPlayer from 'react-player';
+import CustomVideoPlayer from './CustomVideoPlayer';
 
 const Player = ReactPlayer as any;
 
@@ -285,14 +286,15 @@ export default function ContentView({ chapter, userId, grade, teacher, initialMa
     const isYoutube = url.includes('youtube.com') || url.includes('youtu.be') || url.length === 11;
     const isVk = url.includes('vkvideo.ru') || url.includes('vk.com/');
     const isDailymotion = url.includes('dailymotion.com');
-    const isIframeVideo = isYoutube || isVk || isDailymotion;
+    const isCustomPlayer = material.type === 'CustomPlayer';
+    const isIframeVideo = (isYoutube || isVk || isDailymotion) && !isCustomPlayer;
 
-    // Trigger onReady for Youtube, Vk and Dailymotion since it's a raw iframe
+    // Trigger onReady for Youtube, Vk, Dailymotion and CustomPlayer since it handles itself
     useEffect(() => {
-      if (isIframeVideo && onReady) {
+      if ((isIframeVideo || isCustomPlayer) && onReady) {
         onReady();
       }
-    }, [isIframeVideo, onReady]);
+    }, [isIframeVideo, isCustomPlayer, onReady]);
 
     // Use a timer to mark as completed since we can't easily track progress in a raw iframe without postMessage
     useEffect(() => {
@@ -303,6 +305,18 @@ export default function ContentView({ chapter, userId, grade, teacher, initialMa
         return () => clearTimeout(timer);
       }
     }, [isPlaying, isIframeVideo, material.id]);
+
+    if (isCustomPlayer) {
+      return (
+        <CustomVideoPlayer
+          url={url}
+          title={material.title}
+          isPlaying={isPlaying}
+          onCompleted={() => markAsCompleted(material.id)}
+          onProgress={(percent) => handleVideoProgress(material.id, percent / 100)}
+        />
+      );
+    }
 
     if (isIframeVideo) {
       const finalSrc = isYoutube ? getYoutubeEmbedUrl(url) : (isVk ? getVkEmbedUrl(url) : url);
@@ -919,9 +933,11 @@ export default function ContentView({ chapter, userId, grade, teacher, initialMa
                   const filtered = filteredMaterials.filter(m => m.type !== 'Ministerial' && m.type !== 'PDF');
                   const youtubeVids = filtered.filter(m => m.type === 'Video' || !m.type || m.type === ('YouTube' as any));
                   const vkDocs = filtered.filter(m => m.type === 'VK');
+                  const customPlayerVids = filtered.filter(m => m.type === 'CustomPlayer');
 
                   const renderMaterial = (m: Material) => {
                     const isCompleted = completedIds.includes(m.id);
+                    const isCustom = m.type === 'CustomPlayer';
                     return (
                       <div key={m.id} className={`bg-white dark:bg-[#1a1a1a] flex flex-col relative overflow-hidden transition-all neo-border ${isCompleted ? 'opacity-80' : 'neo-hover'}`}>
                         <div className="p-4 sm:p-5 flex items-start sm:items-center gap-4 sm:gap-6 relative z-10 w-full">
@@ -934,15 +950,19 @@ export default function ContentView({ chapter, userId, grade, teacher, initialMa
                           >
                             <CheckCircle size={18} />
                           </button>
-                          <div className={`p-4 rounded-xl transition-colors flex-shrink-0 border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] neo-bg-pink text-black`}>
+                          <div className={`p-4 rounded-xl transition-colors flex-shrink-0 border-2 border-black dark:border-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fdfbf7] ${
+                            isCustom ? 'bg-indigo-600 dark:bg-purple-600 text-white animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'neo-bg-pink text-black'
+                          }`}>
                             <Play size={28} />
                           </div>
                           <div className="flex-1 min-w-0 pr-1">
                             <h4 className={`font-black text-lg line-clamp-2 ${isCompleted ? 'line-through text-slate-500' : 'text-black dark:text-white'}`}>
                               {m.title}
                             </h4>
-                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">{m.type === 'VK' ? 'محاضرة فيديو VK' : 'محاضرة فيديو يوتيوب'}</p>
-                            <div className="mt-3 w-full max-w-[200px] border-2 border-black dark:border-white bg-white dark:bg-black rounded-full h-3 overflow-hidden shadow-inner">
+                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">
+                              {isCustom ? '🔮 مشغل الأكاديمية الخاص (فائق السرعة)' : m.type === 'VK' ? 'محاضرة فيديو VK' : 'محاضرة فيديو يوتيوب'}
+                            </p>
+                            <div className="mt-3 w-full max-w-[200px] border-2 border-black dark:border-white bg-white dark:bg-black rounded-full h-3 overflow-hidden shadow-inner font-sans">
                               <div 
                                 className={`h-full border-l-2 border-black dark:border-white transition-all duration-300 ${isCompleted ? 'neo-bg-teal' : 'neo-bg-yellow'}`}
                                 style={{ width: `${isCompleted ? 100 : Math.min(100, Math.max(0, videoProgress[m.id] || 0))}%` }}
@@ -991,9 +1011,18 @@ export default function ContentView({ chapter, userId, grade, teacher, initialMa
 
                   return (
                     <div className="space-y-8">
+                      {customPlayerVids.length > 0 && (
+                        <div className="space-y-4">
+                          <h3 className="text-xl font-black border-r-4 border-indigo-500 pr-3 text-indigo-600 dark:text-indigo-400">محاضرات المشغل الخاص (فائقة السرعة) 🔮</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {customPlayerVids.map(renderMaterial)}
+                          </div>
+                        </div>
+                      )}
+
                       {youtubeVids.length > 0 && (
                         <div className="space-y-4">
-                          <h3 className="text-xl font-black border-r-4 border-red-500 pr-3">فيديوهات اليوتيوب</h3>
+                          <h3 className="text-xl font-black border-r-4 border-red-500 pr-3 text-red-600 dark:text-red-400">فيديوهات اليوتيوب</h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {youtubeVids.map(renderMaterial)}
                           </div>
@@ -1002,7 +1031,7 @@ export default function ContentView({ chapter, userId, grade, teacher, initialMa
                       
                       {vkDocs.length > 0 && (
                         <div className="space-y-4">
-                          <h3 className="text-xl font-black border-r-4 border-blue-500 pr-3">فيديوهات منصة VK</h3>
+                          <h3 className="text-xl font-black border-r-4 border-blue-500 pr-3 text-blue-600 dark:text-blue-400">فيديوهات منصة VK</h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {vkDocs.map(renderMaterial)}
                           </div>
