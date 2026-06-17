@@ -8,12 +8,10 @@ import {
   VolumeX, 
   Maximize, 
   Minimize, 
-  FastForward, 
   Settings, 
   Sparkles,
   Check,
-  CheckCircle2,
-  Clock
+  CheckCircle2
 } from 'lucide-react';
 
 interface CustomVideoPlayerProps {
@@ -33,6 +31,7 @@ export default function CustomVideoPlayer({
 }: CustomVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const playerjsInstanceRef = useRef<any>(null);
 
   const [playing, setPlaying] = useState(isPlaying);
   const [currentTime, setCurrentTime] = useState(0);
@@ -44,9 +43,130 @@ export default function CustomVideoPlayer({
   const [showControls, setShowControls] = useState(true);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [hasCompletedTriggered, setHasCompletedTriggered] = useState(false);
+  const [playerjsLoaded, setPlayerjsLoaded] = useState(false);
 
+  // 1. Dynamic Script Loader for Playerjs.com
+  useEffect(() => {
+    // Check if Playerjs already exists globally
+    if ((window as any).Playerjs) {
+      setPlayerjsLoaded(true);
+      return;
+    }
+
+    // Attempt to load player.js from public folder or custom source
+    const script = document.createElement('script');
+    script.src = '/player.js';
+    script.async = true;
+    script.onload = () => {
+      if ((window as any).Playerjs) {
+        setPlayerjsLoaded(true);
+      }
+    };
+    script.onerror = () => {
+      // If /player.js falls back or is not uploaded, we'll try /playerjs.js
+      const fallbackScript = document.createElement('script');
+      fallbackScript.src = '/playerjs.js';
+      fallbackScript.async = true;
+      fallbackScript.onload = () => {
+        if ((window as any).Playerjs) {
+          setPlayerjsLoaded(true);
+        }
+      };
+      fallbackScript.onerror = () => {
+        console.log("PlayerJS script not loaded. Gracefully falling back to default HTML5 system player.");
+      };
+      document.body.appendChild(fallbackScript);
+    };
+
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
+
+  // 2. Initializing PlayerJS when script is ready
+  useEffect(() => {
+    if (!playerjsLoaded || !(window as any).Playerjs) return;
+
+    const container = document.getElementById('playerjs-container');
+    if (!container) return;
+
+    // Destroy existing instance if any
+    if (playerjsInstanceRef.current) {
+      try {
+        playerjsInstanceRef.current.destroy();
+      } catch (e) {}
+      playerjsInstanceRef.current = null;
+    }
+
+    // Create a unique callback name or standard listener for events
+    const playerInstance = new (window as any).Playerjs({
+      id: "playerjs-container",
+      file: url,
+      autoplay: isPlaying ? 1 : 0
+    });
+
+    playerjsInstanceRef.current = playerInstance;
+
+    // Define Playerjs events listener
+    const handlePlayerjsEvents = (event: string, id: string, data: any) => {
+      if (id !== "playerjs-container") return;
+
+      switch (event) {
+        case "play":
+          setPlaying(true);
+          break;
+        case "pause":
+          setPlaying(false);
+          break;
+        case "time": {
+          const t = parseFloat(data);
+          if (!isNaN(t)) setCurrentTime(t);
+          break;
+        }
+        case "duration": {
+          const d = parseFloat(data);
+          if (!isNaN(d)) setDuration(d);
+          break;
+        }
+        default:
+          break;
+      }
+    };
+
+    // Register globally for the custom player engine to dispatch events
+    (window as any).PlayerjsEvents = handlePlayerjsEvents;
+
+    // Sync playing status to playerjs if isPlaying changes
+    return () => {
+      if (playerInstance) {
+        try {
+          playerInstance.api("stop");
+        } catch (e) {}
+      }
+    };
+  }, [playerjsLoaded, url]);
+
+  // Sync isPlaying with PlayerJS instance
+  useEffect(() => {
+    if (playerjsInstanceRef.current) {
+      try {
+        if (isPlaying) {
+          playerjsInstanceRef.current.api("play");
+        } else {
+          playerjsInstanceRef.current.api("pause");
+        }
+      } catch (e) {}
+    }
+  }, [isPlaying, playerjsLoaded]);
+
+  // 3. Fallback Mode (HTML5 Video Controls)
   // Sync isPlaying from Parent
   useEffect(() => {
+    if (playerjsLoaded) return;
     setPlaying(isPlaying);
     if (videoRef.current) {
       if (isPlaying) {
@@ -55,10 +175,11 @@ export default function CustomVideoPlayer({
         videoRef.current.pause();
       }
     }
-  }, [isPlaying]);
+  }, [isPlaying, playerjsLoaded]);
 
   // Handle Play/Pause change
   useEffect(() => {
+    if (playerjsLoaded) return;
     if (videoRef.current) {
       if (playing) {
         videoRef.current.play().catch(() => {});
@@ -66,10 +187,11 @@ export default function CustomVideoPlayer({
         videoRef.current.pause();
       }
     }
-  }, [playing]);
+  }, [playing, playerjsLoaded]);
 
   // Auto hide controls when playing
   useEffect(() => {
+    if (playerjsLoaded) return;
     let timeoutId: NodeJS.Timeout;
     if (playing && showControls) {
       timeoutId = setTimeout(() => {
@@ -77,15 +199,47 @@ export default function CustomVideoPlayer({
       }, 3500);
     }
     return () => clearTimeout(timeoutId);
-  }, [playing, showControls]);
+  }, [playing, showControls, playerjsLoaded]);
+
+  // 4. Unified Lesson Completion and progress tracker
+  useEffect(() => {
+    if (duration > 0) {
+      const progressPercent = (currentTime / duration) * 100;
+      if (onProgress) {
+        onProgress(progressPercent);
+      }
+
+      // Automatically mark as complete at 85% computed watch time
+      if (progressPercent > 85 && !hasCompletedTriggered) {
+        setHasCompletedTriggered(true);
+        if (onCompleted) {
+          onCompleted();
+        }
+      }
+    }
+  }, [currentTime, duration, hasCompletedTriggered, onCompleted, onProgress]);
 
   const togglePlay = () => {
-    setPlaying(!playing);
-    setShowControls(true);
+    if (playerjsInstanceRef.current) {
+      try {
+        if (playing) {
+          playerjsInstanceRef.current.api("pause");
+        } else {
+          playerjsInstanceRef.current.api("play");
+        }
+      } catch (e) {}
+    } else {
+      setPlaying(!playing);
+      setShowControls(true);
+    }
   };
 
   const skip = (seconds: number) => {
-    if (videoRef.current) {
+    if (playerjsInstanceRef.current) {
+      try {
+        playerjsInstanceRef.current.api("seek", currentTime + seconds);
+      } catch (e) {}
+    } else if (videoRef.current) {
       videoRef.current.currentTime = Math.min(
         videoRef.current.duration || 0,
         Math.max(0, videoRef.current.currentTime + seconds)
@@ -96,22 +250,7 @@ export default function CustomVideoPlayer({
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      const current = videoRef.current.currentTime;
-      setCurrentTime(current);
-      const total = videoRef.current.duration || 0;
-      
-      const progressPercent = total > 0 ? (current / total) * 100 : 0;
-      if (onProgress) {
-        onProgress(progressPercent);
-      }
-
-      // If user watched more than 85% of the video, mark as complete automatically
-      if (progressPercent > 85 && !hasCompletedTriggered) {
-        setHasCompletedTriggered(true);
-        if (onCompleted) {
-          onCompleted();
-        }
-      }
+      setCurrentTime(videoRef.current.currentTime);
     }
   };
 
@@ -122,9 +261,13 @@ export default function CustomVideoPlayer({
   };
 
   const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (videoRef.current) {
-      const value = parseFloat(e.target.value);
-      const newTime = (value / 100) * duration;
+    const value = parseFloat(e.target.value);
+    const newTime = (value / 100) * duration;
+    if (playerjsInstanceRef.current) {
+      try {
+        playerjsInstanceRef.current.api("seek", newTime);
+      } catch (e) {}
+    } else if (videoRef.current) {
       videoRef.current.currentTime = newTime;
       setCurrentTime(newTime);
       setShowControls(true);
@@ -135,7 +278,11 @@ export default function CustomVideoPlayer({
     const value = parseFloat(e.target.value);
     setVolume(value);
     setMuted(value === 0);
-    if (videoRef.current) {
+    if (playerjsInstanceRef.current) {
+      try {
+        playerjsInstanceRef.current.api("volume", value);
+      } catch (e) {}
+    } else if (videoRef.current) {
       videoRef.current.volume = value;
       videoRef.current.muted = value === 0;
     }
@@ -144,7 +291,11 @@ export default function CustomVideoPlayer({
   const toggleMute = () => {
     const nextMuted = !muted;
     setMuted(nextMuted);
-    if (videoRef.current) {
+    if (playerjsInstanceRef.current) {
+      try {
+        playerjsInstanceRef.current.api("mute", nextMuted ? 1 : 0);
+      } catch (e) {}
+    } else if (videoRef.current) {
       videoRef.current.muted = nextMuted;
       videoRef.current.volume = nextMuted ? 0 : volume;
     }
@@ -152,7 +303,11 @@ export default function CustomVideoPlayer({
 
   const handleSpeedChange = (speed: number) => {
     setPlaybackRate(speed);
-    if (videoRef.current) {
+    if (playerjsInstanceRef.current) {
+      try {
+        playerjsInstanceRef.current.api("speed", speed);
+      } catch (e) {}
+    } else if (videoRef.current) {
       videoRef.current.playbackRate = speed;
     }
     setShowSpeedMenu(false);
@@ -200,7 +355,6 @@ export default function CustomVideoPlayer({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only capture if container is focused or active
       if (!containerRef.current || !document.activeElement || !containerRef.current.contains(document.activeElement)) {
         return;
       }
@@ -239,7 +393,21 @@ export default function CustomVideoPlayer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [playing, volume, isFullscreen]);
+  }, [playing, volume, isFullscreen, playerjsLoaded]);
+
+  // Render Section
+  if (playerjsLoaded) {
+    return (
+      <div 
+        ref={containerRef}
+        tabIndex={0}
+        className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden outline-none font-sans rounded-2xl"
+        dir="ltr"
+      >
+        <div id="playerjs-container" className="w-full h-full rounded-2xl" />
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -247,7 +415,7 @@ export default function CustomVideoPlayer({
       tabIndex={0}
       onMouseMove={() => setShowControls(true)}
       onMouseLeave={() => playing && setShowControls(false)}
-      className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden outline-none group select-none font-sans"
+      className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden outline-none group select-none font-sans rounded-2xl border border-white/10"
       dir="ltr"
     >
       {/* Video Element */}
@@ -275,7 +443,7 @@ export default function CustomVideoPlayer({
             e.stopPropagation();
             togglePlay();
           }}
-          className="w-16 h-16 flex items-center justify-center bg-yellow-400 text-black rounded-full border-4 border-black hover:scale-110 active:scale-95 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+          className="w-16 h-16 flex items-center justify-center bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-full border border-white/20 hover:scale-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(79,70,229,0.5)] cursor-pointer"
         >
           {playing ? <Pause size={28} fill="currentColor" /> : <Play size={28} className="translate-x-0.5" fill="currentColor" />}
         </button>
@@ -289,17 +457,17 @@ export default function CustomVideoPlayer({
         dir="rtl"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-600 text-white border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+          <div className="p-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white border border-white/10 rounded-lg shadow-lg">
             <Sparkles size={16} />
           </div>
           <div>
-            <span className="text-white font-black text-sm block sm:text-base">{title}</span>
-            <span className="text-indigo-300 text-xs font-bold block">مشغل أكاديمية العراق الذكي • Smart Player 🔮</span>
+            <span className="text-white font-semibold text-sm block sm:text-base">{title}</span>
+            <span className="text-indigo-300 text-xs font-semibold block">مشغل أكاديمية العراق الذكي • Smart Player 🔮</span>
           </div>
         </div>
 
         {hasCompletedTriggered && (
-          <div className="flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-black border-2 border-black px-2.5 py-1.5 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+          <div className="flex items-center gap-1.5 bg-emerald-500/90 text-white text-xs font-bold border border-emerald-400 px-2.5 py-1.5 rounded-lg shadow-lg">
             <CheckCircle2 size={14} className="animate-bounce" />
             <span>محسوبة كمكتملة</span>
           </div>
@@ -315,7 +483,7 @@ export default function CustomVideoPlayer({
       >
         {/* Progress scrub bar */}
         <div className="w-full flex items-center gap-3">
-          <span className="text-slate-300 text-xs font-black select-none w-10 text-center">
+          <span className="text-slate-300 text-xs font-semibold select-none w-10 text-center">
             {formatTime(currentTime)}
           </span>
           
@@ -326,14 +494,14 @@ export default function CustomVideoPlayer({
               max="100"
               value={duration > 0 ? (currentTime / duration) * 100 : 0}
               onChange={handleProgressChange}
-              className="w-full h-1.5 rounded-lg bg-slate-700/80 outline-none appearance-none cursor-pointer accent-yellow-400 group-hover/progress:h-2 transition-all"
+              className="w-full h-1.5 rounded-lg bg-slate-700/85 outline-none appearance-none cursor-pointer accent-violet-500 group-hover/progress:h-2 transition-all"
               style={{
-                background: `linear-gradient(to right, #facc15 0%, #facc15 ${duration > 0 ? (currentTime / duration) * 100 : 0}%, rgba(51, 65, 85, 0.8) ${duration > 0 ? (currentTime / duration) * 100 : 0}%, rgba(51, 65, 85, 0.8) 100%)`
+                background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${duration > 0 ? (currentTime / duration) * 100 : 0}%, rgba(51, 65, 85, 0.8) ${duration > 0 ? (currentTime / duration) * 100 : 0}%, rgba(51, 65, 85, 0.8) 100%)`
               }}
             />
           </div>
 
-          <span className="text-slate-300 text-xs font-black select-none w-10 text-center">
+          <span className="text-slate-300 text-xs font-semibold select-none w-10 text-center">
             {formatTime(duration)}
           </span>
         </div>
@@ -344,7 +512,7 @@ export default function CustomVideoPlayer({
             {/* Play/Pause icon */}
             <button 
               onClick={togglePlay}
-              className="p-1.5 text-white hover:text-yellow-400 active:scale-90 transition-transform"
+              className="p-1.5 text-white hover:text-indigo-400 active:scale-90 transition-transform cursor-pointer"
               title={playing ? "إيقاف مؤقت" : "تشغيل"}
             >
               {playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
@@ -353,28 +521,28 @@ export default function CustomVideoPlayer({
             {/* Skip 10s back */}
             <button 
               onClick={() => skip(-10)}
-              className="p-1.5 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center relative"
+              className="p-1.5 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center relative cursor-pointer"
               title="رجوع 10 ثواني"
             >
               <RotateCcw size={18} />
-              <span className="text-[9px] font-black absolute" style={{ bottom: '-2px' }}>10</span>
+              <span className="text-[9px] font-bold absolute" style={{ bottom: '-2px' }}>10</span>
             </button>
 
             {/* Skip 10s forward */}
             <button 
               onClick={() => skip(10)}
-              className="p-1.5 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center relative"
+              className="p-1.5 text-slate-300 hover:text-white active:scale-95 transition-transform flex items-center justify-center relative cursor-pointer"
               title="تقدم 10 ثواني"
             >
               <RotateCw size={18} />
-              <span className="text-[9px] font-black absolute" style={{ bottom: '-2px' }}>10</span>
+              <span className="text-[9px] font-bold absolute" style={{ bottom: '-2px' }}>10</span>
             </button>
 
             {/* Volume section */}
             <div className="flex items-center gap-1 group/volume">
               <button 
                 onClick={toggleMute}
-                className="p-1.5 text-slate-300 hover:text-white transition-colors"
+                className="p-1.5 text-slate-300 hover:text-white transition-colors cursor-pointer"
                 title={muted ? "إلغاء كتم الصوت" : "كتم الصوت"}
               >
                 {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
@@ -396,7 +564,7 @@ export default function CustomVideoPlayer({
             <div className="relative">
               <button 
                 onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                className="px-2.5 py-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg text-xs font-black flex items-center gap-1 transition-all"
+                className="px-2.5 py-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
                 title="سرعة التشغيل"
               >
                 <span>{playbackRate}x</span>
@@ -404,15 +572,15 @@ export default function CustomVideoPlayer({
               </button>
 
               {showSpeedMenu && (
-                <div className="absolute bottom-full right-0 mb-2 bg-neutral-900 border-2 border-black rounded-xl p-1.5 flex flex-col gap-1 w-24 text-right shadow-2xl z-50">
-                  <span className="text-[10px] text-zinc-400 font-black px-2 pb-1.5 border-b border-zinc-800 text-center select-none block">سرعة الفيديو</span>
+                <div className="absolute bottom-full right-0 mb-2 bg-neutral-900 border border-white/10 rounded-xl p-1.5 flex flex-col gap-1 w-24 text-right shadow-2xl z-50">
+                  <span className="text-[10px] text-zinc-400 font-semibold px-2 pb-1.5 border-b border-white/5 text-center select-none block">سرعة الفيديو</span>
                   {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((speed) => (
                     <button
                       key={speed}
                       onClick={() => handleSpeedChange(speed)}
-                      className={`text-xs px-2 py-1.5 rounded-lg text-left font-black transition-colors flex items-center justify-between w-full ${
+                      className={`text-xs px-2 py-1.5 rounded-lg font-bold transition-colors flex items-center justify-between w-full cursor-pointer ${
                         playbackRate === speed 
-                          ? 'bg-yellow-400 text-black font-black' 
+                          ? 'bg-indigo-505 bg-indigo-600 text-white font-semibold' 
                           : 'text-zinc-200 hover:bg-white/10'
                       }`}
                     >
@@ -427,7 +595,7 @@ export default function CustomVideoPlayer({
             {/* Fullscreen control */}
             <button 
               onClick={toggleFullscreen}
-              className="p-1.5 text-slate-300 hover:text-white"
+              className="p-1.5 text-slate-300 hover:text-white cursor-pointer"
               title={isFullscreen ? "الخروج من ملء الشاشة" : "ملء الشاشة"}
             >
               {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}

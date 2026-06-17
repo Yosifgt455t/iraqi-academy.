@@ -70,6 +70,7 @@ import ActivitiesMenu from './ActivitiesMenu';
 import SmartAssistantView from './SmartAssistantView';
 import TeacherDashboard from './TeacherDashboard';
 import StudyWithFriend from './StudyWithFriend';
+import BottomNavigation from './BottomNavigation';
 
 import { useClasses } from '../hooks/useClasses';
 
@@ -517,6 +518,31 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
     setCurrentTeacher(null);
     setCurrentChapter(null);
     setSelectedScheduleMaterialId(null);
+  };
+
+  const handleTabSelect = (selectedView: 'home' | 'smart_assistant' | 'community' | 'activities' | 'lectures_root') => {
+    if (selectedView === 'lectures_root') {
+      setView('home');
+      // If we are already on home and deep in a subject, reset it. Otherwise, if of another view, reset too.
+      setCurrentSubject(null);
+      setCurrentTeacher(null);
+      setCurrentChapter(null);
+      setSelectedScheduleMaterialId(null);
+      // Smooth scroll to the main subjects list
+      setTimeout(() => {
+        window.scrollTo({ top: document.body.scrollHeight / 3, behavior: 'smooth' });
+      }, 100);
+    } else if (selectedView === 'home') {
+      setView('home');
+      setCurrentSubject(null);
+      setCurrentTeacher(null);
+      setCurrentChapter(null);
+      setSelectedScheduleMaterialId(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setView(selectedView);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   if (view === 'todo') {
@@ -1099,7 +1125,7 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 pt-8 pb-32">
         {view === 'admin' ? (
           <AdminDashboard user={user} onBack={() => setView('home')} />
         ) : view === 'activities' ? (
@@ -1662,6 +1688,13 @@ export default function Dashboard({ user, grade, isAdmin: isAdminProp, onChangeG
           </motion.div>
         </div>
       )}
+
+      {/* Mobile Bottom Tab Navigation */}
+      <BottomNavigation
+        currentView={view}
+        isLectureActive={!!currentSubject}
+        onTabSelect={handleTabSelect}
+      />
     </div>
   );
 }

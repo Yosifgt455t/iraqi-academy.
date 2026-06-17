@@ -6,6 +6,7 @@ import Auth from './components/Auth';
 import ProfileSetup from './components/ProfileSetup';
 import GradeSelector from './components/GradeSelector';
 import Dashboard from './components/Dashboard';
+import ThemeSwitcher from './components/ThemeSwitcher';
 import { Loader2, Wrench, Instagram } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -188,6 +189,9 @@ export default function App() {
       <div className="flex-1">
         {renderContent()}
       </div>
+      
+      {/* Dynamic Theme Switcher Widget */}
+      <ThemeSwitcher />
       
       {/* Global Footer */}
       <footer className="py-4 px-4 text-center border-t-4 border-black dark:border-white bg-[#FFB5A7] neo-border-t" dir="rtl">
